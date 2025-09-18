@@ -1,0 +1,6 @@
+
+addSubmodules(project, ['core-api'])
+
+dependencies {
+    include(implementation "org.snakeyaml:snakeyaml-engine:2.9")
+}

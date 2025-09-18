@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = 'Fabric'
+            url  = 'https://maven.fabricmc.net/'
+        }
+
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'novia'
+
+include "core-api"
+include "yaml-api"
+include "gui-api"
+include "config-api"
+include "test-mod"

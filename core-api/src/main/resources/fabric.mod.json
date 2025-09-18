@@ -1,0 +1,33 @@
+{
+    "schemaVersion": 1,
+    "id": "${mod_id}",
+    "version": "${version}",
+    "name": "${mod_name}",
+    "description": "Core module for Novia.",
+    "authors": [ "LumiaLights" ],
+    "contact": {
+        "homepage": "https://lumialights.xyz/",
+        "sources": "https://github.com/LumiaLights/Novia",
+        "issues": "https://github.com/LumiaLights/Novia/issues"
+    },
+    "license": "MIT",
+    "icon": "assets/${mod_id}/icon.png",
+    "environment": "*",
+    "entrypoints": {
+        "main": [ "xyz.lumialights.novia.api.core.Novia" ],
+        "client": [ "xyz.lumialights.novia.api.core.client.NoviaClientHandler" ],
+        "server": [ "xyz.lumialights.novia.api.core.server.NoviaServerHandler" ]
+    },
+    "mixins": [
+        "${mod_id}.mixins.json",
+        {
+            "config": "${mod_id}.client.mixins.json",
+            "environment": "client"
+        }
+    ],
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "java": "${java_version}",
+        "minecraft": ">=${minecraft_version}"
+    }
+}

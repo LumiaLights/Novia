@@ -1,0 +1,101 @@
+{
+    "title": { "text": "Test Config" },
+    "tabs": [
+        {
+            "title": { "text": "General" },
+            "entries": [
+                {
+                    "type": "group",
+                    "title": { "text": "Primitives" },
+                    
+                    "properties": [
+                        "novia-test-mod:widget-test-config#/primitives/string",
+                        "novia-test-mod:widget-test-config#/primitives/number",
+                        "novia-test-mod:widget-test-config#/primitives/bool",
+                        {
+                            "property": "novia-test-mod:widget-test-config#/primitives/bool2",
+                            
+                            "style": {
+                                "variant": "button",
+                                "labels": [
+                                    {
+                                        "value": true,
+                                        "label": "Based"
+                                    },
+                                    {
+                                        "value": false,
+                                        "label": "Cap"
+                                    }
+                                ]
+                            }
+                        },
+                        "novia-test-mod:widget-test-config#/primitives/bool3",
+                        "novia-test-mod:widget-test-config#/primitives/nil",
+                        "novia-test-mod:widget-test-config#/primitives/list",
+                        "novia-test-mod:widget-test-config#/primitives/map"
+                    ]
+                },
+                {
+                    "type": "group",
+                    "title": { "text": "Advanced" },
+                    
+                    "properties": [
+                        {
+                            "property": "novia-test-mod:widget-test-config#/advanced/intRange",
+                            
+                            "style": {
+                                "places": -1
+                            }
+                        },
+                        "novia-test-mod:widget-test-config#/advanced/constant"
+                    ]
+                }
+            ]
+        },
+        {
+          "title": { "text": "Category 2" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 3" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 4" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 5" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ],
+          "colour": "purple"
+        },
+        {
+          "title": { "text": "Category 6" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 7" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 8" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 9" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 10" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 11" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        },
+        {
+          "title": { "text": "Category 12" },
+          "entries": [ "novia-test-mod:widget-test-config#/primitives/string" ]
+        }
+    ]
+}

@@ -1,0 +1,27 @@
+{
+    "schemaVersion": 1,
+    "id": "novia",
+    "provides": [ "novia" ],
+    "version": "${version}",
+    "name": "Novia",
+    "description": "The Novia module bundle.",
+    "authors": [ "LumiaLights" ],
+    "contact": {
+        "homepage": "https://lumialights.xyz/",
+        "sources": "https://github.com/LumiaLights/Novia",
+        "issues": "https://github.com/LumiaLights/Novia/issues"
+    },
+    "license": "MIT",
+    "icon": "assets/novia/icon.png",
+    "environment": "*",
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "java": "21",
+        "minecraft": ">=${minecraft_version}"
+    },
+    "custom": {
+        "modmenu": {
+            "badges": [ "library" ]
+        }
+    }
+}

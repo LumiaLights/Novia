@@ -1,0 +1,5 @@
+{
+  "config.novia.category.general": "General",
+  "config.novia.group.root": "Uncategorised",
+  "gui.novia.slider.value.text": "Value: %s"
+}

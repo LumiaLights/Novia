@@ -1,0 +1,12 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "xyz.lumialights.novia.test.mod.mixin.client",
+    "compatibilityLevel": "JAVA_21",
+    "client": [
+        "MainMenuMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

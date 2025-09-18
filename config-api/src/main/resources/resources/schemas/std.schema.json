@@ -1,0 +1,31 @@
+[
+    {
+        "tag": "identifier",
+        "pattern": "^([a-z0-9.\\-_]+:)?[a-z0-9.\\-_/]+$"
+    },
+    {
+        "tag": "tag",
+        "pattern": "^#([a-z0-9.\\-_]+:)?[a-z0-9.\\-_/]+$"
+    },
+    {
+        "tag": "tag_or_identifier",
+        "pattern": "^#?([a-z0-9.\\-_]+:)?[a-z0-9.\\-_/]+$"
+    },
+    {
+        "tag": "colour",
+        
+        "enum": [
+            "black", "dark_blue", "dark_green", "dark_aqua", "dark_red", "dark_purple", "gold", "gray",
+            "dark_gray", "blue", "green", "aqua", "red", "light_purple", "yellow", "white"
+        ],
+        "ignoreCase": true
+    },
+    {
+        "tag": "hex_colour",
+        "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+    },
+    {
+        "tag": "uuid",
+        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$"
+    }
+]

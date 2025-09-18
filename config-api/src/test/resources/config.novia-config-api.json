@@ -1,0 +1,16 @@
+{
+    "schema": [
+        {
+            "pointer": "/exact/property"
+        },
+        {
+            "pointer": "/exact/another/property"
+        },
+        {
+            "wildcardPointer": "/*/property"
+        },
+        {
+            "patternPointer": "^/pattern/[^/]+/test$"
+        }
+    ]
+}

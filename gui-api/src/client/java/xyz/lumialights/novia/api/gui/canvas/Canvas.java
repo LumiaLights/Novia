@@ -1,0 +1,1449 @@
+/**
+           .-----------------. .----------------.  .----------------.  .----------------.  .----------------.
+          | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |
+          | | ____  _____  | || |     ____     | || | ____   ____  | || |     _____    | || |      __      | |
+          | ||_   \|_   _| | || |   .'    `.   | || ||_  _| |_  _| | || |    |_   _|   | || |     /  \     | |
+          | |  |   \ | |   | || |  /  .--.  \  | || |  \ \   / /   | || |      | |     | || |    / /\ \    | |
+          | |  | |\ \| |   | || |  | |    | |  | || |   \ \ / /    | || |      | |     | || |   / ____ \   | |
+          | | _| |_\   |_  | || |  \  `--'  /  | || |    \ ' /     | || |     _| |_    | || | _/ /    \ \_ | |
+          | ||_____|\____| | || |   `.____.'   | || |     \_/      | || |    |_____|   | || ||____|  |____|| |
+          | |              | || |              | || |              | || |              | || |              | |
+          | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
+           '----------------'  '----------------'  '----------------'  '----------------'  '----------------'
+
+    MIT License
+
+    Copyright (c) 2025 LumiaLights
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+ */
+package xyz.lumialights.novia.api.gui.canvas;
+
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.ScreenRect;
+import net.minecraft.client.gui.render.state.*;
+import net.minecraft.client.gui.render.state.special.SpecialGuiElementRenderState;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.texture.GuiAtlasManager;
+import net.minecraft.client.texture.Scaling;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.texture.TextureSetup;
+import net.minecraft.text.*;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.Language;
+import net.minecraft.util.Util;
+import net.minecraft.util.math.ColorHelper;
+import net.minecraft.util.math.MathHelper;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3x2f;
+import xyz.lumialights.novia.api.core.util.Colour;
+import xyz.lumialights.novia.api.gui.canvas.brush.gradient.Gradient;
+import xyz.lumialights.novia.api.gui.canvas.brush.IBrush;
+import xyz.lumialights.novia.api.gui.canvas.brush.GradientBrush;
+import xyz.lumialights.novia.api.gui.canvas.brush.SolidBrush;
+import xyz.lumialights.novia.api.gui.component.GuiComponent;
+import xyz.lumialights.novia.api.gui.component.GuiComponentAttorney;
+import xyz.lumialights.novia.api.gui.component.GuiScreen;
+import xyz.lumialights.novia.api.gui.component.ScreenLayer;
+import xyz.lumialights.novia.api.gui.font.GlyphBank;
+import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.geometry.Alignment;
+import xyz.lumialights.novia.api.gui.geometry.Point;
+import xyz.lumialights.novia.api.gui.geometry.Rectangle;
+import xyz.lumialights.novia.api.gui.impl.GuiRenderStateAccessor;
+import xyz.lumialights.novia.api.gui.impl.RotatingCubeMapRendererExtension;
+
+import java.util.*;
+import java.util.function.Function;
+
+
+
+//**********************************************************************************************************************
+/**
+ * The canvas represents a higher level wrapper around {@link DrawContext} that abstracts away some lower level
+ * Minecraft drawing details.
+ * <p>
+ * For each component that gets passed an instance of this class, an internal “component frame” gets pushed onto the
+ * frame buffer (not to be confused with video frame buffers), which represent the current portion on the screen the
+ * component is drawing to on the screen. Each frame provides data about the component's current drawing pass, such as
+ * its opacity, activity, location, style and its associated {@link IBrush} that is used to define how each of the
+ * provided drawing calls are rendered.
+ */
+public final class Canvas
+{
+    //******************************************************************************************************************
+    private static class State
+    {
+        //**************************************************************************************************************
+        public final AffineTransform transform;
+        
+        public IBrush    brush;
+        public GuiFont   font;
+        public Rectangle clipRect;
+        
+        //**************************************************************************************************************
+        public State(final @NotNull Rectangle       clipRect,
+                     final @NotNull IBrush          brush,
+                     final @NotNull GuiFont         font,
+                     final @NotNull AffineTransform transform)
+        {
+            this.clipRect  = clipRect;
+            this.transform = transform;
+            this.font      = font;
+            this.brush     = brush;
+        }
+        
+        public State(final @NotNull State other)
+        {
+            this(
+                new Rectangle(other.clipRect),
+                other.brush.copy(),
+                new GuiFont(other.font),
+                new AffineTransform(other.transform));
+        }
+    }
+    
+    private record Frame(
+        @NotNull Rectangle        clientRect,
+        @NotNull GuiFont          font,
+        @NotNull IGuiTemplate     template,
+        @NotNull IPaletteProvider palette,
+        @NotNull AffineTransform  transform,
+                 float            opacity,
+                 boolean          active
+    )
+    {
+        //**************************************************************************************************************
+        public static @NotNull Frame forComponent(final @NotNull GuiComponent component, final @NotNull Frame parent)
+        {
+            Objects.requireNonNull(component, "component must not be null");
+            Objects.requireNonNull(parent,    "parent frame must not be null");
+            return new Frame(
+                component.getScreenBounds().intersect(parent.clientRect),
+                Objects.requireNonNullElse(GuiComponentAttorney.font    (component), parent.font),
+                Objects.requireNonNullElse(GuiComponentAttorney.template(component), parent.template),
+                component,
+                (new AffineTransform(parent.transform)).translate(component.getX(), component.getY()),
+                (parent.opacity * component.getOpacity()),
+                (parent.active && component.hasActiveFlag())
+            );
+        }
+        
+        public static @NotNull Frame forLayer(final @NotNull ScreenLayer layer)
+        {
+            Objects.requireNonNull(layer, "layer must not be null");
+            return new Frame(
+                layer.getBounds(),
+                layer.getLayerFont(),
+                layer.getLayerTemplate(),
+                layer.getPalette(),
+                new AffineTransform(),
+                1.0f,
+                true
+            );
+        }
+        
+        //==============================================================================================================
+        private @NotNull State createState()
+        {
+            return new State(
+                new Rectangle(this.clientRect),
+                this.template.getDefaultBrush().get(),
+                new GuiFont(this.font),
+                new AffineTransform(this.transform));
+        }
+    }
+    
+    @FunctionalInterface
+    private interface DrawFunc<T>
+    {
+        //**************************************************************************************************************
+        void draw(@NotNull T text, int x, int y);
+    }
+    
+    //******************************************************************************************************************
+    private static final Identifier INWORLD_MENU_BACKGROUND_TEXTURE;
+    
+    //==================================================================================================================
+    static
+    {
+        INWORLD_MENU_BACKGROUND_TEXTURE = Identifier.ofVanilla("textures/gui/inworld_menu_background.png");
+    }
+    
+    //******************************************************************************************************************
+    /**
+     * The absolute screen position of the mouse cursor at the start of the current render pass.
+     * <p>
+     * Tip: Use {@link Point#toRelativePoint(Point)} with {@link GuiComponent#getScreenPosition()} to get the mouse
+     * position relative to the current frame's component.
+     */
+    public final @NotNull Point mousePos;
+    
+    /** The tick delta between each render pass. */
+    public final float deltaTime;
+    
+    /** The render pipeline used for drawing all non-textured shapes. */
+    public final RenderPipeline renderPipeline;
+    
+    /** The render pipeline used for drawing all textured shapes. */
+    public final RenderPipeline renderPipelineTextured;
+    
+    //------------------------------------------------------------------------------------------------------------------
+    // only used internally for debugging purposes, this is not exposed to the outside otherwise
+    final DrawContext internalContext;
+
+    //------------------------------------------------------------------------------------------------------------------
+    private final Deque<Frame>    framebuffer = new ArrayDeque<>(8);
+    private final Deque<State>    statebuffer = new ArrayDeque<>(3);
+    private final MinecraftClient client      = MinecraftClient.getInstance();
+    private final GuiAtlasManager atlas       = MinecraftClient.getInstance().getGuiAtlasManager();
+    private final GuiRenderState  renderState;
+
+    private State state = null;
+    private Frame frame = null;
+    
+    //******************************************************************************************************************
+    public Canvas(final @NotNull DrawContext    context,
+                  final @NotNull Point          mousePos,
+                  final @NotNull RenderPipeline renderPipeline,
+                  final @NotNull RenderPipeline renderPipelineTextured,
+                  final          float          deltaTime)
+    {
+        this.internalContext        = context;
+        this.renderState            = Objects.requireNonNull(context,                "context must not be null").state;
+        this.mousePos               = Objects.requireNonNull(mousePos,               "mouse pos must not be null");
+        this.renderPipeline         = Objects.requireNonNull(renderPipeline,         "pipeline must not be null");
+        this.renderPipelineTextured = Objects.requireNonNull(renderPipelineTextured, "pipeline must not be null");
+        this.deltaTime              = deltaTime;
+        
+        ((GuiRenderStateAccessor) this.renderState).novia$disableSorting(true);
+    }
+    
+    //==================================================================================================================
+    /**
+     * Gets the screen's template.
+     * @return the {@link IGuiTemplate}
+     */
+    public @NotNull IGuiTemplate getTemplate() { return this.frame.template; }
+    
+    /**
+     * Gets the current brush.
+     * @return the {@link IBrush}
+     */
+    public @NotNull IBrush getBrush() { return this.state.brush; }
+    
+    /**
+     * Gets the current font.
+     * @return the {@link GuiFont}
+     */
+    public @NotNull GuiFont getFont() { return this.state.font; }
+    
+    /**
+     * Gets the current frame's opacity.
+     * @return the opacity
+     */
+    public float getOpacity() { return this.frame.opacity; }
+    
+    /**
+     * Gets the width of the window scaled to the current gui scale.
+     * @return The scaled window width
+     */
+    public int getScaledWindowWidth() { return this.client.getWindow().getScaledWidth(); }
+
+    /**
+     * Gets the height of the window scaled to the current gui scale.
+     * @return The scaled window height
+     */
+	public int getScaledWindowHeight() { return this.client.getWindow().getScaledHeight(); }
+    
+    /**
+     * Gets a {@link Colour} that was specified for the current frame.
+     * <p>
+     * This will first look into the palette of the current frame, if no colour was found it will browse
+     * the current {@link IGuiTemplate}'s palette and if there was still no colour found,
+     * it will return {@link Colour#BLACK}.
+     *
+     * @param id The {@link ColourId} for the colour
+     * @return The {@link Colour}
+     *
+     * @throws IllegalStateException If no default colour has been registered for the given ID
+     */
+    public @NotNull Colour findColour(final @NotNull ColourId id)
+    {
+        return this.frame.palette
+            .getColour(id)
+            .or(() -> this.getTemplate().getColour(id))
+            .orElse(Colour.BLACK);
+    }
+    
+    /**
+     * Gets the currently set transform.
+     * @return The {@link AffineTransform}
+     */
+    public @NotNull AffineTransform getTransform() { return new AffineTransform(this.state.transform); }
+    
+    /**
+     * Gets the currently applied clipping region.
+     * @return The current clipping region
+     */
+    public @NotNull Rectangle getClippingRegion() { return this.state.clipRect; }
+    
+    //==================================================================================================================
+    /**
+     * Gets whether the current frame is active based on all its parent frames.
+     * <p>
+     * This is useful to avoid {@link GuiComponent#isActive()} calls, as they need to scan the entire parent hierarchy.
+     * @return {@code true} if the frame is active
+     */
+    public boolean isActive() { return this.frame.active; }
+    
+    //==================================================================================================================
+    public boolean clipRegionContains(final int screenX, final int screenY)
+    {
+        return this.state.clipRect.contains(screenX, screenY);
+    }
+    
+    public boolean clipRegionContains(final @NotNull Point screenPoint)
+    {
+        return screenPoint.apply(this::clipRegionContains);
+    }
+    
+    public boolean clipRegionIntersects(final int screenX, final int screenY, final int width, final int height)
+    {
+        return this.state.clipRect.intersects(screenX, screenY, width, height);
+    }
+    
+    public boolean clipRegionIntersects(final @NotNull Rectangle screenRect)
+    {
+        return screenRect.apply(this::clipRegionIntersects);
+    }
+    
+    public boolean frameContains(final int screenX, final int screenY)
+    {
+        return this.frame.clientRect.contains(screenX, screenY);
+    }
+    
+    public boolean frameContains(final @NotNull Point screenPoint) { return screenPoint.apply(this::frameContains); }
+    
+    public boolean frameIntersects(final int screenX, final int screenY, final int width, final int height)
+    {
+        return this.frame.clientRect.intersects(screenX, screenY, width, height);
+    }
+    
+    public boolean frameIntersects(final @NotNull Rectangle screenRect)
+    {
+        return screenRect.apply(this::frameIntersects);
+    }
+    
+    //==================================================================================================================
+    /**
+     * Sets the brush to a solid colour fill.
+     * @param colour The new colour
+     */
+    public void setColour(final int colour)
+    {
+        final IBrush brush = this.getBrush();
+        
+        if (brush instanceof SolidBrush s_brush)
+        {
+            s_brush.setColour(colour);
+        }
+        else
+        {
+            this.state.brush = new SolidBrush(colour);
+        }
+    }
+    
+    /**
+     * Sets the brush to a solid colour fill.
+     * @param colour The new colour
+     */
+    public void setColour(final @NotNull Colour colour) { this.setColour(colour.colour()); }
+    
+    /**
+     * Sets the brush to a gradient colour fill.
+     * @param gradient The {@link Gradient}
+     */
+    public void setGradient(final @NotNull Gradient gradient)
+    {
+        final IBrush brush = this.getBrush();
+        
+        if (brush instanceof GradientBrush g_brush)
+        {
+            g_brush.setGradient(gradient);
+        }
+        else
+        {
+            this.state.brush = new GradientBrush(gradient);
+        }
+    }
+    
+    /**
+     * Replaces the current brush with the given brush.
+     * @param brush The new {@link IBrush}
+     */
+    public void setBrush(final @NotNull IBrush brush)
+    {
+        this.state.brush = Objects.requireNonNull(brush, "brush must not be null");
+    }
+    
+    /**
+     * Sets the current state's font used to draw text on screen.
+     * @param font The new font
+     */
+    public void setFont(final @NotNull GuiFont font)
+    {
+        this.state.font = Objects.requireNonNull(font, "font must not be null");
+    }
+    
+    /**
+     * Sets the new clipping region relative to the origin of the current frame (the component being drawn). The
+     * clipping region cannot go outside the frame's bounds.
+     * <p>
+     * If you need a temporary clip region you should use {@link #pushState()} to create a temporary canvas state, which
+     * will be returned to prior this call after calling {@link #popState()}.
+     * @param rectangle The area to apply the clipping region to
+     */
+    public void setClippingRegion(final @NotNull Rectangle rectangle) { rectangle.accept(this::setClippingRegion); }
+    
+    /**
+     * Sets the new clipping region relative to the origin of the current frame (the component being drawn). The
+     * clipping region cannot go outside the frame's bounds.
+     * <p>
+     * If you need a temporary clip region you should use {@link #pushState()} to create a temporary canvas state, which
+     * will be returned to prior this call after calling {@link #popState()}.
+     * This is a state-dependent operation.
+     *
+     * @param x      The start x coordinate of the clipping region
+     * @param y      The start y coordinate of the clipping region
+     * @param width  The width of the clipping region
+     * @param height The height of the clipping region
+     */
+    public void setClippingRegion(final int x, final int y, final int width, final int height)
+    {
+        final Rectangle trans_rect = this.getTransform().applyToVertices(x, y, width, height);
+        this.state.clipRect = this.frame.clientRect.intersect(trans_rect);
+    }
+    
+    //==================================================================================================================
+    /**
+     * Sets the current transform, allowing rotating, translating and scaling subsequent drawing calls.
+     * This is a state-dependent operation.
+     *
+     * @param transform The {@link AffineTransform}
+     */
+    public void setTransform(final @NotNull AffineTransform transform)
+    {
+        this.state.transform.set(this.state.transform.set(this.frame.transform).multiply(transform).getMatrix());
+    }
+    
+    /**
+     * Adds a transform to the current transform, allowing rotating, translating and scaling subsequent drawing calls.
+     * This is a state-dependent operation.
+     *
+     * @param transform The {@link AffineTransform}
+     */
+    public void addTransform(final @NotNull AffineTransform transform)
+    {
+        this.state.transform.set(this.state.transform.multiply(transform).getMatrix());
+    }
+    
+    //==================================================================================================================
+    public void draw(final @NotNull SimpleGuiElementRenderState state)
+    {
+        ((GuiRenderStateAccessor) this.renderState).novia$addState(state);
+    }
+    
+    public void draw(final @NotNull TextGuiElementRenderState state) { this.renderState.addText(state); }
+    
+    public void draw(final @NotNull ItemGuiElementRenderState state) { this.renderState.addItem(state); }
+    
+    public void draw(final @NotNull SpecialGuiElementRenderState state) { this.renderState.addSpecialElement(state); }
+    
+    //==================================================================================================================
+    /**
+     * Draws a horizontal line.
+     *
+     * @param x      The left x position of the line
+     * @param y      The top y position of the line
+     * @param length The length of the line (width)
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawHorizontalLine(final int x, final int y, final int length) { this.fill(x, y, (x + length), 1); }
+    
+    /**
+     * Draws a horizontal line.
+     *
+     * @param pos    The top-left start position of the line
+     * @param length The length of the line (width)
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawHorizontalLine(final @NotNull Point pos, final int length)
+    {
+        pos.accept((x, y) -> this.fill(x, y, (x + length), 1));
+    }
+    
+    /**
+     * Draws a vertical line.
+     *
+     * @param x      The left x position of the line
+     * @param y      The top y position of the line
+     * @param length The length of the line (height)
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawVerticalLine(final int x, final int y, final int length) { this.fill(x, y, 1, (y + length)); }
+    
+    /**
+     * Draws a vertical line.
+     *
+     * @param pos    The top-left start position of the line
+     * @param length The length of the line (width)
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawVerticalLine(final @NotNull Point pos, final int length)
+    {
+        pos.accept((x, y) -> this.fill(x, y, 1, (y + length)));
+    }
+    
+    //==================================================================================================================
+    /**
+     * Draws a transparent black texture on top, giving the sensation of making everything behind it darker.
+     *
+     * @param x      The x position of the darkened area
+     * @param y      The y position of the darkened area
+     * @param width  The width of the darkened area
+     * @param height The height of the darkened area
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawDarkening(final int x, final int y, final int width, final int height)
+    {
+        final Identifier texture = (this.client.world == null
+            ? Screen.MENU_BACKGROUND_TEXTURE
+            : Canvas.INWORLD_MENU_BACKGROUND_TEXTURE);
+        this.drawTexture(texture, x, y, width, height, 0.0F, 0.0F, 32, 32, false);
+    }
+    
+    /**
+     * Draws a transparent black texture on top, giving the sensation of making everything behind it darker.
+     * @param rect The area to darken
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawDarkening(final @NotNull Rectangle rect) { rect.accept(this::drawDarkening); }
+    
+    /**
+     * Draws the iconic Minecraft main menu panorama in the specified area.
+     *
+     * @param x      The x position of the panorama
+     * @param y      The y position of the panorama
+     * @param width  The width of the panorama
+     * @param height The height of the panorama
+     * @param rotate Whether the panorama should rotate
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawPanorama(final int x, final int y, final int width, final int height, final boolean rotate)
+    {
+        final RotatingCubeMapRendererExtension renderer = ((RotatingCubeMapRendererExtension) this.client.gameRenderer
+                .getRotatingPanoramaRenderer());
+        renderer.novia$renderPositioned(this, x, y, width, height, rotate);
+    }
+    
+    /**
+     * Draws the iconic Minecraft main menu panorama in the specified area.
+     *
+     * @param rect   The area to draw the panorama in
+     * @param rotate Whether the panorama should rotate
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawPanorama(final @NotNull Rectangle rect, final boolean rotate)
+    {
+        rect.accept((x, y, w, h) -> this.drawPanorama(x, y, w, h, rotate));
+    }
+    
+    //==================================================================================================================
+    /**
+     * Fills a rectangle with the currently set brush.
+     *
+     * @param x      The x position of the rectangle
+     * @param y      The y position of the rectangle
+     * @param width  The width of the rectangle
+     * @param height The height of the rectangle
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void fill(final int x, final int y, final int width, final int height)
+    {
+        final IBrush     brush       = this.getBrush().copy();
+        final Matrix3x2f matrix      = new Matrix3x2f(this.state.transform.getMatrix());
+        final ScreenRect clip_bounds = this.state.clipRect.toScreenRect();
+        final float      opacity     = this.getOpacity();
+        
+        final ScreenRect bounds;
+        {
+            final Rectangle temp_bounds = this.state.transform
+                .applyToVertices(x, y, width, height)
+                .intersect(clip_bounds);
+            bounds = (!temp_bounds.isEmpty() ? temp_bounds.toScreenRect() : null);
+        }
+        
+        this.draw(new SimpleGuiElementRenderState()
+        {
+            @Override
+            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
+            {
+                brush.rectangle(vertices, matrix, x, y, (x + width), (y + height), depth, opacity);
+            }
+            
+            @Override public @NotNull  RenderPipeline pipeline()     { return Canvas.this.renderPipeline; }
+            @Override public @NotNull  TextureSetup   textureSetup() { return brush.getTextureSetup(); }
+            @Override public @NotNull  ScreenRect     scissorArea()  { return clip_bounds; }
+            @Override public @Nullable ScreenRect     bounds()       { return bounds; }
+        });
+    }
+    
+    /**
+     * Fills a rectangle with the currently set brush.
+     *
+     * @param rect The area to fill
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void fill(final @NotNull Rectangle rect) { rect.accept(this::fill); }
+    
+    /** Fills the entire's component area with the currently set brush (not ignoring clipping region). */
+    public void fill()
+    {
+        final Rectangle clip_rect   = this.state.clipRect;
+        final Rectangle client_rect = this.frame.clientRect;
+        this.fill(clip_rect.toRelativeX(client_rect.x()), clip_rect.toRelativeY(client_rect.y()), clip_rect.width(),
+                  clip_rect.height());
+    }
+    
+    /**
+     * Draws a rectangular outline.
+     *
+     * @param x      The x position of the rectangle
+     * @param y      The y position of the rectangle
+     * @param width  The width of the rectangle
+     * @param height The height of the rectangle
+     *
+     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#getBrush()
+     * @see IBrush
+     */
+    public void drawRect(final int x, final int y, final int width, final int height)
+    {
+        final IBrush     brush       = this.getBrush().copy();
+        final Matrix3x2f matrix      = new Matrix3x2f(this.getTransform().getMatrix());
+        final ScreenRect clip_bounds = this.getClippingRegion().toScreenRect();
+        final float      opacity     = this.getOpacity();
+        
+        final ScreenRect bounds;
+        {
+            final Rectangle temp_bounds = this.state.transform
+                .applyToVertices(x, y, width, height)
+                .intersect(clip_bounds);
+            bounds = (!temp_bounds.isEmpty() ? temp_bounds.toScreenRect() : null);
+        }
+        
+        this.draw(new SimpleGuiElementRenderState()
+        {
+            @Override
+            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
+            {
+                brush.border(vertices, matrix, x, y, (x + width), (y + height), depth, opacity);
+            }
+            
+            @Override public @NotNull  RenderPipeline pipeline()     { return Canvas.this.renderPipeline; }
+            @Override public @NotNull  TextureSetup   textureSetup() { return brush.getTextureSetup(); }
+            @Override public @NotNull  ScreenRect     scissorArea()  { return clip_bounds; }
+            @Override public @Nullable ScreenRect     bounds()       { return bounds; }
+        });
+    }
+    
+    public void drawRect(final @NotNull Rectangle rect) { rect.accept(this::drawRect); }
+    
+    //==================================================================================================================
+    public void drawText(final @Nullable String text, final int x, final int y)
+    {
+        if (text != null)
+        {
+            this.drawText(Language.getInstance().reorder(StringVisitable.plain(text)), x, y);
+        }
+    }
+    
+    public void drawText(final @NotNull Text text, final int x, final int y)
+    {
+        this.drawText(text.asOrderedText(), x, y);
+    }
+    
+    public void drawText(final @NotNull OrderedText text, final int x, final int y)
+    {
+        final GlyphBank bank = new GlyphBank();
+        bank.addText(this.getFont(), text, x, y);
+        bank.draw(this);
+    }
+    
+    public void drawText(final @NotNull String text, final @NotNull Point point)
+    {
+        point.accept((x, y) -> this.drawText(text, x, y));
+    }
+    
+    public void drawText(final @NotNull Text text, final @NotNull Point point)
+    {
+        point.accept((x, y) -> this.drawText(text, x, y));
+    }
+    
+    public void drawText(final @NotNull OrderedText text, final @NotNull Point point)
+    {
+        point.accept((x, y) -> this.drawText(text, x, y));
+    }
+    
+    public void drawText(final @NotNull String    text,
+                         final          int       x,
+                         final          int       y,
+                         final          int       width,
+                         final          int       height,
+                         final @NotNull Alignment alignment)
+    {
+        final GuiFont font = this.getFont();
+        final Rectangle rect = alignment.align(
+            x, y, width, height,
+            font.getWidthFitted(text), this.client.textRenderer.fontHeight);
+        this.drawText(text, rect.x(), rect.y());
+    }
+    
+    public void drawText(final @NotNull Text      text,
+                         final          int       x,
+                         final          int       y,
+                         final          int       width,
+                         final          int       height,
+                         final @NotNull Alignment alignment)
+    {
+        final GuiFont font = this.getFont();
+        final Rectangle rect = alignment.align(
+            x, y, width, height,
+            font.getWidthFitted(text), this.client.textRenderer.fontHeight);
+        this.drawText(text, rect.x(), rect.y());
+    }
+    
+    public void drawText(final @NotNull OrderedText text,
+                         final          int         x,
+                         final          int         y,
+                         final          int         width,
+                         final          int         height,
+                         final @NotNull Alignment   alignment)
+    {
+        final GuiFont font = this.getFont();
+        final Rectangle rect = alignment.align(
+            x, y, width, height,
+            font.getWidthFitted(text), this.client.textRenderer.fontHeight);
+        this.drawText(text, rect.x(), rect.y());
+    }
+    
+    public void drawText(final @NotNull String    text,
+                         final @NotNull Rectangle area,
+                         final @NotNull Alignment alignment)
+    {
+        area.accept((x, y, w, h) -> this.drawText(text, x, y, w, h, alignment));
+    }
+    
+    public void drawText(final @NotNull Text      text,
+                         final @NotNull Rectangle area,
+                         final @NotNull Alignment alignment)
+    {
+        area.accept((x, y, w, h) -> this.drawText(text, x, y, w, h, alignment));
+    }
+    
+    public void drawText(final @NotNull OrderedText text,
+                         final @NotNull Rectangle   area,
+                         final @NotNull Alignment   alignment)
+    {
+        area.accept((x, y, w, h) -> this.drawText(text, x, y, w, h, alignment));
+    }
+    
+    public void drawScrollableText(final @NotNull String  text,
+                                   final          int     x,
+                                   final          int     y,
+                                   final          int     width,
+                                   final          int     height)
+    {
+        this.drawScrollableText(text, x, y, width, height, ((x * 2 + width) / 2));
+    }
+    
+    public void drawScrollableText(final @NotNull Text    text,
+                                   final          int     x,
+                                   final          int     y,
+                                   final          int     width,
+                                   final          int     height)
+    {
+        this.drawScrollableText(text, x, y, width, height, ((x * 2 + width) / 2));
+    }
+    
+    public void drawScrollableText(final @NotNull OrderedText text,
+                                   final          int         x,
+                                   final          int         y,
+                                   final          int         width,
+                                   final          int         height)
+    {
+        this.drawScrollableText(text, x, y, width, height, ((x * 2 + width) / 2));
+    }
+    
+    public void drawScrollableText(final @NotNull String  text,
+                                   final          int     x,
+                                   final          int     y,
+                                   final          int     width,
+                                   final          int     height,
+                                   final          int     centerX)
+    {
+        final GuiFont font = this.getFont();
+        this.drawScrollableText(this::drawText, font::getWidthFitted, text, x, y, width, height, centerX);
+    }
+    
+    public void drawScrollableText(final @NotNull Text    text,
+                                   final          int     x,
+                                   final          int     y,
+                                   final          int     width,
+                                   final          int     height,
+                                   final          int     centerX)
+    {
+        final GuiFont font = this.getFont();
+        this.drawScrollableText(this::drawText, font::getWidthFitted, text, x, y, width, height, centerX);
+    }
+    
+    public void drawScrollableText(final @NotNull OrderedText text,
+                                   final          int         x,
+                                   final          int         y,
+                                   final          int         width,
+                                   final          int         height,
+                                   final          int         centerX)
+    {
+        final GuiFont font = this.getFont();
+        this.drawScrollableText(this::drawText, font::getWidthFitted, text, x, y, width, height, centerX);
+    }
+    
+    public void drawScrollableText(final @NotNull String text, final @NotNull Rectangle rect)
+    {
+        rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h));
+    }
+    
+    public void drawScrollableText(final @NotNull Text text, final @NotNull Rectangle rect)
+    {
+        rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h));
+    }
+    
+    public void drawScrollableText(final @NotNull OrderedText text, final @NotNull Rectangle rect)
+    {
+        rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h));
+    }
+    
+    public void drawScrollableText(final @NotNull String    text,
+                                   final @NotNull Rectangle rect,
+                                   final          int       centerX)
+    {
+        rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h, centerX));
+    }
+    
+    public void drawScrollableText(final @NotNull Text      text,
+                                   final @NotNull Rectangle rect,
+                                   final          int       centerX)
+    {
+        rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h, centerX));
+    }
+    
+    public void drawScrollableText(final @NotNull OrderedText text,
+                                   final @NotNull Rectangle   rect,
+                                   final          int         centerX)
+    {
+        rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h, centerX));
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private <T> void drawScrollableText(final @NotNull DrawFunc<T>          drawFunc,
+                                        final @NotNull Function<T, Integer> widthFunc,
+                                        final @NotNull T                    text,
+                                        final          int                  x,
+                                        final          int                  y,
+                                        final          int                  width,
+                                        final          int                  height,
+                                        final          int                  centerX)
+    {
+        final int text_width = widthFunc.apply(text);
+        final int text_y     = ((int) (((y * 2 + height) - this.client.textRenderer.fontHeight) * 0.5));
+        final int text_right = (x + width);
+        final int draw_width = (text_right - x);
+        
+        if (text_width > draw_width)
+        {
+            final int    overflow = (text_width - width + 1);
+            final double time     = (Util.getMeasuringTimeMs() / 1000.0);
+            final double e        = Math.max(overflow * 0.5, 3.0);
+            final double f        = (Math.sin((Math.PI * 0.5) * Math.cos(Math.TAU * time / e)) * 0.5 + 0.5);
+            final int    shift    = (int) MathHelper.lerp(f, 0.0, overflow);
+            
+            this.runWithState(() ->
+            {
+                this.setClippingRegion(x, y, width, height);
+                drawFunc.draw(text, (x - shift), text_y);
+            });
+        }
+        else
+        {
+            final int text_c = (text_width / 2);
+            final int text_x = (MathHelper.clamp(centerX, (x + text_c), (text_right - text_c)) - text_c);
+            
+            drawFunc.draw(text, text_x, text_y);
+        }
+    }
+    
+    //==================================================================================================================
+    public void drawGuiTexture(final @NotNull Identifier textureId,
+                               final          int        x,
+                               final          int        y,
+                               final          int        width,
+                               final          int        height,
+                               final          boolean    useBrush)
+    {
+        final Sprite  sprite  = this.atlas.getSprite(textureId);
+        final Scaling scaling = this.atlas.getScaling(sprite);
+        
+        switch (scaling)
+        {
+            case Scaling.NineSlice n -> this.drawSpriteNineSliced(sprite, n, x, y, width, height, useBrush);
+            case Scaling.Stretch   s -> this.drawSpriteStretched(sprite, x, y, width, height, useBrush);
+            case Scaling.Tile      t -> this.drawSpriteTiled(sprite, x, y, width, height, 0, 0, t.width(), t.height(),
+                                                             t.width(), t.height(), useBrush);
+            
+            default -> throw new IllegalStateException("Unexpected scaling: " + scaling);
+        }
+    }
+    
+    public void drawGuiTexture(final @NotNull Identifier textureId,
+                               final @NotNull Rectangle  rect,
+                               final          boolean    useBrush)
+    {
+        rect.accept((x, y, w, h) -> this.drawGuiTexture(textureId, x, y, w, h, useBrush));
+    }
+    
+    public void drawGuiTexture(final @NotNull Identifier textureId,
+                               final          int        x,
+                               final          int        y,
+                               final          int        width,
+                               final          int        height,
+                               final          int        u,
+                               final          int        v,
+                               final          int        textureWidth,
+                               final          int        textureHeight,
+                               final          boolean    useBrush)
+    {
+        final Sprite  sprite  = this.atlas.getSprite(textureId);
+        final Scaling scaling = this.atlas.getScaling(sprite);
+        
+        if (scaling instanceof Scaling.Stretch)
+        {
+            this.drawSpriteRegion(sprite, textureWidth, textureHeight, u, v, x, y, width, height, useBrush);
+        }
+        else
+        {
+            this.runWithState(() ->
+            {
+                this.setClippingRegion(x, y, width, height);
+                this.drawGuiTexture(textureId, (x - u), (y - v), textureWidth, textureHeight, useBrush);
+            });
+        }
+    }
+    
+    public void drawGuiTexture(final @NotNull Identifier textureId,
+                               final @NotNull Rectangle  rect,
+                               final          int        u,
+                               final          int        v,
+                               final          int        textureWidth,
+                               final          int        textureHeight,
+                               final          boolean    useBrush)
+    {
+        rect.accept((x, y, w, h) ->
+            this.drawGuiTexture(textureId, x, y, w, h, u, v, textureWidth, textureHeight, useBrush));
+    }
+    
+    public void drawSpriteStretched(final @NotNull Sprite  sprite,
+                                    final          int     x,
+                                    final          int     y,
+                                    final          int     width,
+                                    final          int     height,
+                                    final          boolean useBrush)
+    {
+        if (width != 0 && height != 0)
+        {
+            this.drawTexturedQuad(sprite.getAtlasId(), x, y, (x + width), (y + height), sprite.getMinU(),
+                                  sprite.getMinV(), sprite.getMaxU(), sprite.getMaxV(), useBrush);
+        }
+    }
+    
+    public void drawSpriteStretched(final @NotNull Sprite sprite, final @NotNull Rectangle rect, final boolean useBrush)
+    {
+        rect.accept((x, y, w, h) -> this.drawSpriteStretched(sprite, x, y, w, h, useBrush));
+    }
+    
+    public void drawTexture(final @NotNull Identifier textureId,
+                            final          int        x,
+                            final          int        y,
+                            final          int        width,
+                            final          int        height,
+                            final          float      u,
+                            final          float      v,
+                            final          int        textureWidth,
+                            final          int        textureHeight,
+                            final          boolean    useBrush)
+    {
+        this.drawTexture(textureId, x, y, width, height, u, v, width, height, textureWidth, textureHeight, useBrush);
+    }
+    
+    public void drawTexture(final @NotNull Identifier textureId,
+                            final @NotNull Rectangle  rect,
+                            final          float      u,
+                            final          float      v,
+                            final          int        textureWidth,
+                            final          int        textureHeight,
+                            final          boolean    useBrush)
+    {
+        rect.accept((x, y, w, h) ->
+            this.drawTexture(textureId, x, y, w, h, u, v, textureWidth, textureHeight, useBrush));
+    }
+    
+    public void drawTexture(final @NotNull Identifier textureId,
+                            final          int        x,
+                            final          int        y,
+                            final          int        width,
+                            final          int        height,
+                            final          float      u,
+                            final          float      v,
+                            final          int        regionWidth,
+                            final          int        regionHeight,
+                            final          int        textureWidth,
+                            final          int        textureHeight,
+                            final          boolean    useBrush)
+    {
+        this.drawTexturedQuad(textureId, x, y, (x + width), (y + height), ((u + 0.0F) / textureWidth),
+                              ((v + 0.0F) / textureHeight), ((u + regionWidth) / textureWidth),
+                              ((v + regionHeight) / textureHeight), useBrush);
+    }
+    
+    public void drawTexture(final @NotNull Identifier textureId,
+                            final @NotNull Rectangle  rect,
+                            final          float      u,
+                            final          float      v,
+                            final          int        regionWidth,
+                            final          int        regionHeight,
+                            final          int        textureWidth,
+                            final          int        textureHeight,
+                            final          boolean    useBrush)
+    {
+        rect.accept((x, y, w, h) -> this.drawTexture(
+            textureId,
+            x, y, w, h,
+            u, v, regionWidth, regionHeight,
+            textureWidth, textureHeight,
+            useBrush));
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private void drawSpriteRegion(final @NotNull Sprite  sprite,
+                                  final          int     textureWidth,
+                                  final          int     textureHeight,
+                                  final          int     u,
+                                  final          int     v,
+                                  final          int     x,
+                                  final          int     y,
+                                  final          int     width,
+                                  final          int     height,
+                                  final          boolean useBrush)
+    {
+        if (width != 0 && height != 0)
+        {
+            this.drawTexturedQuad(
+                sprite.getAtlasId(),
+                x, y, (x + width), (y + height),
+                sprite.getFrameU((float) u            / textureWidth),
+                sprite.getFrameV((float) v            / textureHeight),
+                sprite.getFrameU((float) (u + width)  / textureWidth),
+                sprite.getFrameV((float) (v + height) / textureHeight),
+                useBrush);
+        }
+    }
+    
+    public void drawSpriteNineSliced(final @NotNull Sprite            sprite,
+                                     final @NotNull Scaling.NineSlice nineSlice,
+                                     final @NotNull Rectangle         bounds,
+                                     final          boolean           useBrush)
+    {
+        bounds.accept((x, y, w, h) -> this.drawSpriteNineSliced(sprite, nineSlice, x, y, w, h, useBrush));
+    }
+    
+    public void drawSpriteNineSliced(final @NotNull Sprite            sprite,
+                                     final @NotNull Scaling.NineSlice nineSlice,
+                                     final          int               x,
+                                     final          int               y,
+                                     final          int               width,
+                                     final          int               height,
+                                     final          boolean           useBrush)
+    {
+        final Scaling.NineSlice.Border border = nineSlice.border();
+        final int                      left   = Math.min(border.left(),   (width  / 2));
+        final int                      top    = Math.min(border.top(),    (height / 2));
+        final int                      right  = Math.min(border.right(),  (width  / 2));
+        final int                      bottom = Math.min(border.bottom(), (height / 2));
+        
+        if (width == nineSlice.width() && height == nineSlice.height())
+        {
+            // Full sprite
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), 0, 0, x, y, width, height, useBrush);
+        }
+        else if (height == nineSlice.height())
+        {
+            // Left edge
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), 0, 0, x, y, left, height, useBrush);
+            
+            // Middle edge
+            this.drawInnerSprite(nineSlice, sprite, (x + left), y, (width - right - left), height, left, 0,
+                                 (nineSlice.width() - right - left), nineSlice.height(), nineSlice.width(),
+                                 nineSlice.height(), useBrush);
+            
+            // Right edge
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), (nineSlice.width() - right), 0,
+                                  (x + width - right), y, right, height, useBrush);
+        }
+        else if (width == nineSlice.width())
+        {
+            // Top edge
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), 0, 0, x, y, width, top, useBrush);
+            
+            // Middle edge
+            this.drawInnerSprite(nineSlice, sprite, x, (y + top), width, (height - bottom - top), 0, top,
+                                 nineSlice.width(), (nineSlice.height() - bottom - top), nineSlice.width(),
+                                 nineSlice.height(), useBrush);
+            
+            // Bottom edge
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), 0, (nineSlice.height() - bottom),
+                                  x, (y + height - bottom), width, bottom, useBrush);
+        }
+        else
+        {
+            final int draw_x      = (x + left);
+            final int draw_x2     = (x + width - right);
+            final int draw_y      = (y + top);
+            final int draw_width  = (width - right - left);
+            final int draw_height = (height - bottom - top);
+            final int tile_width  = (nineSlice.width() - right - left);
+            final int tile_height = (nineSlice.height() - bottom - top);
+            final int text_u      = (y + height - bottom);
+            final int text_u2     = (nineSlice.width() - right);
+            final int text_v      = (nineSlice.height() - bottom);
+            
+            // Top-left corner
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), 0, 0, x, y, left, top, useBrush);
+            
+            // Top edge
+            this.drawInnerSprite(nineSlice, sprite, draw_x, y, draw_width, top, left, 0, tile_width, top,
+                                 nineSlice.width(), nineSlice.height(), useBrush);
+            
+            // Top-right corner
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), text_u2, 0, draw_x2, y, right, top,
+                                  useBrush);
+            
+            // Bottom-left corner
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), 0, text_v, x, text_u, left, bottom,
+                                  useBrush);
+            
+            // Bottom edge
+            this.drawInnerSprite(nineSlice, sprite, draw_x, text_u, draw_width, bottom, left, text_v, tile_width,
+                                 bottom, nineSlice.width(), nineSlice.height(), useBrush);
+            
+            // Bottom-right corner
+            this.drawSpriteRegion(sprite, nineSlice.width(), nineSlice.height(), text_u2, text_v, draw_x2, text_u,
+                                  right, bottom, useBrush);
+            
+            // Left edge
+            this.drawInnerSprite(nineSlice, sprite, x, draw_y, left, draw_height, 0, top, left, tile_height,
+                                 nineSlice.width(), nineSlice.height(), useBrush);
+
+            // Center
+            this.drawInnerSprite(nineSlice, sprite, draw_x, draw_y, draw_width, draw_height, left, top, tile_width,
+                                 tile_height, nineSlice.width(), nineSlice.height(), useBrush);
+
+            // Right edge
+            this.drawInnerSprite(nineSlice, sprite, draw_x2, draw_y, right, draw_height, text_u2, top, right,
+                                 tile_height, nineSlice.width(), nineSlice.height(), useBrush);
+        }
+    }
+    
+    private void drawInnerSprite(final @NotNull Scaling.NineSlice nineSlice,
+                                 final @NotNull Sprite            sprite,
+                                 final          int               x,
+                                 final          int               y,
+                                 final          int               width,
+                                 final          int               height,
+                                 final          int               u,
+                                 final          int               v,
+                                 final          int               tileWidth,
+                                 final          int               tileHeight,
+                                 final          int               textureWidth,
+                                 final          int               textureHeight,
+                                 final          boolean           useBrush)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+        
+        if (nineSlice.stretchInner())
+        {
+            this.drawTexturedQuad(sprite.getAtlasId(), x, y, (x + width), (y + height),
+                                  sprite.getFrameU((float) u / textureWidth),
+                                  sprite.getFrameV((float) v / textureHeight),
+                                  sprite.getFrameU((float) (u + tileWidth) / textureWidth),
+                                  sprite.getFrameV((float) (v + tileHeight) / textureHeight), useBrush);
+        }
+        else
+        {
+            this.drawSpriteTiled(sprite, x, y, width, height, u, v, tileWidth, tileHeight, textureWidth, textureHeight,
+                                 useBrush);
+        }
+    }
+    
+    public void drawSpriteTiled(final @NotNull Sprite  sprite,
+                                final          int     x,
+                                final          int     y,
+                                final          int     width,
+                                final          int     height,
+                                final          int     u,
+                                final          int     v,
+                                final          int     tileWidth,
+                                final          int     tileHeight,
+                                final          int     textureWidth,
+                                final          int     textureHeight,
+                                final          boolean useBrush)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+        
+        if (tileWidth <= 0 || tileHeight <= 0)
+        {
+            throw new IllegalArgumentException(
+                "Tiled sprite texture size must be positive, got %sx%s".formatted(tileWidth, tileHeight));
+        }
+        
+        for (int i = 0; i < width; i += tileWidth)
+        {
+            final int draw_width = Math.min(tileWidth, (width - i));
+            final int draw_x     = (x + i);
+            
+            for (int k = 0; k < height; k += tileHeight)
+            {
+                final int draw_height = Math.min(tileHeight, (height - k));
+                final int draw_y      = (y + k);
+                
+                this.drawSpriteRegion(sprite, textureWidth, textureHeight, u, v, draw_x, draw_y, draw_width,
+                                      draw_height, useBrush);
+            }
+        }
+    }
+    
+    private void drawTexturedQuad(final @NotNull Identifier textureId,
+                                  final int x1, final int y1, final int x2, final int y2,
+                                  final float u1, final float v1, final float u2, final float v2,
+                                  final boolean useBrush)
+    {
+        final GpuTextureView texture = this.client.getTextureManager().getTexture(textureId).getGlTextureView();
+        this.drawTexturedQuad(texture, x1, y1, x2, y2, u1, v1, u2, v2, useBrush);
+    }
+    
+    private void drawTexturedQuad(final @NotNull GpuTextureView texture,
+                                  final int x1, final int y1, final int x2, final int y2,
+                                  final float u1, final float v1, final float u2, final float v2,
+                                  final boolean useBrush)
+    {
+        final Matrix3x2f matrix      = new Matrix3x2f(this.state.transform.getMatrix());
+        final ScreenRect clip_bounds = this.state.clipRect.toScreenRect();
+        final float      opacity     = this.getOpacity();
+        
+        final ScreenRect bounds;
+        {
+            final Rectangle temp_bounds = this.state.transform
+                .applyToVertices(x1, y1, (x2 - x1), (y2 - y1))
+                .intersect(clip_bounds);
+            bounds = (!temp_bounds.isEmpty() ? temp_bounds.toScreenRect() : null);
+        }
+        
+        if (!useBrush)
+        {
+            this.draw(new TexturedQuadGuiElementRenderState(
+                this.renderPipelineTextured,
+                TextureSetup.withoutGlTexture(texture),
+                matrix,
+                x1, y1, x2, y2, u1, u2, v1, v2,
+                ColorHelper.withAlpha(opacity, -1),
+                clip_bounds,
+                bounds));
+            return;
+        }
+        
+        final IBrush brush = this.getBrush().copy();
+        this.draw(new SimpleGuiElementRenderState()
+        {
+            @Override
+            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
+            {
+                brush.drawTexturedQuad(vertices, matrix, x1, y1, x2, y2, u1, v1, u2, v2, depth, opacity);
+            }
+            
+            @Override public @NotNull  RenderPipeline pipeline()     { return Canvas.this.renderPipelineTextured; }
+            @Override public @NotNull  TextureSetup   textureSetup() { return TextureSetup.withoutGlTexture(texture); }
+            @Override public @NotNull  ScreenRect     scissorArea()  { return clip_bounds; }
+            @Override public @Nullable ScreenRect     bounds()       { return bounds; }
+        });
+    }
+    
+    //==================================================================================================================
+    /**
+     * Creates a new temporary state for the current canvas frame that remembers the state prior to this call and
+     * reverts to it upon calling {@link #popState()}.
+     * <p>
+     * This is useful when needing to do transforms and clipping regions or when a brush needs to be remembered for
+     * later.
+     */
+    public void pushState()
+    {
+        this.statebuffer.addLast(this.state);
+        this.state = new State(this.state);
+    }
+    
+    /**
+     * Pops the current frame's state and reverts to the state prior to {@link #pushState()}.
+     * <p>
+     * Do note that this does not need to be called if you don't need to revert to a previous state, however, if this is
+     * the case, a temporary state would not be needed to begin with.
+     *
+     * @throws NoSuchElementException If no {@link #pushState()} has happened prior to this call
+     */
+    public void popState() { this.state = this.statebuffer.removeLast(); }
+    
+    /**
+     * Pops all pushed states and initialises the default state of the current frame.
+     * <p>
+     * This can be used to revert the frame state to the default.
+     */
+    public void resetState()
+    {
+        this.statebuffer.clear();
+        this.state = this.frame.createState();
+    }
+    
+    /**
+     * Automatically pushes and pops a new state context and executes the given action between the push and pop.
+     * <p>
+     * This means, any brush, matrix and clipping updates applied during the given action are reverted to before the
+     * action was invoked after it finished.
+     * <p>
+     * This should be preferred whenever possible as it takes away the responsibility for managing a state switch, hence
+     * no manual intervention is needed.
+     *
+     * @param action The action to run during the current temporary state
+     */
+    public void runWithState(final @NotNull Runnable action)
+    {
+        this.pushState();
+        action.run();
+        this.popState();
+    }
+    
+    //==================================================================================================================
+    @ApiStatus.Internal
+    public void pushFrame(final @NotNull GuiComponent component)
+    {
+        Objects.requireNonNull(component, "component must not be null");
+        this.framebuffer.addLast(this.frame);
+        this.frame = Frame.forComponent(component, this.frame);
+        this.resetState();
+    }
+    
+    @ApiStatus.Internal
+    public void popFrame()
+    {
+        this.frame = this.framebuffer.removeLast();
+    }
+    
+    @ApiStatus.Internal
+    public void setLayer(final @NotNull ScreenLayer layer)
+    {
+        this.framebuffer.clear();
+        this.frame = Frame.forLayer(layer);
+        this.resetState();
+        
+        this.renderState.createNewRootLayer();
+    }
+    
+    @ApiStatus.Internal
+    public void initFramebuffer(final @NotNull GuiScreen screen)
+    {
+        this.frame = new Frame(
+            screen.getScreenBounds(),
+            screen.getFont(),
+            screen.getTemplate(),
+            screen,
+            new AffineTransform(),
+            1.0f,
+            true);
+        this.state = this.frame.createState();
+    }
+}

@@ -1,0 +1,30 @@
+{
+    "schemaVersion": 1,
+    "id": "${mod_id}",
+    "version": "${version}",
+    "name": "${mod_name}",
+    "description": "A test implementation of all module features of this library mod.",
+    "authors": [ "LumiaLights" ],
+    "contact": {
+        "homepage": "https://lumialights.xyz/",
+        "sources": "https://github.com/LumiaLights/Novia",
+        "issues": "https://github.com/LumiaLights/Novia/issues"
+    },
+    "license": "MIT",
+    "environment": "*",
+    "entrypoints": {
+        "main": [ "xyz.lumialights.novia.test.mod.TestMod" ]
+    },
+    "mixins": [
+        {
+            "config": "${mod_id}.client.mixins.json",
+            "environment": "client"
+        }
+    ],
+    "depends": {
+        "fabricloader": ">=${loader_version}",
+        "java": "${java_version}",
+        "minecraft": ">=${minecraft_version}",
+        "novia-core-api": "*"
+    }
+}

@@ -1,0 +1,8 @@
+{
+  "gui.novia-config-api.button.edit.text": "Edit",
+  "gui.novia-config-api.group.ungrouped.title": "Ungrouped",
+  "gui.novia-config-api.notEditable.text": "Edit in file",
+  "gui.novia-config-api.schemaConstant.text": "Constant",
+  "gui.novia-config-api.schemaList.removeItem": "Remove item",
+  "gui.novia-config-api.slider.value.text": "Value: %s"
+}

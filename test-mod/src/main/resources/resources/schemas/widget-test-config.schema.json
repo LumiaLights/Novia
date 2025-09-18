@@ -1,0 +1,47 @@
+[
+    {
+        "pointer": "/primitives/string",
+        "type": "string"
+    },
+    {
+        "pointer": "/primitives/number",
+        "type": "number"
+    },
+    {
+        "pointer": "/primitives/bool",
+        "type": "boolean"
+    },
+    {
+        "pointer": "/primitives/bool2",
+        "type": "boolean"
+    },
+    {
+        "pointer": "/primitives/bool3",
+        "type": "boolean"
+    },
+    {
+        "pointer": "/primitives/nil",
+        "type": "null"
+    },
+    {
+        "pointer": "/primitives/list",
+        "type": "list"
+    },
+    {
+        "pointer": "/primitives/map",
+        "type": "map"
+    },
+    {
+        "pointer": "/advanced/constant",
+        
+        "type": "map",
+        "const": {
+            "hello_prop": "some_property",
+            "and_another": [
+                "with_strings_and",
+                420,
+                true
+            ]
+        }
+    }
+]

@@ -1,0 +1,13 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "xyz.lumialights.novia.api.gui.mixin.client",
+    "compatibilityLevel": "JAVA_21",
+    "client": [
+        "BakedGlyphMixin", "FontManagerMixin", "GuiRenderStateMixin", "MatrixStackEntryMixin", "MinecraftClientMixin",
+        "RotatingCubeMapRendererMixin", "StyleMixin", "ScreenMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}
