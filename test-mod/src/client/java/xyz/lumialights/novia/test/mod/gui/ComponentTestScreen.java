@@ -61,6 +61,7 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
+// Inherit from GuiScreen instead of Screen
 public class ComponentTestScreen
     extends GuiScreen
 {
@@ -115,10 +116,13 @@ public class ComponentTestScreen
     public NVDropdown      testDropdown;
     
     //******************************************************************************************************************
+    // In the constructor we set up our child components and add them to the screen
     public ComponentTestScreen(final @NotNull Text title)
     {
         super(title);
-        
+
+        // create and add component
+        // note: we can also create the component and add it at the end
         this.basicComponentsButton = this.addChild(new NVSimpleButton(
             (btt ->
             {
@@ -168,6 +172,7 @@ public class ComponentTestScreen
         this.testDropdown.addOption(new Value());
         this.testDropdown.addOption(new Value(434.0f));
 
+        // setting our gui default font to be shadowed
         this.setFont(this.getFont().withShadow(true));
     }
 
@@ -196,7 +201,8 @@ public class ComponentTestScreen
     @Override
     protected void draw(final @NotNull Canvas canvas)
     {
-        canvas.setColour(-1);
+        // lets draw white text
+        canvas.setColour(Colour.WHITE);
         canvas.drawText(
             ("Selected Items: " + this.testListBox.streamSelectedItems().count()),
             (this.testSlider.getRight() + 10),
@@ -206,6 +212,7 @@ public class ComponentTestScreen
             .setTop(this.testDropdown.getBottom())
             .padTop(10);
 
+        // let's make some gradient stuff
         canvas.runWithState(() ->
         {
             canvas.addTransform(AffineTransform.translation(gradient_test_bounds.x(), gradient_test_bounds.y()));

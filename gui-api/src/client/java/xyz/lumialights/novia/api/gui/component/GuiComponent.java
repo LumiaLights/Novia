@@ -81,12 +81,73 @@ import java.util.stream.Stream;
  * Represents a (usually) rectangular area that draws onto the screen and can receive mouse events, this is the
  * replacement for Minecraft's {@link ClickableWidget} class.
  * <p>
- * A gui component has bounds, properties and state (such as visibility, enablement, focus ect.), which all define
+ * A gui component has bounds, properties and state (such as visibility, enablement, focus etc.), which all define
  * how the component will be rendered and how it behaves. Other than Minecraft's widgets, components draw in a relative
  * coordinate space, by that means drawing code does not declare render actions in absolute screen coordinates but
- * start at [0, 0], which represents the top-left corner of the current component. Also, every component is also a
- * parent component so that each of them can be infinitely nested; though this should be done in moderation as every
- * level introduces additional indirections such as for mouse events and drawing.
+ * start at [0, 0], which represents the top-left corner of the current component. This is also the case for setting
+ * a components position inside its parent (see {@link GuiComponent#setBounds(Rectangle)}).
+ * Additionally, every component is also a parent component so that each of them can be infinitely nested;
+ * though this should be done in moderation as every level introduces additional indirections such as for mouse
+ * events and drawing.
+ * <p>
+ * Each component has a {@link GuiFont} and {@link IGuiTemplate} that aid components in instructing how they should
+ * be rendered, a component can either be a font/template inheritor or declarator. If a font/template is explicitly set
+ * for component, it and all its children (that do not explicitly themselves declare any) will use that font/template
+ * for rendering; otherwise if it is an inheritor, the font/template applied will be inherited from its closest
+ * explicitly declaring parent. If, however, no parent is a font/template declarator, the used fonts and templates will
+ * resort to its defaults (namely {@link GuiFont#getDefault()} and {@link IGuiTemplate#DEFAULT}).
+ * <p>
+ * For mouse and keyboard events, every component has a set of functions that can be overridden on demand:
+ * <table>
+ *     <tr>
+ *         <th>Name</th>
+ *         <th>Description</th>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseMove(MouseEvent)}</td>
+ *         <td>Called whenever the mouse moved over the component directly and not over any of its children</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseEnter(MouseEvent)}</td>
+ *         <td>Called whenever the mouse entered the bounds of the component (not if it is a child)</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseExit(MouseEvent)}</td>
+ *         <td>Called whenever the mouse left the bounds of the component (also when it entered a child)</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseDrag(MouseEvent)}</td>
+ *         <td>Called whenever any mouse button was pressed on a component and is now being moved around</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseDown(MouseEvent)}}</td>
+ *         <td>Called whenever any mouse button was pressed on a component</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseUp(MouseEvent)}}</td>
+ *         <td>Called whenever any mouse button was released on a component</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onMouseScroll(MouseEvent)}}</td>
+ *         <td>Called whenever the mouse wheel was scrolled when over a component</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onKeyDown(KeyEvent)}}</td>
+ *         <td>Called whenever a keyboard button was pressed while the component is focused</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onKeyUp(KeyEvent)}}</td>
+ *         <td>Called whenever a keyboard button was released while the component is focused</td>
+ *     </tr>
+ *     <tr>
+ *         <td>{@link GuiComponent#onInput(KeyEvent)}}</td>
+ *         <td>Called whenever a keyboard button, that corresponds to a text character, was pressed and released</td>
+ *     </tr>
+ * </table>
+ * Whenever a component receives any of the aforementioned events it will try to handle it, it is the developer's
+ * responsibility to let the hierarchy know an event was successfully handled by returning {@code true}, in which case
+ * the event is finished. If, however, a component returns {@code false}, this means that an event was not handled and
+ * that any of the parents gets the chance of handling the event itself until one returns {@code true}.
  */
 public class GuiComponent
     implements IPaletteProvider
@@ -497,10 +558,7 @@ public class GuiComponent
         return Optional.of(this.children.get(index));
     }
     
-    /**
-     * Gets a list of all child components.
-     * @return The list of children
-     */
+    /** {@return the list of all child components} */
     public final @NotNull List<GuiComponent> getChildren() { return new ArrayList<>(this.children); }
     
     /**
@@ -515,8 +573,8 @@ public class GuiComponent
     }
     
     /**
-     * Gets the narration title message for the screen narrator, or null if the narration title is disabled for this
-     * component.
+     * Gets the narration title message for the screen narrator, or {@code null} if the narration title is disabled
+     * for this component.
      * @return The narration message
      */
     protected @Nullable MutableText getNarrationMessage()
@@ -529,10 +587,8 @@ public class GuiComponent
     }
     
     /**
-     * Gets the focus order of this component inside the parent.
-     * <p>
-     * To learn more about focus order, see {@link #setFocusOrder}.
-     *
+     * Gets the focus order of this component inside the parent. To learn more about focus order,
+     * see {@link #setFocusOrder}.
      * @return The focus order of this component
      */
     public final int getNavigationOrder() { return this.focusOrder; }
@@ -543,6 +599,15 @@ public class GuiComponent
      * <p>
      * For {@link GuiScreen} objects that have their own explicit template specified, all modal layers of that screen
      * will get the given template as root template.
+     * <p>
+     * Do not modify a template this way, if the template that is returned is an inherited template from a parent
+     * component, this will result in other children of that parent, that also inherit this template, to adapt these
+     * changes as well. Instead, find a way to copy the template and explicitly set it via
+     * {@link #setTemplate(IGuiTemplate)}; or even better, make sure to set it up entirely upon construction.
+     * <p>
+     * Additionally, since this has to scan the entire hierarchy until it finds a template, it should not be used
+     * to get the template inside any of the draw calls, {@link Canvas} has {@link Canvas#getTemplate()}
+     * for exactly this reason.
      *
      * @return The {@link IGuiTemplate} applied to this component
      */
@@ -555,14 +620,22 @@ public class GuiComponent
      * Finds the first gui font that can be applied to this component. This will search all the way up the component
      * hierarchy until a font could be found, if none was found this will return {@link GuiFont#getDefault()}.
      * <p>
-     * For {@link GuiScreen} objects that have their own explicit template specified, all modal layers of that screen
-     * will get the given template as root template.
+     * For {@link GuiScreen} objects that have their own explicit font specified, all modal layers of that screen
+     * will get the given font as base font.
+     * <p>
+     * Do note that the {@link GuiFont} returned is a copy of the font that was found, that means it is not possible
+     * to modify the font directly but requires a call to {@link #setFont(GuiFont)}.
+     * <p>
+     * Additionally, since this has to scan the entire hierarchy until it finds a font, it should not be used
+     * to get the font inside any of the draw calls, {@link Canvas} has {@link Canvas#getFont()}
+     * for exactly this reason.
      *
      * @return The {@link IGuiTemplate} applied to this component
      */
     public final @NotNull GuiFont getFont()
     {
-        return Objects.requireNonNullElseGet(this.findParentObject(comp -> comp.font), GuiFont::getDefault);
+        final GuiFont font = this.findParentObject(comp -> comp.font);
+        return (font != null ? new GuiFont(font) : GuiFont.getDefault());
     }
     
     @Override public @NotNull Palette getPalette() { return this.palette; }
@@ -578,7 +651,7 @@ public class GuiComponent
     public @NotNull Stream<GuiPropertyDescription<?>> getGuiProperties() { return Stream.empty(); }
     
     //------------------------------------------------------------------------------------------------------------------
-    private <T> @Nullable T findParentObject(final @NotNull  Function<GuiComponent, T> getter)
+    private <T> @Nullable T findParentObject(final @NotNull Function<GuiComponent, T> getter)
     {
         for (GuiComponent comp = this; comp != null; comp = comp.parent)
         {
@@ -2340,7 +2413,11 @@ public class GuiComponent
     protected void childFocusChanged(@NotNull GuiComponent child, @NotNull GuiNavigationType type) {}
     
     //==================================================================================================================
-    /** Called whenever the bounds of this component have changed. */
+    /**
+     * Called whenever the bounds of this component have changed.
+     * <p>
+     * This method is used to set the bounds of child components.
+     */
     protected void resized() {}
     
     /** Called whenever the position of this component have changed inside the parent. */
@@ -2414,8 +2491,7 @@ public class GuiComponent
      */
     public final boolean addComponentListener(final @NotNull IComponentListener listener)
     {
-        Objects.requireNonNull(listener, "listener must not be null");
-        return this.listeners.add(listener);
+        return this.listeners.add(Objects.requireNonNull(listener, "listener must not be null"));
     }
     
     /**
@@ -2429,8 +2505,7 @@ public class GuiComponent
      */
     public final boolean removeComponentListener(final @NotNull IComponentListener listener)
     {
-        Objects.requireNonNull(listener, "listener must not be null");
-        return this.listeners.remove(listener);
+        return this.listeners.remove(Objects.requireNonNull(listener, "listener must not be null"));
     }
     
     //==================================================================================================================
@@ -2451,13 +2526,15 @@ public class GuiComponent
      * Do note that this is only called if the component is visible, has non-zero bounds and is inside the draw area
      * of its parents. If you need periodical updates regardless its visibility, it is preferable to do this in
      * {@link #onDeltaTick(Point, float)}.
+     * <p>
+     * This will not affect mouse events to children but only rendering, any child that is getting drawn over will still
+     * receive mouse events.
      *
      * @param canvas The drawing context
      */
     protected void drawOnTop(@NotNull Canvas canvas) {}
     
     //==================================================================================================================
-
     /**
      * Used internally to render the component on screen.
      * <p>
@@ -2481,8 +2558,8 @@ public class GuiComponent
         this.screenY = screenY;
         
         this.onDeltaTick(canvas.mousePos, canvas.deltaTime);
-        
-        canvas.pushFrame(this);
+
+        CanvasAttorney.pushFrame(canvas, this);
         {
             // draw the contents of the component
             this.draw(canvas);
@@ -2497,7 +2574,7 @@ public class GuiComponent
             canvas.resetState();
             this.drawOnTop(canvas);
         }
-        canvas.popFrame();
+        CanvasAttorney.popFrame(canvas);
     }
     
     //==================================================================================================================

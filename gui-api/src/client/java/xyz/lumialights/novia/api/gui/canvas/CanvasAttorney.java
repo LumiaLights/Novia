@@ -33,17 +33,41 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
  */
-package xyz.lumialights.novia.api.gui.impl;
+package xyz.lumialights.novia.api.gui.canvas;
 
-import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
+import xyz.lumialights.novia.api.gui.component.GuiComponent;
+import xyz.lumialights.novia.api.gui.component.GuiScreen;
+import xyz.lumialights.novia.api.gui.component.ScreenLayer;
 
 
 
 //**********************************************************************************************************************
-public interface GuiRenderStateAccessor
+@ApiStatus.Internal
+public abstract class CanvasAttorney
 {
     //******************************************************************************************************************
-    void novia$disableSorting(boolean disable);
-    void novia$addState(@NotNull SimpleGuiElementRenderState state);
+    public static void pushFrame(final @NotNull Canvas canvas, final @NotNull GuiComponent component)
+    {
+        canvas.pushFrame(component);
+    }
+
+    public static void popFrame(final @NotNull Canvas canvas)
+    {
+        canvas.popFrame();
+    }
+
+    public static void setLayer(final @NotNull Canvas canvas, final @NotNull ScreenLayer layer)
+    {
+        canvas.setLayer(layer);
+    }
+
+    public static void initFramebuffer(final @NotNull Canvas canvas, final @NotNull GuiScreen screen)
+    {
+        canvas.initFramebuffer(screen);
+    }
+
+    //******************************************************************************************************************
+    private CanvasAttorney() {}
 }

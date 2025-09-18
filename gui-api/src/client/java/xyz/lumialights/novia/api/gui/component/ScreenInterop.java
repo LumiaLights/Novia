@@ -55,6 +55,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
+import xyz.lumialights.novia.api.gui.canvas.CanvasAttorney;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
@@ -730,15 +731,15 @@ public final class ScreenInterop
             RenderPipelines.GUI,
             RenderPipelines.GUI_TEXTURED,
             deltaTicks);
-        
-        canvas.initFramebuffer(this.guiScreen);
 
-        canvas.setLayer(this.backgroundLayer);
+        CanvasAttorney.initFramebuffer(canvas, this.guiScreen);
+
+        CanvasAttorney.setLayer(canvas, this.backgroundLayer);
         this.backgroundLayer.render(canvas);
         
         for (final var layer : this.layers)
         {
-            canvas.setLayer(layer);
+            CanvasAttorney.setLayer(canvas, layer);
             layer.render(canvas);
         }
         

@@ -54,7 +54,6 @@ import net.minecraft.util.Language;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3x2f;
@@ -87,9 +86,16 @@ import java.util.function.Function;
  * <p>
  * For each component that gets passed an instance of this class, an internal “component frame” gets pushed onto the
  * frame buffer (not to be confused with video frame buffers), which represent the current portion on the screen the
- * component is drawing to on the screen. Each frame provides data about the component's current drawing pass, such as
+ * component is drawing to on the screen. Each frame provides data about the component's current render pass, such as
  * its opacity, activity, location, style and its associated {@link IBrush} that is used to define how each of the
  * provided drawing calls are rendered.
+ * <p>
+ * Another useful concept of canvases is stateful operations. Each component's render pass manages an internal
+ * state buffer that gets reset after it is done with drawing, states allow temporarily changing how things are rendered
+ * such as clipping region (OpenGL calls this scissor), font, brush etc. During a render, a new temporary state can be
+ * pushed onto the state buffer that allows, for the duration of the temporary state, to make modifications to the
+ * canvas that get reset to the previous state before pushing the state (for more info see {@link Canvas#pushState()}).
+ * Every operation in this class that modifies this state is marked as "stateful".
  */
 public final class Canvas
 {
@@ -102,17 +108,20 @@ public final class Canvas
         public IBrush    brush;
         public GuiFont   font;
         public Rectangle clipRect;
+        public float     opacity;
         
         //**************************************************************************************************************
         public State(final @NotNull Rectangle       clipRect,
                      final @NotNull IBrush          brush,
                      final @NotNull GuiFont         font,
-                     final @NotNull AffineTransform transform)
+                     final @NotNull AffineTransform transform,
+                     final          float           opacity)
         {
             this.clipRect  = clipRect;
             this.transform = transform;
             this.font      = font;
             this.brush     = brush;
+            this.opacity   = opacity;
         }
         
         public State(final @NotNull State other)
@@ -121,7 +130,8 @@ public final class Canvas
                 new Rectangle(other.clipRect),
                 other.brush.copy(),
                 new GuiFont(other.font),
-                new AffineTransform(other.transform));
+                new AffineTransform(other.transform),
+                other.opacity);
         }
     }
     
@@ -172,7 +182,8 @@ public final class Canvas
                 new Rectangle(this.clientRect),
                 this.template.getDefaultBrush().get(),
                 new GuiFont(this.font),
-                new AffineTransform(this.transform));
+                new AffineTransform(this.transform),
+                this.opacity);
         }
     }
     
@@ -244,6 +255,10 @@ public final class Canvas
     //==================================================================================================================
     /**
      * Gets the screen's template.
+     * <p>
+     * Do not modify the template in any way, as this might have unexpected effects on other draw calls that
+     * also inherit this template.
+     *
      * @return the {@link IGuiTemplate}
      */
     public @NotNull IGuiTemplate getTemplate() { return this.frame.template; }
@@ -256,6 +271,12 @@ public final class Canvas
     
     /**
      * Gets the current font.
+     * <p>
+     * The font returned is not a copy but the actual font for the current state, so there is no need to use
+     * {@link #setFont(GuiFont)} to update formatting and can be done directly on the {@link GuiFont} object itself.
+     * This is different to {@link GuiComponent#getFont()}, where the {@link GuiFont} returned is a copy and hence
+     * requires to use {@link GuiComponent#setFont(GuiFont)}.
+     *
      * @return the {@link GuiFont}
      */
     public @NotNull GuiFont getFont() { return this.state.font; }
@@ -264,7 +285,7 @@ public final class Canvas
      * Gets the current frame's opacity.
      * @return the opacity
      */
-    public float getOpacity() { return this.frame.opacity; }
+    public float getOpacity() { return this.state.opacity; }
     
     /**
      * Gets the width of the window scaled to the current gui scale.
@@ -320,38 +341,86 @@ public final class Canvas
     public boolean isActive() { return this.frame.active; }
     
     //==================================================================================================================
+    /**
+     * Gets whether the current clip region contains the given absolute coordinates.
+     * @param screenX The absolute x coordinate
+     * @param screenY The absolute y coordinate
+     * @return {@code true} if the given points lies within the current clipping region
+     */
     public boolean clipRegionContains(final int screenX, final int screenY)
     {
         return this.state.clipRect.contains(screenX, screenY);
     }
-    
+
+    /**
+     * Gets whether the current clip region contains the given absolute coordinates.
+     * @param screenPoint The absolute point
+     * @return {@code true} if the given points lies within the current clipping region
+     */
     public boolean clipRegionContains(final @NotNull Point screenPoint)
     {
         return screenPoint.apply(this::clipRegionContains);
     }
-    
+
+    /**
+     * Gets whether the current clip region intersects with the specified area.
+     * @param screenX The absolute x coordinate of the area
+     * @param screenY The absolute y coordinate of the area
+     * @param width   The width of the area
+     * @param height  The height of the area
+     * @return {@code true} if the given area intersects with the current clipping region
+     */
     public boolean clipRegionIntersects(final int screenX, final int screenY, final int width, final int height)
     {
         return this.state.clipRect.intersects(screenX, screenY, width, height);
     }
-    
+
+    /**
+     * Gets whether the current clip region intersects with the specified area.
+     * @param screenRect The absolutely positioned area
+     * @return {@code true} if the given area intersects with the current clipping region
+     */
     public boolean clipRegionIntersects(final @NotNull Rectangle screenRect)
     {
         return screenRect.apply(this::clipRegionIntersects);
     }
-    
+
+    /**
+     * Gets whether the current frame's area (the visible component area) contains the given absolute coordinates.
+     * @param screenX The absolute x coordinate
+     * @param screenY The absolute y coordinate
+     * @return {@code true} if the given points lies within the frame area
+     */
     public boolean frameContains(final int screenX, final int screenY)
     {
         return this.frame.clientRect.contains(screenX, screenY);
     }
-    
+
+    /**
+     * Gets whether the current frame's area (the visible component area) contains the given absolute coordinates.
+     * @param screenPoint The absolute point
+     * @return {@code true} if the given points lies within the frame area
+     */
     public boolean frameContains(final @NotNull Point screenPoint) { return screenPoint.apply(this::frameContains); }
-    
+
+    /**
+     * Gets whether the current frame's area (the visible component area) intersects with the specified area.
+     * @param screenX The absolute x coordinate of the area
+     * @param screenY The absolute y coordinate of the area
+     * @param width   The width of the area
+     * @param height  The height of the area
+     * @return {@code true} if the given area intersects with the current frame area
+     */
     public boolean frameIntersects(final int screenX, final int screenY, final int width, final int height)
     {
         return this.frame.clientRect.intersects(screenX, screenY, width, height);
     }
-    
+
+    /**
+     * Gets whether the current frame's area (the visible component area) intersects with the specified area.
+     * @param screenRect The absolutely positioned area
+     * @return {@code true} if the given area intersects with the current frame area
+     */
     public boolean frameIntersects(final @NotNull Rectangle screenRect)
     {
         return screenRect.apply(this::frameIntersects);
@@ -360,6 +429,8 @@ public final class Canvas
     //==================================================================================================================
     /**
      * Sets the brush to a solid colour fill.
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param colour The new colour
      */
     public void setColour(final int colour)
@@ -378,12 +449,16 @@ public final class Canvas
     
     /**
      * Sets the brush to a solid colour fill.
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param colour The new colour
      */
     public void setColour(final @NotNull Colour colour) { this.setColour(colour.colour()); }
     
     /**
      * Sets the brush to a gradient colour fill.
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param gradient The {@link Gradient}
      */
     public void setGradient(final @NotNull Gradient gradient)
@@ -402,15 +477,31 @@ public final class Canvas
     
     /**
      * Replaces the current brush with the given brush.
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param brush The new {@link IBrush}
      */
     public void setBrush(final @NotNull IBrush brush)
     {
         this.state.brush = Objects.requireNonNull(brush, "brush must not be null");
     }
-    
+
+    /**
+     * Sets the opacity for the canvas. The opacity will be multiplied by the current frame's opacity, by that means,
+     * if the current frame has an opacity of {@code 0.5}, setting the opacity to {@code 0.5} will result in an opacity
+     * of {@code 0.25}.
+     * This operation is stateful (see {@link Canvas}).
+     * @param opacity The opacity level
+     */
+    public void setOpacity(final float opacity)
+    {
+        this.state.opacity = (opacity * this.frame.opacity);
+    }
+
     /**
      * Sets the current state's font used to draw text on screen.
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param font The new font
      */
     public void setFont(final @NotNull GuiFont font)
@@ -422,8 +513,8 @@ public final class Canvas
      * Sets the new clipping region relative to the origin of the current frame (the component being drawn). The
      * clipping region cannot go outside the frame's bounds.
      * <p>
-     * If you need a temporary clip region you should use {@link #pushState()} to create a temporary canvas state, which
-     * will be returned to prior this call after calling {@link #popState()}.
+     * This operation is stateful (see {@link Canvas}).
+     *
      * @param rectangle The area to apply the clipping region to
      */
     public void setClippingRegion(final @NotNull Rectangle rectangle) { rectangle.accept(this::setClippingRegion); }
@@ -432,9 +523,7 @@ public final class Canvas
      * Sets the new clipping region relative to the origin of the current frame (the component being drawn). The
      * clipping region cannot go outside the frame's bounds.
      * <p>
-     * If you need a temporary clip region you should use {@link #pushState()} to create a temporary canvas state, which
-     * will be returned to prior this call after calling {@link #popState()}.
-     * This is a state-dependent operation.
+     * This operation is stateful (see {@link Canvas}).
      *
      * @param x      The start x coordinate of the clipping region
      * @param y      The start y coordinate of the clipping region
@@ -447,11 +536,11 @@ public final class Canvas
         this.state.clipRect = this.frame.clientRect.intersect(trans_rect);
     }
     
-    //==================================================================================================================
     /**
      * Sets the current transform, allowing rotating, translating and scaling subsequent drawing calls.
      * This is a state-dependent operation.
-     *
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param transform The {@link AffineTransform}
      */
     public void setTransform(final @NotNull AffineTransform transform)
@@ -462,7 +551,8 @@ public final class Canvas
     /**
      * Adds a transform to the current transform, allowing rotating, translating and scaling subsequent drawing calls.
      * This is a state-dependent operation.
-     *
+     * <p>
+     * This operation is stateful (see {@link Canvas}).
      * @param transform The {@link AffineTransform}
      */
     public void addTransform(final @NotNull AffineTransform transform)
@@ -1120,21 +1210,21 @@ public final class Canvas
         }
     }
     
-    public void drawSpriteNineSliced(final @NotNull Sprite            sprite,
-                                     final @NotNull Scaling.NineSlice nineSlice,
-                                     final @NotNull Rectangle         bounds,
-                                     final          boolean           useBrush)
+    private void drawSpriteNineSliced(final @NotNull Sprite            sprite,
+                                      final @NotNull Scaling.NineSlice nineSlice,
+                                      final @NotNull Rectangle         bounds,
+                                      final          boolean           useBrush)
     {
         bounds.accept((x, y, w, h) -> this.drawSpriteNineSliced(sprite, nineSlice, x, y, w, h, useBrush));
     }
     
-    public void drawSpriteNineSliced(final @NotNull Sprite            sprite,
-                                     final @NotNull Scaling.NineSlice nineSlice,
-                                     final          int               x,
-                                     final          int               y,
-                                     final          int               width,
-                                     final          int               height,
-                                     final          boolean           useBrush)
+    private void drawSpriteNineSliced(final @NotNull Sprite            sprite,
+                                      final @NotNull Scaling.NineSlice nineSlice,
+                                      final          int               x,
+                                      final          int               y,
+                                      final          int               width,
+                                      final          int               height,
+                                      final          boolean           useBrush)
     {
         final Scaling.NineSlice.Border border = nineSlice.border();
         final int                      left   = Math.min(border.left(),   (width  / 2));
@@ -1259,18 +1349,18 @@ public final class Canvas
         }
     }
     
-    public void drawSpriteTiled(final @NotNull Sprite  sprite,
-                                final          int     x,
-                                final          int     y,
-                                final          int     width,
-                                final          int     height,
-                                final          int     u,
-                                final          int     v,
-                                final          int     tileWidth,
-                                final          int     tileHeight,
-                                final          int     textureWidth,
-                                final          int     textureHeight,
-                                final          boolean useBrush)
+    private void drawSpriteTiled(final @NotNull Sprite  sprite,
+                                 final          int     x,
+                                 final          int     y,
+                                 final          int     width,
+                                 final          int     height,
+                                 final          int     u,
+                                 final          int     v,
+                                 final          int     tileWidth,
+                                 final          int     tileHeight,
+                                 final          int     textureWidth,
+                                 final          int     textureHeight,
+                                 final          boolean useBrush)
     {
         if (width <= 0 || height <= 0)
         {
@@ -1361,6 +1451,9 @@ public final class Canvas
      * <p>
      * This is useful when needing to do transforms and clipping regions or when a brush needs to be remembered for
      * later.
+     * <p>
+     * There is also {@link #runWithState(Runnable)} which hides pushing and popping behind a callback so that this
+     * does not have to be manually managed.
      */
     public void pushState()
     {
@@ -1397,6 +1490,9 @@ public final class Canvas
      * <p>
      * This should be preferred whenever possible as it takes away the responsibility for managing a state switch, hence
      * no manual intervention is needed.
+     * <p>
+     * One drawback of this is that sometimes IDEs might not be able to hotswap if the runnable changes and
+     * hence a complete reload becomes necessary.
      *
      * @param action The action to run during the current temporary state
      */
@@ -1408,8 +1504,7 @@ public final class Canvas
     }
     
     //==================================================================================================================
-    @ApiStatus.Internal
-    public void pushFrame(final @NotNull GuiComponent component)
+    void pushFrame(final @NotNull GuiComponent component)
     {
         Objects.requireNonNull(component, "component must not be null");
         this.framebuffer.addLast(this.frame);
@@ -1417,14 +1512,9 @@ public final class Canvas
         this.resetState();
     }
     
-    @ApiStatus.Internal
-    public void popFrame()
-    {
-        this.frame = this.framebuffer.removeLast();
-    }
+    void popFrame() { this.frame = this.framebuffer.removeLast(); }
     
-    @ApiStatus.Internal
-    public void setLayer(final @NotNull ScreenLayer layer)
+    void setLayer(final @NotNull ScreenLayer layer)
     {
         this.framebuffer.clear();
         this.frame = Frame.forLayer(layer);
@@ -1433,8 +1523,7 @@ public final class Canvas
         this.renderState.createNewRootLayer();
     }
     
-    @ApiStatus.Internal
-    public void initFramebuffer(final @NotNull GuiScreen screen)
+    void initFramebuffer(final @NotNull GuiScreen screen)
     {
         this.frame = new Frame(
             screen.getScreenBounds(),

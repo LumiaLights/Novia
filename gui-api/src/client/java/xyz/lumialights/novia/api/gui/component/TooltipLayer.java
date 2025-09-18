@@ -46,6 +46,7 @@ import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
+import xyz.lumialights.novia.api.gui.canvas.CanvasAttorney;
 import xyz.lumialights.novia.api.gui.canvas.IPaletteProvider;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.renderer.GuiTooltipRenderer;
@@ -141,8 +142,8 @@ public class TooltipLayer
             final TooltipPositioner positioner = (this.isFocusMode
                 ? new FocusedTooltipPositioner(focus)
                 : new WidgetTooltipPositioner(focus));
-            
-            canvas.setLayer(this);
+
+            CanvasAttorney.setLayer(canvas, this);
             GuiTooltipRenderer.draw(canvas, this.lines, positioner, canvas.mousePos.x(), canvas.mousePos.y());
         }
     }
