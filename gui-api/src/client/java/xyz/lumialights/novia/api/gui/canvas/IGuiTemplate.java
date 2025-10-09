@@ -56,10 +56,12 @@ import xyz.lumialights.novia.api.core.util.Colour;
 import xyz.lumialights.novia.api.gui.canvas.brush.IBrush;
 import xyz.lumialights.novia.api.gui.canvas.brush.SolidBrush;
 import xyz.lumialights.novia.api.gui.component.provided.*;
+import xyz.lumialights.novia.api.gui.font.FontUtil;
 import xyz.lumialights.novia.api.gui.font.GlyphBank;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
+import xyz.lumialights.novia.api.gui.geometry.UvMapping;
 import xyz.lumialights.novia.api.gui.renderer.GuiTooltipRenderer;
 
 import java.util.*;
@@ -68,6 +70,12 @@ import java.util.function.Supplier;
 
 
 //**********************************************************************************************************************
+/**
+ * Describes the base class of all gui templates used to customise rendering of components.
+ * <p>
+ * This class can be mixin-ed to allow templating your own components.
+ * @see DefaultGuiTemplate
+ */
 public interface IGuiTemplate
     extends
         IPaletteProvider,
@@ -82,7 +90,6 @@ public interface IGuiTemplate
         NVListBox.Template,
         NVDropdown.Template,
         NVCheckBox.Template,
-        NVLabelButton.Template,
         GuiTooltipRenderer.Template
 {
     //******************************************************************************************************************
@@ -123,8 +130,8 @@ public interface IGuiTemplate
     default void guiTooltipDrawBackground(final @NotNull Canvas canvas, final @NotNull Rectangle bounds)
     {
         bounds.pad(-12);
-        canvas.drawGuiTexture(GuiTooltipRenderer.BACKGROUND_TEXTURE, bounds, false);
-        canvas.drawGuiTexture(GuiTooltipRenderer.FRAME_TEXTURE,      bounds, false);
+        canvas.drawSprite(GuiTooltipRenderer.BACKGROUND_TEXTURE, bounds, false);
+        canvas.drawSprite(GuiTooltipRenderer.FRAME_TEXTURE, bounds, false);
     }
     
     @Override
@@ -155,7 +162,7 @@ public interface IGuiTemplate
     {
         final int     first_index = box.getFirstCharacterIndex();
         final GuiFont font        = canvas.getFont();
-        final String  text        = font.trimToWidth(box.getText().substring(first_index), bounds.width());
+        final String  text        = FontUtil.trimToWidth(font, box.getText().substring(first_index), bounds.width());
         
         if (!canvas.isActive())
         {
@@ -167,7 +174,7 @@ public interface IGuiTemplate
             return;
         }
         
-        final Colour  text_colour  = canvas.findColour(!box.isEditable()
+        final Colour  text_colour  = canvas.findColour(!box.readOnly.get()
             ? NVTextBox.COLOUR_TEXT_UNEDITABLE
             : (box.isTextValid() ? NVTextBox.COLOUR_TEXT_EDITABLE : NVTextBox.COLOUR_TEXT_ERROR));
         final int     text_len     = text.length();
@@ -248,7 +255,7 @@ public interface IGuiTemplate
     @Override
     default void nvTextboxDrawBackground(final @NotNull Canvas canvas, final @NotNull NVTextBox textBox)
     {
-        canvas.drawGuiTexture(
+        canvas.drawSprite(
             NVTextBox.TEXTURES.get(canvas.isActive(), textBox.isFocused()),
             0, 0, textBox.getWidth(), textBox.getHeight(),
             false);
@@ -313,7 +320,7 @@ public interface IGuiTemplate
     default void nvViewportDrawCorner(final @NotNull Canvas canvas, final @NotNull NVViewport viewport, final int width,
                                       final int height)
     {
-        canvas.drawGuiTexture(NVScrollbar.TEXTURE_SCROLLBAR_BACKGROUND, 0, 0, width, height, false);
+        canvas.drawSprite(NVScrollbar.TEXTURE_SCROLLBAR_BACKGROUND, 0, 0, width, height, false);
     }
     
     //==================================================================================================================
@@ -321,7 +328,7 @@ public interface IGuiTemplate
     default void nvSliderDrawBackground(final @NotNull Canvas canvas, final @NotNull NVSlider slider)
     {
         final Identifier texture = (slider.isFocused() ? NVSlider.TEXTURE_HIGHLIGHTED : NVSlider.TEXTURE);
-        canvas.drawGuiTexture(texture, 0, 0, slider.getWidth(), slider.getHeight(), false);
+        canvas.drawSprite(texture, 0, 0, slider.getWidth(), slider.getHeight(), false);
     }
     
     @Override
@@ -331,7 +338,7 @@ public interface IGuiTemplate
         final Identifier texture = ((slider.isFocused() || slider.isHovered())
             ? NVSlider.TEXTURE_HANDLE_HIGHLIGHT
             : NVSlider.TEXTURE_HANDLE);
-        canvas.drawGuiTexture(texture, thumbBounds, false);
+        canvas.drawSprite(texture, thumbBounds, false);
     }
     
     @Override
@@ -346,20 +353,17 @@ public interface IGuiTemplate
     @Override
     default void nvSimpleButtonDrawBackground(final @NotNull Canvas canvas, final @NotNull NVSimpleButton button)
     {
-        final Identifier texture = NVSimpleButton.BACKGROUND_TEXTURE.get(
-            canvas.isActive(),
-            (button.isFocused() || button.isHovered()));
-        canvas.drawGuiTexture(texture, 0, 0, button.getWidth(), button.getHeight(), false);
+        final Identifier texture = NVSimpleButton.BACKGROUND_TEXTURE.get(canvas.isActive(),
+                                                                         (button.isFocused() || button.isHovered()));
+        canvas.drawSprite(texture, 0, 0, button.getWidth(), button.getHeight(), false);
     }
     
     @Override
     default void nvSimpleButtonDrawIcon(final @NotNull Canvas canvas, final @NotNull NVSimpleButton button,
                                         final @NotNull Rectangle bounds)
     {
-        assert (button.getIcons() != null);
-        
-        final Identifier texture = button.getIcons().get(canvas.isActive(), (button.isFocused() || button.isHovered()));
-        canvas.drawGuiTexture(texture, bounds, false);
+        assert (button.getIcon() != null);
+        canvas.drawSprite(button.getIcon(), bounds, false);
     }
     
     @Override
@@ -367,22 +371,21 @@ public interface IGuiTemplate
                                         final @NotNull Rectangle bounds)
     {
         assert (button.getText() != null);
-        
         canvas.setColour(canvas.findColour(canvas.isActive()
             ? NVSimpleButton.COLOUR_TEXT
             : NVSimpleButton.COLOUR_TEXT_INACTIVE));
-        canvas.drawText(button.getText(), bounds, Alignment.MIDDLE_CENTRE);
+        canvas.drawTextAligned(button.getText(), bounds, Alignment.MIDDLE_CENTRE);
     }
     
     //==================================================================================================================
     @Override
     default void nvNumericBoxDrawArrowButton(final @NotNull Canvas canvas, final @NotNull NVNumericBox numericBox,
-                                             final @NotNull NVAbstractButton<?> button, final @NotNull String text)
+                                             final @NotNull NVAbstractButton button, final boolean isUpButton)
     {
         canvas.setColour(canvas.findColour(canvas.isActive()
             ? NVNumericBox.COLOUR_ARROW
             : NVNumericBox.COLOUR_ARROW_INACTIVE));
-        canvas.drawText(text, button.getLocalBounds(), Alignment.MIDDLE_CENTRE);
+        canvas.drawTextAligned((isUpButton ? "▴" : "▾"), button.getLocalBounds(), Alignment.MIDDLE_CENTRE);
     }
     
     //==================================================================================================================
@@ -390,7 +393,7 @@ public interface IGuiTemplate
     default void nvScrollbarDrawBackground(final @NotNull Canvas canvas, final @NotNull NVScrollbar scrollbar,
                                            final @NotNull Rectangle trackBounds)
     {
-        canvas.drawGuiTexture(NVScrollbar.TEXTURE_SCROLLBAR_BACKGROUND, trackBounds, false);
+        canvas.drawSprite(NVScrollbar.TEXTURE_SCROLLBAR_BACKGROUND, trackBounds, false);
     }
     
     @Override
@@ -402,23 +405,18 @@ public interface IGuiTemplate
             return;
         }
         
-        canvas.drawGuiTexture(NVScrollbar.TEXTURE_SCROLLBAR_THUMB, bounds, false);
+        canvas.drawSprite(NVScrollbar.TEXTURE_SCROLLBAR_THUMB, bounds, false);
     }
     
     //==================================================================================================================
     @Override default void nvLabelDrawBackground(@NotNull Canvas canvas, @NotNull NVLabel nvLabel) {}
     
     @Override
-    default void nvLabelDrawText(final @NotNull Canvas canvas, final @NotNull NVLabel label)
+    default void nvLabelDrawText(final @NotNull Canvas canvas, final @NotNull NVLabel label,
+                                 final @NotNull OrderedText text)
     {
-        final GuiFont     font      = canvas.getFont();
-        final Text        text      = label.getText();
-        final OrderedText draw_text = (font.getWidth(text) > label.getWidth()
-            ? label.trimFunction.get().trim(text, font, label)
-            : text.asOrderedText());
-
         canvas.setColour(canvas.findColour(canvas.isActive() ? NVLabel.COLOUR_TEXT : NVLabel.COLOUR_TEXT_INACTIVE));
-        canvas.drawText(draw_text, label.getLocalBounds(), label.textAlign.get());
+        canvas.drawTextAligned(text, label.getLocalBounds(), label.textAlign.get());
     }
     
     //==================================================================================================================
@@ -432,13 +430,13 @@ public interface IGuiTemplate
                                               final int width, final int height)
     {
         final Identifier texture = NVTextBox.TEXTURES.get(true, dropdown.hasFocus());
-        canvas.drawGuiTexture(texture, 0, 0, width, height, false);
+        canvas.drawSprite(texture, 0, 0, width, height, false);
     }
     
     @Override
-    default void nvDropdownDrawMenuItem(final @NotNull Canvas canvas, @NotNull NVDropdown dropdown,
-                                        final @NotNull Text title, final int width, final int height, final int index,
-                                        final boolean selected, final boolean hovered, final boolean focused)
+    default void nvDropdownDrawMenuOption(final @NotNull Canvas canvas, @NotNull NVDropdown dropdown,
+                                          final @NotNull Text title, final int width, final int height, final int index,
+                                          final boolean selected, final boolean hovered, final boolean focused)
     {
         if (hovered || selected)
         {
@@ -461,34 +459,31 @@ public interface IGuiTemplate
         if (draw_width < text_width)
         {
             final int             trim_width = (draw_width - font.getWidthFitted(ScreenTexts.ELLIPSIS));
-            final StringVisitable visitable  = font.trimToWidth(title, trim_width);
+            final StringVisitable visitable  = FontUtil.trimToWidth(font, title, trim_width);
             final OrderedText     text       = Language.getInstance().reorder(StringVisitable.concat(
                 visitable,
                 ScreenTexts.ELLIPSIS));
-            canvas.drawText(text, 0, 0, draw_width, height, dropdown.optionAlignment.get());
+            canvas.drawTextAligned(text, 0, 0, draw_width, height, dropdown.optionAlignment.get());
         }
         else
         {
-            canvas.drawText(title, 0, 0, draw_width, height, dropdown.optionAlignment.get());
+            canvas.drawTextAligned(title, 0, 0, draw_width, height, dropdown.optionAlignment.get());
         }
     }
     
     @Override
     default void nvDropdownDrawButton(final @NotNull Canvas canvas, final @NotNull NVDropdown dropdown,
-                                      final @NotNull NVAbstractButton<?> button, final @NotNull String text)
+                                      final @NotNull NVAbstractButton button, final boolean isOpen)
     {
         final Rectangle  bounds  = button.getLocalBounds();
         final Identifier texture = NVTextBox.TEXTURES.get(canvas.isActive(), dropdown.hasFocus());
         
-        canvas.drawGuiTexture(texture, bounds.withLeftPadding(1), 1, 0, bounds.width(), bounds.height(), false);
+        final Rectangle texture_bounds = bounds.withLeftPadding(1);
+        canvas.drawSprite(texture, texture_bounds, UvMapping.mapped(texture_bounds), false);
         canvas.setColour(canvas.findColour(canvas.isActive()
             ? NVNumericBox.COLOUR_ARROW
             : NVNumericBox.COLOUR_ARROW_INACTIVE));
-        canvas.drawText(text, bounds, Alignment.MIDDLE_CENTRE);
-
-
-
-
+        canvas.drawTextAligned((isOpen ? "▴" : "▾"), bounds, Alignment.MIDDLE_CENTRE);
     }
     
     //==================================================================================================================
@@ -497,24 +492,12 @@ public interface IGuiTemplate
     @Override
     default void nvCheckBoxDrawCheckMark(final @NotNull Canvas canvas, final @NotNull NVCheckBox checkBox)
     {
-        canvas.drawGuiTexture(
+        canvas.drawSprite(
             NVCheckBox.TEXTURES.get(
                 checkBox.isChecked(),
                 (checkBox.isFocused() || checkBox.isHovered()),
                 canvas.isActive()),
             0, 0, checkBox.getWidth(), checkBox.getHeight(),
             false);
-    }
-    
-    //==================================================================================================================
-    @Override default void nvLabelButtonDrawBackground(@NotNull Canvas canvas, @NotNull NVLabelButton button) {}
-    
-    @Override
-    default void nvLabelButtonDrawText(final @NotNull Canvas canvas, final @NotNull NVLabelButton button)
-    {
-        canvas.setColour(canvas.findColour(canvas.isActive()
-            ? NVLabelButton.COLOUR_TEXT
-            : NVLabelButton.COLOUR_TEXT_INACTIVE));
-        canvas.drawText(button.getText(), 0, 0, button.getWidth(), button.getHeight(), button.textAlign.get());
     }
 }

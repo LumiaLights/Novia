@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "id": "${mod_id}",
+    "id": "novia-gui-api",
     "version": "${version}",
     "name": "${mod_name}",
     "description": "A useful fabric module for the Novia that provides some GUI and general 2D drawing utils.",
@@ -12,7 +12,7 @@
     },
     "accessWidener": "novia-gui-api.accesswidener",
     "license": "MIT",
-    "icon": "assets/${mod_id}/icon.png",
+    "icon": "assets/novia-gui-api/icon.png",
     "environment": "client",
     "entrypoints": {
         "client": [ "xyz.lumialights.novia.api.gui.GuiApi" ],
@@ -21,7 +21,7 @@
     "mixins": [
         {
             "environment": "client",
-            "config": "${mod_id}.client.mixins.json"
+            "config": "novia-gui-api.client.mixins.json"
         }
     ],
     "depends": {

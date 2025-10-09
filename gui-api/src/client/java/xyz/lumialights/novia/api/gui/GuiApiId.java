@@ -102,15 +102,14 @@ public abstract class GuiApiId
         public static final Identifier LIST_BOX_CAN_DESELECT    = GuiApiId.of("list_box/can_deselect");
         public static final Identifier LIST_BOX_CAN_FOCUS_ITEMS = GuiApiId.of("list_box/can_focus_items");
         public static final Identifier LIST_BOX_ITEM_SIZE       = GuiApiId.of("list_box/item_size");
-    
-        // LABEL BUTTON
-        public static final Identifier LABEL_BUTTON_TEXT_ALIGN = GuiApiId.of("label_button/text_align");
-        public static final Identifier LABEL_BUTTON_SHADOW     = GuiApiId.of("label_button/shadow");
         
         // LABEL
         public static final Identifier LABEL_TEXT_ALIGN = GuiApiId.of("label/text_align");
-        public static final Identifier LABEL_SHADOW     = GuiApiId.of("label/shadow");
         public static final Identifier LABEL_TRIM_FUNC  = GuiApiId.of("label/trim_function");
+        
+        // IMAGE
+        public static final Identifier IMAGE_EXPLICIT_SCALING = GuiApiId.of("image/explicit_scaling");
+        public static final Identifier IMAGE_SPRITE_UV        = GuiApiId.of("image/sprite_uv");
         
         // DROPDOWN
         public static final Identifier DROPDOWN_DEFAULT_OPT     = GuiApiId.of("dropdown/default_opt");

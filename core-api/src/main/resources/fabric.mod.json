@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "id": "${mod_id}",
+    "id": "novia-core-api",
     "version": "${version}",
     "name": "${mod_name}",
     "description": "Core module for Novia.",
@@ -11,17 +11,19 @@
         "issues": "https://github.com/LumiaLights/Novia/issues"
     },
     "license": "MIT",
-    "icon": "assets/${mod_id}/icon.png",
+    "icon": "assets/novia-core-api/icon.png",
     "environment": "*",
     "entrypoints": {
         "main": [ "xyz.lumialights.novia.api.core.Novia" ],
         "client": [ "xyz.lumialights.novia.api.core.client.NoviaClientHandler" ],
-        "server": [ "xyz.lumialights.novia.api.core.server.NoviaServerHandler" ]
+        "server": [
+          "xyz.lumialights.novia.api.core.NoviaServerHandler"
+        ]
     },
     "mixins": [
-        "${mod_id}.mixins.json",
+        "novia-core-api.mixins.json",
         {
-            "config": "${mod_id}.client.mixins.json",
+            "config": "novia-core-api.client.mixins.json",
             "environment": "client"
         }
     ],

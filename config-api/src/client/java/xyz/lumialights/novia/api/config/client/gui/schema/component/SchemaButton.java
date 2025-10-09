@@ -41,6 +41,8 @@ import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.config.client.ConfigApiLangClient;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
+import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
 
 import java.util.*;
 
@@ -52,32 +54,25 @@ public abstract class SchemaButton
     implements IStatefulComponent<SchemaButton>
 {
     //******************************************************************************************************************
-    private final Set<ChangeListener<SchemaButton>> listeners = Sets.newIdentityHashSet();
+    private final Set<GuiEventHandler<GuiEventArgs>> listeners = Sets.newIdentityHashSet();
     
     private boolean muted = false;
     
     //******************************************************************************************************************
-    public SchemaButton(final @NotNull ActionListener<NVSimpleButton> listener, final @NotNull Text text)
-    {
-        super(listener, text, ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT);
-    }
-    
-    public SchemaButton(final @NotNull ActionListener<NVSimpleButton> listener)
-    {
-        this(listener, ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT);
-    }
+    public SchemaButton(final @NotNull Text text) { super(text, ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT); }
+    public SchemaButton() { this(ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT); }
     
     //==================================================================================================================
     @Override
-    public void addChangeListener(final @NotNull ChangeListener<SchemaButton> listener)
+    public void addChangeListener(final @NotNull GuiEventHandler<GuiEventArgs> handler)
     {
-        this.listeners.add(listener);
+        this.listeners.add(handler);
     }
     
     @Override
-    public void removeChangeListener(final @NotNull ChangeListener<SchemaButton> listener)
+    public void removeChangeListener(final @NotNull GuiEventHandler<GuiEventArgs> handler)
     {
-        this.listeners.remove(listener);
+        this.listeners.remove(handler);
     }
     
     @Override public void mute()   { this.muted = true;  }
@@ -91,6 +86,6 @@ public abstract class SchemaButton
             return;
         }
         
-        this.listeners.forEach(listener -> listener.onChange(this));
+        this.listeners.forEach(handler -> handler.handle(this, GuiEventArgs.EMPTY));
     }
 }

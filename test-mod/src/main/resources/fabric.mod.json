@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "id": "${mod_id}",
+    "id": "novia-test-mod",
     "version": "${version}",
     "name": "${mod_name}",
     "description": "A test implementation of all module features of this library mod.",
@@ -17,7 +17,7 @@
     },
     "mixins": [
         {
-            "config": "${mod_id}.client.mixins.json",
+            "config": "novia-test-mod.client.mixins.json",
             "environment": "client"
         }
     ],

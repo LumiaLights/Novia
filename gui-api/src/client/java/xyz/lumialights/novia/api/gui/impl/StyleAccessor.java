@@ -36,16 +36,25 @@
 package xyz.lumialights.novia.api.gui.impl;
 
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
-
+import java.util.Optional;
 
 
 //**********************************************************************************************************************
 public interface StyleAccessor
 {
     //******************************************************************************************************************
-    boolean novia$isFontSet();
-    @NotNull Optional<Boolean> novia$getFormatting(@NotNull Formatting formatting);
+    @Nullable Identifier novia$getFontId();
+    @Nullable Optional<Boolean> novia$getFormatFlag(@NotNull Formatting formatting);
+
+    //==================================================================================================================
+    boolean           novia$isFontSet();
+    @Nullable Boolean novia$isBold();
+    @Nullable Boolean novia$isItalic();
+    @Nullable Boolean novia$isUnderlined();
+    @Nullable Boolean novia$isStrikethrough();
+    @Nullable Boolean novia$isObfuscated();
 }

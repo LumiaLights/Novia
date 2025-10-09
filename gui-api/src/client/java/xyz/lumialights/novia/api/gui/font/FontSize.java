@@ -40,69 +40,82 @@ import org.intellij.lang.annotations.Pattern;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import java.util.function.Function;
 
 
 
 //**********************************************************************************************************************
+/// Provides a conversion structure that calculates EM size (relative to [GuiFont#getRenderHeight()]) based on the
+/// given unit and value.
+///
+/// Consumers of this class will then internally convert the EM size to [logical pixels].
+///
+/// @param unit  The unit to use to convert to the EM scale
+/// @param value The value to convert
 public record FontSize(@NotNull FontSize.Unit unit, float value)
 {
     //******************************************************************************************************************
+    /// Represents the conversion algorithm to use.
     public enum Unit
     {
         //**************************************************************************************************************
-        /** Specifies the font's scale in pixels. */
-        PIXEL("px", (base -> (1.0f / base))),
+        /// Specifies the font's scale in logical pixels.
+        PIXEL("px", (1f / GuiFont.getRenderHeight())),
         
-        /** Specifies the font's scale in points, points will be calculated regardless of applied window scaling. */
-        POINT("pt", (base -> (1.0f / (base * 0.75f)))),
+        /// Specifies the font's scale in "fixed points" (ignoring the screen's resolution),
+        /// where 1 logical pixel is 6.75pt.
+        POINT("pt", (1f / (GuiFont.getRenderHeight() * 0.75f))),
         
-        /** Specifies the font's size in a relative font scale (e.g. 1em: font height, 2em: double font height). */
-        EM("em", (base -> 1.0f)),
+        /// Specifies the font's size in a relative font scale (e.g. 1em: 9 logical pixels, 2em: 18 logical pixels).
+        EM("em", 1f),
         ;
         
         //**************************************************************************************************************
-        public final Function<Integer, Float> scaleFunc;
-        public final String                   literal;
+        /// The multiplier used for the scale conversion.
+        public final float scaleFactor;
+        
+        /// The literal used after for this unit, after the number in a style string.
+        public final String literal;
         
         //**************************************************************************************************************
-        Unit(final @NotNull String literal, final @NotNull Function<Integer, Float> scaleFunc)
+        Unit(final @NotNull String literal, final float scaleFactor)
         {
-            this.literal   = Objects.requireNonNull(literal);
-            this.scaleFunc = Objects.requireNonNull(scaleFunc);
+            this.literal     = Objects.requireNonNull(literal);
+            this.scaleFactor = scaleFactor;
         }
     }
     
     //******************************************************************************************************************
+    /// The pattern used to parse font size style strings.
+    /// - Pixels: `<number>px`
+    /// - Points: `<number>pt`
+    /// - Relative scale: `<number>em`
     @Language("RegExp")
     public static final String FONT_SIZE_PATTERN = "^([+-]?(?:[0-9]*[.])?[0-9]+)(px|pt|em)$";
     
     //******************************************************************************************************************
-    /**
-     * Returns a font size object in pixels.
-     * @param value The value in pixels
-     * @return The {@link FontSize}
-     * @see Unit#PIXEL
-     */
+    /// Returns a font size object in logical pixels.
+    /// @param value The value in logical pixels
+    /// @return The [FontSize]
+    /// @see Unit#PIXEL
     public static @NotNull FontSize pixels(final float value) { return new FontSize(Unit.PIXEL, value); }
     
-    /**
-     * Returns a font size object in points.
-     * @param value The value in points
-     * @return The {@link FontSize}
-     * @see Unit#POINT
-     */
+    /// Returns a font size object in points.
+    /// @param value The value in points
+    /// @return The [FontSize]
+    /// @see Unit#POINT
     public static @NotNull FontSize points(final float value) { return new FontSize(Unit.POINT, value); }
     
-    /**
-     * Returns a font size object in relative em unit.
-     * @param value The value in em scale
-     * @return The {@link FontSize}
-     * @see Unit#EM
-     */
+    /// Returns a font size object in relative em unit.
+    /// @param value The value in em scale
+    /// @return The [FontSize]
+    /// @see Unit#EM
     public static @NotNull FontSize em(final float value) { return new FontSize(Unit.EM, value); }
     
-    public static @NotNull FontSize fromString(final @Pattern(FONT_SIZE_PATTERN) @NotNull String value)
+    /// Creates a [FontSize] from the given style string, which is a number and the unit literal.
+    /// @param value The style string (e.g. `1px` or `1pt`)
+    /// @return A new [FontSize]
+    /// @throws IllegalArgumentException If the `value` string was in an invalid format (see [#FONT_SIZE_PATTERN])
+    public static @NotNull FontSize fromString(final @Pattern(FontSize.FONT_SIZE_PATTERN) @NotNull String value)
     {
         if (!value.matches(FONT_SIZE_PATTERN))
         {
@@ -119,8 +132,5 @@ public record FontSize(@NotNull FontSize.Unit unit, float value)
     }
     
     //******************************************************************************************************************
-    public float getScaledValue(final int baseHeight)
-    {
-        return (this.unit.scaleFunc.apply(baseHeight) * this.value);
-    }
+    public float getScaledValue() { return (this.unit.scaleFunc.get() * this.value); }
 }

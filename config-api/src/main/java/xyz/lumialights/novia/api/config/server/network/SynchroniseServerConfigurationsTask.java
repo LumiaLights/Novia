@@ -44,6 +44,7 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.server.network.ServerPlayerConfigurationTask;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
+import xyz.lumialights.novia.api.config.ApiDefine;
 import xyz.lumialights.novia.api.config.network.payload.ConfigS2CConfigSyncPayload;
 import xyz.lumialights.novia.api.config.network.payload.PlayS2CConfigSyncPayload;
 import xyz.lumialights.novia.api.config.provider.BaseNetworkProvider;
@@ -61,7 +62,7 @@ public record SynchroniseServerConfigurationsTask(@NotNull SnapshotCache        
     implements ServerPlayerConfigurationTask
 {
     //******************************************************************************************************************
-    public static final Key KEY = new Key("constructeer:synchronise_configs");
+    public static final Key KEY = new Key(ApiDefine.API_ID + ":synchronise_configs");
 
     //------------------------------------------------------------------------------------------------------------------
     private static final int MAX_PAYLOAD_SIZE = 1048576;

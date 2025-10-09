@@ -35,6 +35,9 @@
  */
 package xyz.lumialights.novia.api.core;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.minecraft.server.MinecraftServer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -45,6 +48,7 @@ import java.nio.file.Path;
 
 
 //**********************************************************************************************************************
+/** The environment handler for the client and server. */
 public abstract class BaseEnvironmentHandler
 {
     //******************************************************************************************************************
@@ -66,7 +70,16 @@ public abstract class BaseEnvironmentHandler
      * @return The Novia data folder
      */
     public abstract @NotNull Path getDataFolder();
-    
+
+    /**
+     * Gets the physical environment type the mod is currently running on.
+     * @return The {@link EnvType}
+     */
+    public @NotNull EnvType getPhysicalSide()
+    {
+        return FabricLoaderImpl.INSTANCE.getEnvironmentType();
+    }
+
     //==================================================================================================================
     /**
      * Determines whether the current thread is the client render thread. (not main thread)
@@ -80,7 +93,7 @@ public abstract class BaseEnvironmentHandler
      * This will always be false when not in-game.
      * @return True if the current thread is the server thread
      */
-    public abstract boolean isServerThread();
+    public boolean isServerThread() { return (this.getServer() != null && this.getServer().isOnThread()); }
 
     //==================================================================================================================
     /**

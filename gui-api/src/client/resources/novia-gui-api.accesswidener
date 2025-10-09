@@ -1,0 +1,6 @@
+accessWidener v2 named
+accessible class net/minecraft/client/gui/render/state/GuiRenderState$Layer
+accessible method net/minecraft/text/Style <init> (Lnet/minecraft/text/TextColor;Ljava/lang/Integer;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Boolean;Ljava/lang/Boolean;Lnet/minecraft/text/ClickEvent;Lnet/minecraft/text/HoverEvent;Ljava/lang/String;Lnet/minecraft/util/Identifier;)V
+accessible class net/minecraft/client/font/BitmapFont$BitmapFontGlyph
+accessible class net/minecraft/client/font/UnihexFont$UnicodeTextureGlyph
+accessible class net/minecraft/client/font/TrueTypeFont$TtfGlyph

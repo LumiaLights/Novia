@@ -135,10 +135,8 @@ public class DefaultGuiTemplate
     private final Palette palette;
     
     //******************************************************************************************************************
-    public DefaultGuiTemplate()
-    {
-        this.palette = new Palette(DefaultGuiTemplate.DEFAULT_COLOURS, null);
-    }
+    /** Constructs a new default template. */
+    public DefaultGuiTemplate() { this.palette = new Palette(DefaultGuiTemplate.DEFAULT_COLOURS, null); }
     
     //==================================================================================================================
     @Override public @NotNull Palette getPalette() { return this.palette; }

@@ -1,37 +1,37 @@
 /**
-           .-----------------. .----------------.  .----------------.  .----------------.  .----------------.
-          | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |
-          | | ____  _____  | || |     ____     | || | ____   ____  | || |     _____    | || |      __      | |
-          | ||_   \|_   _| | || |   .'    `.   | || ||_  _| |_  _| | || |    |_   _|   | || |     /  \     | |
-          | |  |   \ | |   | || |  /  .--.  \  | || |  \ \   / /   | || |      | |     | || |    / /\ \    | |
-          | |  | |\ \| |   | || |  | |    | |  | || |   \ \ / /    | || |      | |     | || |   / ____ \   | |
-          | | _| |_\   |_  | || |  \  `--'  /  | || |    \ ' /     | || |     _| |_    | || | _/ /    \ \_ | |
-          | ||_____|\____| | || |   `.____.'   | || |     \_/      | || |    |_____|   | || ||____|  |____|| |
-          | |              | || |              | || |              | || |              | || |              | |
-          | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
-           '----------------'  '----------------'  '----------------'  '----------------'  '----------------'
-
-    MIT License
-
-    Copyright (c) 2025 LumiaLights
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+ * .-----------------. .----------------.  .----------------.  .----------------.  .----------------.
+ * | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |
+ * | | ____  _____  | || |     ____     | || | ____   ____  | || |     _____    | || |      __      | |
+ * | ||_   \|_   _| | || |   .'    `.   | || ||_  _| |_  _| | || |    |_   _|   | || |     /  \     | |
+ * | |  |   \ | |   | || |  /  .--.  \  | || |  \ \   / /   | || |      | |     | || |    / /\ \    | |
+ * | |  | |\ \| |   | || |  | |    | |  | || |   \ \ / /    | || |      | |     | || |   / ____ \   | |
+ * | | _| |_\   |_  | || |  \  `--'  /  | || |    \ ' /     | || |     _| |_    | || | _/ /    \ \_ | |
+ * | ||_____|\____| | || |   `.____.'   | || |     \_/      | || |    |_____|   | || ||____|  |____|| |
+ * | |              | || |              | || |              | || |              | || |              | |
+ * | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
+ * '----------------'  '----------------'  '----------------'  '----------------'  '----------------'
+ * <p>
+ * MIT License
+ * <p>
+ * Copyright (c) 2025 LumiaLights
+ * <p>
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * <p>
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * <p>
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 package xyz.lumialights.novia.api.gui.component.provided;
 
@@ -52,12 +52,16 @@ import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.ColourId;
 import xyz.lumialights.novia.api.gui.component.*;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -65,70 +69,110 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
+/**
+ * A text-box with a button that can only contain a pre-determined set of options, and a menu that lists the possible
+ * options that can be selected.
+ * <p>
+ * This is a stateful GUI component, the value it contains represents the value of the option that is currently
+ * selected, it can be converted between {@link Value} objects.
+ */
 public class NVDropdown
-    extends StatefulGuiComponent<NVDropdown>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
-    public interface Template
-    {
-        //**************************************************************************************************************
-        void nvDropdownDrawMenuBackground(@NotNull Canvas canvas, @NotNull NVDropdown dropdown, int width, int height);
-        
-        void nvDropdownDrawMenuItem(@NotNull Canvas canvas, @NotNull NVDropdown dropdown, @NotNull Text title,
-                                    int width, int height, int index, boolean selected, boolean hovered,
-                                    boolean focused);
-        
-        void nvDropdownDrawButton(@NotNull Canvas canvas, @NotNull NVDropdown dropdown,
-                                  @NotNull NVAbstractButton<?> button, @NotNull String text);
-    }
-    
-    //------------------------------------------------------------------------------------------------------------------
-    private class Item
+    public class Option
         implements INVItemModel
     {
         //**************************************************************************************************************
-        public final String name;
-        public final Value  value;
-        public final Text   title;
-        
-        //--------------------------------------------------------------------------------------------------------------
+        private final String  name;
+        private final Value   value;
+        private final Text    title;
         private final Tooltip tooltip;
         
         //**************************************************************************************************************
-        public Item(final @NotNull String name, final @NotNull Value value, final @NotNull Text title)
+        public Option(final @NotNull String name, final @NotNull Value value, final @NotNull Text title)
         {
-            this.name  = Objects.requireNonNull(name,  "name must not be null");
-            this.value = Objects.requireNonNull(value, "value must not be null");
-            this.title = Objects.requireNonNull(title, "title must not be null");
-            
+            this.name    = Objects.requireNonNull(name, "name must not be null");
+            this.value   = Objects.requireNonNull(value, "value must not be null");
+            this.title   = Objects.requireNonNull(title, "title must not be null");
             this.tooltip = Tooltip.of(title);
         }
         
         //==============================================================================================================
-        @Override public @Nullable Tooltip getTooltip(final boolean selected) { return this.tooltip; }
+        @Override
+        public @Nullable Tooltip getTooltip(final boolean selected) {return this.tooltip;}
+        
+        public @NotNull String getName() {return this.name;}
+        
+        public @NotNull Value getValue() {return this.value;}
+        
+        public @NotNull Text getTitle()  {return this.title;}
         
         //==============================================================================================================
         @Override
-        public void draw(final @NotNull Canvas    canvas,
+        public void draw(final @NotNull Canvas canvas,
                          final @NotNull Rectangle bounds,
-                         final int                index,
-                         final boolean            selected,
-                         final boolean            hovered,
-                         final boolean            focused)
+                         final int index,
+                         final boolean selected,
+                         final boolean hovered,
+                         final boolean focused)
         {
-            canvas.getTemplate().nvDropdownDrawMenuItem(canvas, NVDropdown.this, this.title, bounds.width(),
-                                                        bounds.height(), index, selected, hovered, focused);
+            canvas.getTemplate().nvDropdownDrawMenuOption(canvas, NVDropdown.this, this.title, bounds.width(),
+                                                          bounds.height(), index, selected, hovered, focused);
         }
     }
     
+    public interface Template
+    {
+        //**************************************************************************************************************
+        /**
+         * Draws the background of the dropdown.
+         * @param canvas   The {@link Canvas}
+         * @param dropdown The {@link NVDropdown}
+         * @param width    The width of the dropdown
+         * @param height   The height of the dropdown
+         */
+        void nvDropdownDrawMenuBackground(@NotNull Canvas canvas, @NotNull NVDropdown dropdown, int width, int height);
+        
+        /**
+         * Draws a single option inside the dropdown menu.
+         * @param canvas   The {@link Canvas}
+         * @param dropdown The {@link NVDropdown}
+         * @param title    The text of the option
+         * @param width    The width of the dropdown
+         * @param height   The height of the dropdown
+         * @param index    The index of the option in the option list
+         * @param selected Whether the option is selected
+         * @param hovered  Whether the option is hovered
+         * @param focused  Whether the option is focused
+         */
+        void nvDropdownDrawMenuOption(@NotNull Canvas canvas, @NotNull NVDropdown dropdown, @NotNull Text title,
+                                      int width, int height, int index, boolean selected, boolean hovered,
+                                      boolean focused);
+        
+        /**
+         * Draws the arrow button of the dropdown.
+         * @param canvas   The {@link Canvas}
+         * @param dropdown The {@link NVDropdown}
+         * @param button   The {@link NVAbstractButton} component
+         * @param isOpen   Whether the menu is currently open
+         */
+        void nvDropdownDrawButton(@NotNull Canvas canvas, @NotNull NVDropdown dropdown,
+                                  @NotNull NVAbstractButton button, boolean isOpen);
+    }
+    
+    public record OptionEventArgs(@NotNull NVDropdown.Option option)
+        implements GuiEventArgs {}
+    
+    //------------------------------------------------------------------------------------------------------------------
     private class Menu
         extends GuiComponent
     {
         //**************************************************************************************************************
-        private final NVListBox<NVDropdown.Item> listBox;
+        private final NVListBox<Option> listBox;
         
         //**************************************************************************************************************
-        public Menu(final @NotNull List<Item> options)
+        public Menu(final @NotNull List<Option> options)
         {
             this.listBox = new NVListBox<>();
             this.listBox.selectionMode.set(NVListBox.SelectionMode.SINGLE);
@@ -136,7 +180,7 @@ public class NVDropdown
             this.listBox.addAllItems(options);
             this.listBox.refreshList();
             this.listBox.selectItem(NVDropdown.this.selected);
-            this.listBox.addSelectionListener((item, index, selected) -> this.hideModal());
+            this.listBox.selectionChanged.subscribe((sender, args) -> this.hideModal());
             this.addChild(this.listBox);
             
             this.setPositioner(this::calculateBounds);
@@ -146,11 +190,12 @@ public class NVDropdown
         public @NotNull Integer getSelected() { return this.listBox.getIndexOfFirstSelectedItem(); }
         
         //==============================================================================================================
-        @Override protected void resized() { this.listBox.setBounds(this.getLocalBounds().pad(1)); }
+        @Override
+        public void resized() {this.listBox.setBounds(this.getLocalBounds().pad(1));}
         
         //==============================================================================================================
         @Override
-        protected void draw(final @NotNull Canvas canvas)
+        public void draw(final @NotNull Canvas canvas)
         {
             canvas.getTemplate().nvDropdownDrawMenuBackground(canvas, NVDropdown.this, this.getWidth(),
                                                               this.getHeight());
@@ -169,36 +214,38 @@ public class NVDropdown
     }
     
     private class DropDownButton
-        extends NVAbstractButton<DropDownButton>
+        extends NVAbstractButton
     {
         //**************************************************************************************************************
-        private String text = "▾";
+        private boolean open = false;
         
         //**************************************************************************************************************
-        public DropDownButton(final @NotNull NVAbstractButton.ActionListener<DropDownButton> actionListener)
-        {
-            super(actionListener, ScreenTexts.EMPTY);
-            this.setWantsFocus(false);
-        }
+        public DropDownButton() { this.setWantsFocus(false); }
         
         //==============================================================================================================
-        public void setText(final @NotNull String text) { this.text = text; }
-        
-        //==============================================================================================================
-        @Override public boolean hitTest(final int x, final int y) { return (x > 0 && x < this.getWidth()); }
+        public void setOpen(final boolean isOpen) { this.open = isOpen; }
         
         //==============================================================================================================
         @Override
-        protected void draw(final @NotNull Canvas canvas)
+        public boolean hitTest(final int x, final int y) {return (x > 0 && x < this.getWidth());}
+        
+        //==============================================================================================================
+        @Override
+        public void draw(final @NotNull Canvas canvas)
         {
-            canvas.getTemplate().nvDropdownDrawButton(canvas, NVDropdown.this, this, this.text);
+            canvas.getTemplate().nvDropdownDrawButton(canvas, NVDropdown.this, this, this.open);
         }
     }
     
     //******************************************************************************************************************
-    public static final ColourId COLOUR_OPTION_TEXT                 = ColourId.reserve();
+    /** The colour used for drawing the text in the drop-down menu. */
+    public static final ColourId COLOUR_OPTION_TEXT = ColourId.reserve();
+    
+    /** The colour used for drawing the highlight beneath the text in the drop-down menu. */
     public static final ColourId COLOUR_OPTION_BACKGROUND_HIGHLIGHT = ColourId.reserve();
-    public static final ColourId COLOUR_OPTION_BACKGROUND_SELECTED  = ColourId.reserve();
+    
+    /** The colour used for drawing the selection highlight beneath the text in the drop-down menu. */
+    public static final ColourId COLOUR_OPTION_BACKGROUND_SELECTED = ColourId.reserve();
     
     //==================================================================================================================
     /** See {@link NVDropdown#showSuggestion}. */
@@ -232,7 +279,14 @@ public class NVDropdown
     public final GuiProperty.NonNull<Alignment> optionAlignment;
     
     //==================================================================================================================
-    private final List<Item>     options;
+    /** Triggered whenever a new option has been added to the drop-down. */
+    public final GuiEvent<OptionEventArgs> optionAdded = new GuiEvent<>();
+    
+    /** Triggered whenever an option has been removed from the drop-down. */
+    public final GuiEvent<OptionEventArgs> optionRemoved = new GuiEvent<>();
+    
+    //==================================================================================================================
+    private final List<Option>   options;
     private final NVTextBox      input;
     private final DropDownButton arrowButton;
     
@@ -251,19 +305,25 @@ public class NVDropdown
         
         this.options = values
             .stream()
-            .map(p -> new Item(p.first().getString(), p.second(), p.first()))
+            .map(p -> new Option(p.first().getString(), p.second(), p.first()))
             .collect(Collectors.toList());
         
-        this.defaultOption   = GuiProperty.nullable(null, (v -> this.setDefaultSelectedOption()));
-        this.showSuggestion  = GuiProperty.nonNull (NVDropdown.DEFAULT_SHOW_SUGGESTION, this::updateSuggestionMode);
-        this.optionAlignment = GuiProperty.nonNull (NVDropdown.DEFAULT_OPTION_ALIGNMENT);
+        this.defaultOption   = GuiPropertyBuilder.nullable((String) null)
+            .withSetter(v -> this.setDefaultSelectedOption())
+            .build();
+        this.showSuggestion  = GuiPropertyBuilder.nonNull(NVDropdown.DEFAULT_SHOW_SUGGESTION)
+            .withSetter(this::updateSuggestionMode)
+            .build();
+        this.optionAlignment = GuiPropertyBuilder.nonNull(NVDropdown.DEFAULT_OPTION_ALIGNMENT)
+            .build();
         
         this.input = this.addChild(new NVTextBox());
         this.input.textPredicate.set(this::hasOption);
         this.input.placeholder.set(GuiApiLang.GUI_DROPDOWN_PLACEHOLDER);
-        this.input.addChangeListener(this::textChanged);
+        this.input.valueChanged.subscribe(this::textChanged);
         
-        this.arrowButton = this.addChild(new DropDownButton(this::openMenu));
+        this.arrowButton = this.addChild(new DropDownButton());
+        this.arrowButton.clicked.subscribe(this::toggleMenu);
         
         this.setDefaultSelectedOption();
     }
@@ -278,6 +338,7 @@ public class NVDropdown
     public NVDropdown() { this(Collections.emptyList()); }
     
     //==================================================================================================================
+    
     /**
      * Gets the currently selected value from the drop-down.
      * <p>
@@ -285,14 +346,14 @@ public class NVDropdown
      * so make sure to test with {@link #hasSelectedOption()} first.
      *
      * @return The currently selected {@link Value}
-     * @throws UndefinedComponentStateException If there is no selected item
+     * @throws UndefinedComponentStateException If there is no selected option
      */
     @Override
     public @NotNull Value getValue()
     {
         if (this.selected < 0)
         {
-            throw new UndefinedComponentStateException("Dropdown has no selected option");
+            throw new UndefinedComponentStateException("no option was selected");
         }
         
         return this.options.get(this.selected).value;
@@ -302,19 +363,52 @@ public class NVDropdown
      * Gets the internal text box, this should only be used for styling purposes.
      * @return The internal {@link NVTextBox}
      */
-    public @NotNull NVTextBox getTextBox() { return this.input; }
+    public @NotNull NVTextBox getTextBox() {return this.input;}
     
     /**
      * Gets the text of the currently selected option as string.
      * @return The selected text
      */
-    public @NotNull String getSelectedOptionName() { return this.options.get(this.selected).name; }
+    public @NotNull Optional<Option> getSelectedOption() { return this.getOption(this.selected); }
     
     /**
-     * Whether this drop down currently has an option selected or not.
-     * @return {@code true} if there is an item selected
+     * Gets the option at the specified index, or an empty optional if the index is out of bounds.
+     * @param index The index of the option
+     * @return An {@link Optional} containing the {@link Option}
      */
-    public boolean hasSelectedOption() { return (this.selected > -1); }
+    public @NotNull Optional<Option> getOption(final int index)
+    {
+        if (index < 0 || index > this.getOptionCount())
+        {
+            return Optional.empty();
+        }
+        
+        return Optional.of(this.options.get(index));
+    }
+    
+    /**
+     * Gets the option with the specified index, or an empty optional if there is none.
+     * @param optionName The name of the option
+     * @return An {@link Optional} containing the {@link Option}
+     */
+    public @NotNull Optional<Option> getOption(final @NotNull String optionName)
+    {
+        return Optional
+            .ofNullable(this.getOptionFor(optionName, Option::getName))
+            .map(Pair::second);
+    }
+    
+    /**
+     * Gets the first option that is found containing the given value, or an empty optional if there is none.
+     * @param value The value of the option
+     * @return An {@link Optional} containing the {@link Option}
+     */
+    public @NotNull Optional<Option> getOption(final @NotNull Value value)
+    {
+        return Optional
+            .ofNullable(this.getOptionFor(value, Option::getValue))
+            .map(Pair::second);
+    }
     
     /**
      * Gets the number of options in the drop-down.
@@ -343,8 +437,8 @@ public class NVDropdown
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private <T> @Nullable Pair<Integer, Item> getOptionFor(final @NotNull T                 optionComponent,
-                                                           final @NotNull Function<Item, T> getter)
+    private <T> @Nullable Pair<Integer, Option> getOptionFor(final @NotNull T                   optionComponent,
+                                                             final @NotNull Function<Option, T> getter)
     {
         return IntStream
             .range(0, this.options.size())
@@ -358,12 +452,23 @@ public class NVDropdown
     /**
      * Determines whether this drop-down contains an option with the given name.
      * @param optionName The unique name of the option
-     * @return {@code true} if the option already exists by that name
+     * @return {@code true} if an option with that name exists
      */
-    public boolean hasOption(final @NotNull String optionName)
-    {
-        return this.options.stream().anyMatch(opt -> opt.name.equals(optionName));
-    }
+    public boolean hasOption(final @NotNull String optionName) { return (this.getOption(optionName).isPresent()); }
+    
+    /**
+     * Determines whether this drop-down contains an option with the given name.
+     * @param option The {@link Option} to check the name of
+     * @return {@code true} if the option exists
+     */
+    public boolean hasOption(final @NotNull Option option) { return this.hasOption(option.name); }
+    
+    /**
+     * Determines whether this drop-down contains an option with the given value.
+     * @param value The {@link Value} the option has to contain
+     * @return {@code true} if an option with that {@link Value} exists
+     */
+    public boolean hasOption(final @NotNull Value value) { return (this.getOption(value).isPresent()); }
     
     /**
      * Determines whether the drop-down has any options to pick from.
@@ -371,20 +476,22 @@ public class NVDropdown
      */
     public boolean hasAnyOptions() { return !this.options.isEmpty(); }
     
+    /**
+     * Whether this drop down currently has an option selected or not.
+     * @return {@code true} if there is an option selected
+     */
+    public boolean hasSelectedOption() { return (this.selected > -1); }
+    
     //==================================================================================================================
     /**
      * Sets the option to be selected based on its associated value.
-     * @param value The {@link Value} the item to be selected has
+     * @param value The {@link Value} the option to be selected has
      */
     @Override
     public void setValue(final @NotNull Value value)
     {
         Objects.requireNonNull(value, "value must not be null");
-        this.options
-            .stream()
-            .filter(e -> e.value.equals(value))
-            .findFirst()
-            .ifPresent(e -> this.setSelectedOption(e.name));
+        this.setSelectedOption(value);
     }
     
     /**
@@ -395,30 +502,38 @@ public class NVDropdown
     {
         Objects.requireNonNull(optionName, "option name must not be null");
         
-        final Pair<Integer, Item> opt = this.getOptionFor(optionName, (opt2 -> opt2.name));
+        final Pair<Integer, Option> opt = this.getOptionFor(optionName, (opt2 -> opt2.name));
         
         if (opt == null || opt.first() == this.selected)
         {
             return;
         }
         
-        this.setSelectedIndex(opt.first());
+        this.setSelectedOption(opt.first());
     }
     
-    //------------------------------------------------------------------------------------------------------------------
-    private void setDefaultSelectedOption()
+    /**
+     * Sets the selected option by its given name.
+     * @param option The option to get the name of
+     */
+    public void setSelectedOption(final @NotNull Option option) { this.setSelectedOption(option.name); }
+    
+    /**
+     * Sets the selected option to the first one with the given value.
+     * @param value The value of the option to select
+     */
+    public void setSelectedOption(final @NotNull Value value)
     {
-        this.defaultOption.ifSet(optionName ->
-        {
-            if (this.selected < 0 && this.hasAnyOptions())
-            {
-                final Pair<Integer, Item> opt = this.getOptionFor(optionName, (opt2 -> opt2.name));
-                this.setSelectedIndex(opt != null ? opt.first() : 0);
-            }
-        });
+        Optional
+            .ofNullable(this.getOptionFor(value, Option::getValue))
+            .ifPresent(p -> this.setSelectedOption(p.first()));
     }
     
-    private void setSelectedIndex(final int index)
+    /**
+     * Sets the selected option by its index in the option list.
+     * @param index The index of the option to select
+     */
+    private void setSelectedOption(final int index)
     {
         if (index < 0 || index >= this.getOptionCount() || index == this.selected)
         {
@@ -428,59 +543,70 @@ public class NVDropdown
         this.selected = index;
         
         this.updateText();
-        this.notifyChangeListeners();
+        this.sendChangeNotification();
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private void setDefaultSelectedOption()
+    {
+        this.defaultOption.ifSet(optionName ->
+        {
+            if (this.selected < 0)
+            {
+                Optional
+                    .ofNullable(this.getOptionFor(optionName, Option::getName))
+                    .ifPresent(p -> this.setSelectedOption(p.first()));
+            }
+        });
     }
     
     //==================================================================================================================
     /**
-     * Adds the given option with the given value and text to the drop-down list.
-     * @param text  The text of the option
-     * @param value The value of the option
+     * Inserts the given option with the given value and text to the drop-down list at the specified index.
+     * @param index  The index to insert the option at
+     * @param option The option to add
      * @return {@code true} if the option was added, {@code false} if an option by that name already existed
+     * @throws IndexOutOfBoundsException If the insertion index is out of bounds (i < 0 or i > size)
      */
-    public boolean addOption(final @NotNull String text, final @NotNull Value value)
+    public boolean addOption(final int index, final @NotNull Option option)
     {
-        return this.addOptionInternal(text, value, Text.of(text));
-    }
-    
-    /**
-     * Adds the given option with the given value and text to the drop-down list.
-     * @param text  The text of the option
-     * @param value The value of the option
-     * @return {@code true} if the option was added, {@code false} if an option by that name already existed
-     */
-    public boolean addOption(final @NotNull Text text, final @NotNull Value value)
-    {
-        return this.addOptionInternal(text.getString(), value, text);
-    }
-    
-    /**
-     * Adds the given option with the given value as name and title to the drop-down list.
-     * <p>
-     * If the string converted value is bigger than 64, the title will be truncated to a length of 64 characters.
-     *
-     * @param value The value, name and title of the option
-     * @return {@code true} if the option was added, {@code false} if an option by that name already existed
-     */
-    public boolean addOption(final @NotNull Value value)
-    {
-        final String text = value.asString();
-        return this.addOptionInternal(text, value, Text.of(text));
-    }
-    
-    public void addAllOptions(final @NotNull Collection<Pair<Text, Value>> values)
-    {
-        this.options.addAll(values
-            .stream()
-            .flatMap(p ->
-            {
-                final String name = p.first().getString();
-                return (!this.hasOption(name)
-                    ? Stream.of(new Item(name, p.second(), p.first()))
-                    : Stream.empty());
-            })
-            .toList());
+        if (this.hasOption(option.name))
+        {
+            return false;
+        }
+        
+        this.options.add(index, option);
         this.setDefaultSelectedOption();
+        this.sendOptionAddedNotification(option);
+        
+        return true;
+    }
+    
+    /**
+     * Adds the given option with the given value and text to the end of the drop-down list.
+     * @param option The option to add
+     * @return {@code true} if the option was added, {@code false} if an option by that name already existed
+     */
+    public boolean addOption(final @NotNull Option option) { return this.addOption(this.getOptionCount(), option); }
+    
+    /**
+     * Adds the given options to the end of the drop-down list if options with the given names don't already exist.
+     * @param options The options to add
+     * @return The number of options that have been added
+     */
+    public int addAllOptions(final @NotNull Collection<Option> options)
+    {
+        final List<Option> new_options = options
+            .stream()
+            .filter(Predicate.not(this::hasOption))
+            .toList();
+        
+        this.options.addAll(new_options);
+        new_options.forEach(this::sendOptionAddedNotification);
+        
+        this.setDefaultSelectedOption();
+        
+        return new_options.size();
     }
     
     /**
@@ -490,32 +616,79 @@ public class NVDropdown
      */
     public boolean removeOption(final @NotNull String optionName)
     {
-        if (this.options.removeIf(opt -> opt.name.equals(optionName)))
+        return Optional
+            .ofNullable(this.getOptionFor(optionName, Option::getName))
+            .map(p -> this.removeOption(p.first()))
+            .orElse(false);
+    }
+    
+    /**
+     * Removes the option at the given index from the drop-down list.
+     * @param index The index of the option
+     * @return {@code true} if the option was removed, {@code false} if no option existed at that index
+     */
+    public boolean removeOption(final int index)
+    {
+        if (index < 0 || index >= this.getOptionCount())
         {
-            this.setDefaultSelectedOption();
-            
-            if (this.selected > -1 && !this.hasAnyOptions())
-            {
-                this.selected = -1;
-            }
-            
-            return true;
+            return false;
         }
         
-        return false;
+        final Option option = this.options.remove(index);
+        this.sendOptionRemovedNotification(option);
+        
+        this.setDefaultSelectedOption();
+        
+        if (this.selected > -1 && !this.hasAnyOptions())
+        {
+            this.selected = -1;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Removes the given option from the drop-down list if it existed.
+     * @param option The option to remove
+     * @return {@code true} if the option was removed, {@code false} if no option existed
+     */
+    public boolean removeOption(final @NotNull Option option) { return this.removeOption(option.name); }
+    
+    /**
+     * Removes all options that contain the given value.
+     * @param value The {@link Value} to check the options against
+     * @return The number of options that were removed
+     */
+    public int removeAllOptions(final @NotNull Value value)
+    {
+        int count = 0;
+        
+        for (int i = 0; i < this.getOptionCount(); ++i)
+        {
+            if (this.options.get(i).value.equals(value))
+            {
+                this.removeOption(i);
+                ++count;
+            }
+        }
+        
+        return count;
     }
     
     /** Clears all options in the drop-down list. */
     public void clearOptions()
     {
+        final List<Option> temp_options = new ArrayList<>(this.options);
+        
         this.options.clear();
+        temp_options.forEach(this::sendOptionRemovedNotification);
         
         if (this.selected > -1)
         {
             this.selected = -1;
             
             this.updateText();
-            this.notifyChangeListeners();
+            this.sendChangeNotification();
         }
     }
     
@@ -528,30 +701,13 @@ public class NVDropdown
         }
         
         this.selected = -1;
+        
         this.updateText();
-        this.notifyChangeListeners();
-    }
-    
-    //------------------------------------------------------------------------------------------------------------------
-    private boolean addOptionInternal(final @NotNull String name, final @NotNull Value value, final @NotNull Text text)
-    {
-        Objects.requireNonNull(name,  "name must not be null");
-        Objects.requireNonNull(value, "value must not be null");
-        Objects.requireNonNull(text,  "text must not be null");
-        
-        if (this.hasOption(name))
-        {
-            return false;
-        }
-        
-        this.options.add(new Item(name, value, text));
-        this.setDefaultSelectedOption();
-        
-        return true;
+        this.sendChangeNotification();
     }
     
     //==================================================================================================================
-    private void openMenu(final @Nullable Object button)
+    private void toggleMenu(final @Nullable GuiComponent button, final @NotNull GuiEventArgs args)
     {
         if (this.isOpen)
         {
@@ -560,24 +716,17 @@ public class NVDropdown
         
         (new Menu(this.options))
             .showModal(ModalArgs.popup(this))
-            .onOpened(() ->
-            {
-                this.isOpen = true;
-                this.arrowButton.setText("▴");
-            })
+            .onOpened(() -> this.arrowButton.setOpen(this.isOpen = true))
             .thenAccept(comp ->
             {
-                this.isOpen = false;
-                this.arrowButton.setText("▾");
-                
-                final int selected = ((Menu) comp).getSelected();
-                this.setSelectedIndex(selected);
+                this.arrowButton.setOpen(this.isOpen = false);
+                this.setSelectedOption(((Menu) comp).getSelected());
             });
     }
     
     //==================================================================================================================
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (this.isActive() && e.source == this.input && e.input == GLFW.GLFW_KEY_TAB)
         {
@@ -594,17 +743,22 @@ public class NVDropdown
     }
     
     //==================================================================================================================
+    public void onOptionAdded(final @NotNull Option option) {}
+    
+    public void onOptionRemoved(final @NotNull Option option) {}
+    
+    //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         final Rectangle input_bounds = this.getLocalBounds();
         this.arrowButton.setBounds(input_bounds.removeRight(10));
-        this.input      .setBounds(input_bounds.padRight(-3));
+        this.input.setBounds(input_bounds.padRight(-3));
     }
     
     //==================================================================================================================
     @Override
-    protected void childFocusChanged(final @NotNull GuiComponent child, final @NotNull GuiNavigationType type)
+    public void onChildFocusChanged(final @NotNull GuiComponent child, final @NotNull GuiNavigationType type)
     {
         if (child == this.input && !child.isFocused())
         {
@@ -613,24 +767,24 @@ public class NVDropdown
     }
     
     //==================================================================================================================
-    private void textChanged(final @NotNull NVTextBox box)
+    private void textChanged(final @NotNull GuiComponent sender, final @NotNull GuiEventArgs e)
     {
-        final String text = box.getText();
-        box.suggestion.set(null);
+        final String text = this.input.getText();
+        this.input.suggestion.set(null);
         
         if (text.isEmpty())
         {
             return;
         }
         
-        final Pair<Integer, Item> opt = this.getOptionFor(text, (opt2 -> opt2.title));
+        final Pair<Integer, Option> opt = this.getOptionFor(text, (opt2 -> opt2.title));
         
         if (opt != null)
         {
             if (this.selected != opt.first())
             {
                 this.selected = opt.first();
-                this.notifyChangeListeners();
+                this.sendChangeNotification();
             }
             
             return;
@@ -643,8 +797,21 @@ public class NVDropdown
                 .filter(opt2 -> opt2.name.startsWith(text))
                 .findFirst()
                 .map(opt2 -> opt2.name)
-                .ifPresent(str -> box.suggestion.set(str.substring(text.length())));
+                .ifPresent(str -> this.input.suggestion.set(str.substring(text.length())));
         }
+    }
+    
+    //==================================================================================================================
+    private void sendOptionAddedNotification(final @NotNull Option option)
+    {
+        this.onOptionAdded(option);
+        this.optionAdded.post(this, new OptionEventArgs(option));
+    }
+    
+    private void sendOptionRemovedNotification(final @NotNull Option option)
+    {
+        this.onOptionRemoved(option);
+        this.optionRemoved.post(this, new OptionEventArgs(option));
     }
     
     //==================================================================================================================

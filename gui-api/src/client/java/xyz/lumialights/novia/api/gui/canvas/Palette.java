@@ -44,10 +44,11 @@ import org.jetbrains.annotations.Nullable;
 import xyz.lumialights.novia.api.core.util.Colour;
 
 import java.util.*;
-
+import java.util.stream.Collectors;
 
 
 //**********************************************************************************************************************
+/** This class describes a map of {@link Colour} objects mapped to a reserved {@link ColourId}. */
 public class Palette
 {
     //******************************************************************************************************************
@@ -76,7 +77,8 @@ public class Palette
     {
         this(Map.of(), defaultColour);
     }
-    
+
+    /** Constructs a new empty palette. */
     public Palette() { this(Map.of(), null); }
     
     //==================================================================================================================
@@ -111,16 +113,18 @@ public class Palette
     public final boolean hasColours() { return !this.colours.isEmpty(); }
     
     //==================================================================================================================
+    /** {@return the ID and colour entry set} */
     public final @NotNull Set<Int2ObjectMap.Entry<Colour>> entrySet() { return this.colours.int2ObjectEntrySet(); }
-    
+
+    /** {@return the ID set} */
     public final @NotNull IntSet idSet() { return this.colours.keySet(); }
-    
+
+    /** {@return the colour list} */
     public final @NotNull Collection<Colour> colours() { return this.colours.values(); }
     
     //==================================================================================================================
     /**
      * Sets the colour for the given ID, or removes the colour if {@code null} is given.
-     *
      * @param id     The ID of the colour to set or unset
      * @param colour The colour to set or {@code null} to unset the colour
      * @return The previous colour associated with the ID, or null (or the default) if there was no colour set for that
@@ -137,7 +141,14 @@ public class Palette
             return this.colours.put(id.id, colour);
         }
     }
-    
+
+    /**
+     * Sets the colour for the given ID if not already set for this palette.
+     * @param id     The ID of the colour to set or unset
+     * @param colour The colour to set or {@code null} to unset the colour
+     * @return The previous colour associated with the ID, or null (or the default) if there was no colour set for that
+     *         ID
+     */
     public final @Nullable Colour setColourIfAbsent(final @NotNull ColourId id, final @Nullable Colour colour)
     {
         return this.colours.putIfAbsent(id.id, colour);
@@ -162,9 +173,10 @@ public class Palette
         this.colours.putAll(colours
             .entrySet()
             .stream()
-            .collect(ImmutableMap.toImmutableMap((e -> e.getKey().id), Map.Entry::getValue)));
+            .collect(Collectors.toMap((e -> e.getKey().id), Map.Entry::getValue)));
     }
     
     //==================================================================================================================
+    /** Clears the entire map. */
     public final void clear() { this.colours.clear(); }
 }

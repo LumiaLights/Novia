@@ -5,7 +5,9 @@
     "compatibilityLevel": "JAVA_21",
     "client": [
         "BakedGlyphMixin", "FontManagerMixin", "GuiRenderStateMixin", "MatrixStackEntryMixin", "MinecraftClientMixin",
-        "RotatingCubeMapRendererMixin", "StyleMixin", "ScreenMixin"
+        "RotatingCubeMapRendererMixin", "StyleMixin", "ScreenMixin", "FontStorageMixin",
+        "FontMixin", "FontMixin$BitmapFontMixin", "FontMixin$TrueTypeFontMixin", "FontMixin$UnihexFontMixin",
+        "GlyphMixin", "GlyphMixin$BitmapGlyphMixin", "GlyphMixin$TrueTypeGlyphMixin", "GlyphMixin$UnihexGlyphMixin"
     ],
     "injectors": {
         "defaultRequire": 1

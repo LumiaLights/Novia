@@ -108,7 +108,7 @@ public class DefaultConfigScreenLookAndFeel
     }
     
     //==================================================================================================================
-    @Override public @NotNull GuiFont getDefaultFont() { return GuiFont.getDefault().withShadow(true); }
+    @Override public @NotNull GuiFont getDefaultFont() { return GuiFont.DEFAULT.get().withShadow(true); }
 
     //==================================================================================================================
     @Override public @NotNull Rectangle getEditPanelClientBounds() { return this.editPanelClientBounds; }
@@ -166,13 +166,13 @@ public class DefaultConfigScreenLookAndFeel
     @Override
     public void drawBackground(final @NotNull Canvas canvas)
     {
-        canvas.drawGuiTexture(TAB_BACKGROUND_TEXTURE,     this.tabAreaBounds,    false);
-        canvas.drawGuiTexture(OPTIONS_BACKGROUND_TEXTURE, this.optionAreaBounds, false);
+        canvas.drawSprite(TAB_BACKGROUND_TEXTURE, this.tabAreaBounds, false);
+        canvas.drawSprite(OPTIONS_BACKGROUND_TEXTURE, this.optionAreaBounds, false);
     }
     
     @Override
     public void drawEditPanelBackground(final @NotNull Canvas canvas)
     {
-        canvas.drawGuiTexture(EXTRA_PANEL_BACKGROUND_TEXTURE, this.editPanelClientBounds, false);
+        canvas.drawSprite(EXTRA_PANEL_BACKGROUND_TEXTURE, this.editPanelClientBounds, false);
     }
 }

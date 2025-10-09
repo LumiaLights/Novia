@@ -194,9 +194,7 @@ allprojects {
     if (it.name == "novia")
         return
 
-    def define_package = (project.name != "novia"
-        ? ("${group}.api." + project.name.split("-")[0])
-        : group)
+    def define_package = (project.name != "novia" ? ("${group}.api." + project.name.split("-")[0]) : group)
 
     buildConfig {
         className("ApiDefine")
@@ -205,11 +203,7 @@ allprojects {
         buildConfigField(String, "API_ID",      project.mod_id)
         buildConfigField(String, "API_NAME",    project.mod_name)
         buildConfigField(String, "API_VERSION", project.version)
-
-
     }
-
-
 }
 
 subprojects {

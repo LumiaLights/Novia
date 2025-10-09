@@ -46,6 +46,8 @@ import xyz.lumialights.novia.api.core.Novia;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
+import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -104,8 +106,8 @@ public class NonSupportedSchemaButton
     @Override public void setValue(final @NotNull Value value) { this.cached = value; }
     
     //==================================================================================================================
-    @Override public void addChangeListener(@NotNull ChangeListener<NonSupportedSchemaButton> listener) {}
-    @Override public void removeChangeListener(@NotNull ChangeListener<NonSupportedSchemaButton> listener) {}
+    @Override public void addChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
+    @Override public void removeChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
     @Override public void mute()   {}
     @Override public void unmute() {}
 }

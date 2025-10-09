@@ -2,6 +2,7 @@ package xyz.lumialights.novia.api.core.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
 import org.jetbrains.annotations.NotNull;
@@ -14,7 +15,7 @@ import java.nio.file.Path;
 
 
 //**********************************************************************************************************************
-public class NoviaClientHandler
+public final class NoviaClientHandler
     extends BaseEnvironmentHandler
     implements ClientModInitializer
 {
@@ -32,60 +33,35 @@ public class NoviaClientHandler
     //******************************************************************************************************************
     public NoviaClientHandler()
     {
-        if (INSTANCE != null)
+        if (NoviaClientHandler.INSTANCE != null)
         {
             throw new IllegalStateException("Handler had already been initialised");
         }
 
-        INSTANCE = this;
-
-        this.serverDataFolder = FabricLoader.getInstance().getConfigDir().resolve("constructeer");
+        NoviaClientHandler.INSTANCE = this;
+        this.serverDataFolder       = FabricLoader.getInstance().getConfigDir().resolve("novia");
     }
 
     //==================================================================================================================
-    @Override
-    public void onInitializeClient()
-    {
-        CoreApiClientBootstrap.init();
-    }
+    @Override public void onInitializeClient() { CoreApiClientBootstrap.init(); }
 
     //==================================================================================================================
-    @Override
-    public void initServer(@Nullable final MinecraftServer server)
-    {
-        this.server = server;
-    }
+    @Override public void initServer(@Nullable final MinecraftServer server) { this.server = server; }
 
-    @Override
-    public void shutdownServer(@Nullable MinecraftServer server)
-    {
-        this.server = null;
-    }
+    @Override public void shutdownServer(@Nullable MinecraftServer server) { this.server = null; }
 
     //==================================================================================================================
-    @Override
-    public boolean isRenderThread()
-    {
-        return RenderSystem.isOnRenderThread();
-    }
-    
-    @Override
-    public boolean isServerThread()
-    {
-        return (this.server != null && this.server.isOnThread());
-    }
+    @Override public @Nullable MinecraftServer getServer()       { return this.server; }
+    @Override public @NotNull  Path            getDataFolder()   { return this.serverDataFolder; }
+    @Override public @NotNull  EnvType         getPhysicalSide() { return EnvType.CLIENT; }
+
+    //==================================================================================================================
+    @Override public boolean isRenderThread() { return RenderSystem.isOnRenderThread(); }
 
     //==================================================================================================================
     @Override
     public @Nullable LogicalSide guessLogicalSide()
     {
-        return (isRenderThread() ? LogicalSide.CLIENT : (isServerThread() ? LogicalSide.SERVER : null));
+        return (this.isServerThread() ? LogicalSide.SERVER : (this.isRenderThread() ? LogicalSide.CLIENT : null));
     }
-
-    //==================================================================================================================
-    @Override
-    public @Nullable MinecraftServer getServer() { return this.server; }
-
-    @Override
-    public @NotNull Path getDataFolder() { return this.serverDataFolder; }
 }

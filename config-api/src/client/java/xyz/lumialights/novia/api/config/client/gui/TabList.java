@@ -124,11 +124,11 @@ public class TabList
                 .padLeft(indent);
 
             canvas.setColour(background);
-            canvas.drawGuiTexture(TEXTURES[this.spriteIndex], local_bounds, true);
+            canvas.drawSprite(TEXTURES[this.spriteIndex], local_bounds, true);
             
             canvas.setColour(foreground);
             canvas.getFont().setShaded(false);
-            canvas.drawText(this.title, local_bounds.withLeftPadding(5), Alignment.MIDDLE);
+            canvas.drawTextAligned(this.title, local_bounds.withLeftPadding(5), Alignment.MIDDLE);
             
             if (!selected)
             {

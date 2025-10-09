@@ -41,7 +41,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.ApiDefine;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
@@ -61,13 +60,22 @@ import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
  * <p>
  * This component listens to enter and space keyboard input events to toggle its current state if it is focused.
  * <p>
- * This is a stateful GUI component, the value it contains can be converted to and from {@link Value}.
- * (for more details, see {@link #getValue()}, {@link #setValue(Value)} and {@link IValueConvertible})
+ * This is a stateful GUI component, the value it contains represents the checked state, it can be converted between
+ * boolean qualified {@link Value} objects.
  */
 public class NVCheckBox
-    extends StatefulGuiComponent<NVCheckBox>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
+    /**
+     * Describes the texture being drawn for the checkbox depending on its current state.
+     * @param activeChecked     The texture to draw when the checkbox is active and checked
+     * @param activeUnchecked   The texture to draw when the checkbox is active and unchecked
+     * @param focusedChecked    The texture to draw when the checkbox is active, focused and checked
+     * @param focusedUnchecked  The texture to draw when the checkbox is active, focused and unchecked
+     * @param inactiveChecked   The texture to draw when the checkbox is inactive and checked
+     * @param inactiveUnchecked The texture to draw when the checkbox is inactive and unchecked
+     */
     public record CheckboxTexture(
         @NotNull Identifier activeChecked,
         @NotNull Identifier activeUnchecked,
@@ -78,6 +86,13 @@ public class NVCheckBox
     )
     {
         //**************************************************************************************************************
+        /**
+         * Gets the texture to be drawn depending on the given state attributes.
+         * @param checked Whether the checkbox is checked
+         * @param focused Whether the checkbox is focused
+         * @param active  Whether the checkbox is active
+         * @return The texture {@link Identifier}
+         */
         public @NotNull Identifier get(final boolean checked, final boolean focused, final boolean active)
         {
             if (active)
@@ -97,7 +112,18 @@ public class NVCheckBox
     public interface Template
     {
         //**************************************************************************************************************
+        /**
+         * Draws the background of the checkbox.
+         * @param canvas   The {@link Canvas}
+         * @param checkBox The {@link NVCheckBox}
+         */
         void nvCheckBoxDrawBackground(@NotNull Canvas canvas, @NotNull NVCheckBox checkBox);
+
+        /**
+         * Draws the check mark of the checkbox.
+         * @param canvas   The {@link Canvas}
+         * @param checkBox The {@link NVCheckBox}
+         */
         void nvCheckBoxDrawCheckMark(@NotNull Canvas canvas, @NotNull NVCheckBox checkBox);
     }
     
@@ -139,7 +165,7 @@ public class NVCheckBox
     
     //==================================================================================================================
     /**
-     * Gets the state of this checkbox as a boolean {@link Value}.
+     * Gets the state of this checkbox as a boolean qualified {@link Value}.
      * @return The boolean {@link Value}
      */
     @Override public @NotNull Value getValue() { return new Value(this.checked); }
@@ -163,20 +189,16 @@ public class NVCheckBox
         if (this.checked != checked)
         {
             this.checked = checked;
-            this.notifyChangeListeners();
+            this.sendChangeNotification();
         }
     }
     
-    /** Toggles the state of the checkbox to the opposite of its current value. */
-    public void toggle()
-    {
-        this.checked = !this.checked;
-        this.notifyChangeListeners();
-    }
+    /** Toggles the state of the checkbox to the opposite of its current state. */
+    public void toggle() { this.setChecked(!this.checked); }
     
     /**
-     * Sets the value of this checkbox as a {@link Value} object. If the value is not a boolean value, this does
-     * nothing.
+     * Sets the value of this checkbox as a boolean qualified {@link Value} object. If the value is not a boolean value,
+     * this does nothing.
      * @param value The new boolean {@link Value}
      */
     @Override
@@ -192,13 +214,13 @@ public class NVCheckBox
     
     //==================================================================================================================
     @Override
-    protected boolean onMouseDown(final @NotNull MouseEvent e)
+    public boolean onMouseDown(final @NotNull MouseEvent e)
     {
         if (this.isActive())
         {
             this.toggle();
             ComponentUtil.playClickSound();
-
+            
             return true;
         }
         
@@ -206,7 +228,7 @@ public class NVCheckBox
     }
     
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (this.isActive() && KeyCodes.isToggle(e.input))
         {
@@ -219,10 +241,10 @@ public class NVCheckBox
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         final IGuiTemplate template = canvas.getTemplate();
         template.nvCheckBoxDrawBackground(canvas, this);
-        template.nvCheckBoxDrawCheckMark(canvas, this);
+        template.nvCheckBoxDrawCheckMark (canvas, this);
     }
 }

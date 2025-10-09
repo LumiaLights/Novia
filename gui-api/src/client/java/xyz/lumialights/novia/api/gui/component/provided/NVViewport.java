@@ -48,6 +48,7 @@ import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
 import xyz.lumialights.novia.api.gui.property.GuiPropertyAttorney;
@@ -109,7 +110,7 @@ public class NVViewport
     {
         //**************************************************************************************************************
         @Override
-        protected void draw(final @NotNull Canvas canvas)
+        public void draw(final @NotNull Canvas canvas)
         {
             canvas.getTemplate().nvViewportDrawCorner(canvas, NVViewport.this, this.getWidth(), this.getHeight());
         }
@@ -139,9 +140,10 @@ public class NVViewport
     public final GuiProperty.NonNull<Integer> scrollbarThickness;
     
     //------------------------------------------------------------------------------------------------------------------
-    private final Corner      cornerComponent;
-    private final NVScrollbar horizontalScrollbar;
-    private final NVScrollbar verticalScrollbar;
+    private final Corner                                               cornerComponent;
+    private final NVScrollbar                                          horizontalScrollbar;
+    private final NVScrollbar                                          verticalScrollbar;
+    private final GuiEventHandler<GuiComponent.BoundsChangedEventArgs> contentResizedHandler;
     
     private boolean      internalMove = false;
     private GuiComponent content      = null;
@@ -176,6 +178,8 @@ public class NVViewport
         
         this.horizontalScrollbar.addChangeListener(this::updateOffset);
         this.verticalScrollbar  .addChangeListener(this::updateOffset);
+        
+        this.contentResizedHandler = this::contentBoundsChanged;
         
         if (content != null)
         {
@@ -364,12 +368,12 @@ public class NVViewport
     
     //------------------------------------------------------------------------------------------------------------------
     @Override
-    protected boolean isPinningAllowed(final @NotNull GuiComponent child)
+    public boolean isPinningAllowed(final @NotNull GuiComponent child)
     {
         return (child == this.horizontalScrollbar || child == this.verticalScrollbar);
     }
     
-    @Override protected boolean isAutoPositioningAllowed(@NotNull GuiComponent child) { return false; }
+    @Override public boolean isAutoPositioningAllowed(@NotNull GuiComponent child) { return false; }
     
     //==================================================================================================================
     /**
@@ -535,36 +539,20 @@ public class NVViewport
     }
     
     @Override
-    protected void childResized(final @NotNull GuiComponent child)
+    protected void onChildAdded(@NotNull GuiComponent child)
     {
         if (child == this.content)
         {
-            this.updateScrollbars(false);
+            child.boundsChangedEvent.subscribe(this.contentResizedHandler);
         }
     }
     
     @Override
-    protected void childMoved(final @NotNull GuiComponent child)
+    protected void onChildRemoved(@NotNull GuiComponent child)
     {
-        if (child == this.content && !this.internalMove)
+        if (child == this.content)
         {
-            this.internalMove = true;
-            
-            final int child_offset_x = Math.abs(child.getX());
-            final int child_offset_y = Math.abs(child.getY());
-            
-            final int h_overflow = this.getHorizontalOverflow();
-            final int v_overflow = this.getVerticalOverflow();
-            
-            if (child.getX() > 0 || child.getY() > 0 || child_offset_x > h_overflow || child_offset_y > v_overflow)
-            {
-                child.setPosition(Math.clamp(child.getX(), -h_overflow, 0), Math.clamp(child.getY(), -v_overflow, 0));
-            }
-            
-            this.horizontalScrollbar.setOffset(child_offset_x);
-            this.verticalScrollbar  .setOffset(child_offset_y);
-            
-            this.internalMove = false;
+            child.boundsChangedEvent.unsubscribe(this.contentResizedHandler);
         }
     }
     
@@ -722,6 +710,36 @@ public class NVViewport
         {
             this.horizontalScrollbar.setOffset(0);
             this.verticalScrollbar  .setOffset(0);
+        }
+    }
+    
+    private void contentBoundsChanged(final GuiComponent sender, final @NotNull GuiComponent.BoundsChangedEventArgs e)
+    {
+        if (e.resized())
+        {
+            this.updateScrollbars(false);
+        }
+        
+        if (e.moved() && !this.internalMove)
+        {
+            this.internalMove = true;
+            
+            final int child_offset_x = Math.abs(sender.getX());
+            final int child_offset_y = Math.abs(sender.getY());
+            final int h_overflow     = this.getHorizontalOverflow();
+            final int v_overflow     = this.getVerticalOverflow();
+            
+            if (sender.getX() > 0 || sender.getY() > 0 || child_offset_x > h_overflow || child_offset_y > v_overflow)
+            {
+                sender.setPosition(
+                    Math.clamp(sender.getX(), -h_overflow, 0),
+                    Math.clamp(sender.getY(), -v_overflow, 0));
+            }
+            
+            this.horizontalScrollbar.setOffset(child_offset_x);
+            this.verticalScrollbar  .setOffset(child_offset_y);
+            
+            this.internalMove = false;
         }
     }
 }

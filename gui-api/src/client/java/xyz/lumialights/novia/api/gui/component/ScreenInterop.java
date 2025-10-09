@@ -35,6 +35,10 @@
  */
 package xyz.lumialights.novia.api.gui.component;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.datafixers.util.Function3;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
@@ -48,12 +52,15 @@ import net.minecraft.client.gui.navigation.NavigationDirection;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.sound.MusicSound;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
+import xyz.lumialights.novia.api.gui.ApiDefine;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.CanvasAttorney;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
@@ -116,6 +123,38 @@ public final class ScreenInterop
         return (narration_data != null ? narration_data : narration_data2);
     }
     
+    //******************************************************************************************************************
+    private static final RenderPipeline.Snippet NOVIA_GUI_SNIPPET = RenderPipeline
+        .builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+		.withVertexShader("core/gui")
+		.withFragmentShader("core/gui")
+		.withBlend(BlendFunction.TRANSLUCENT)
+		.withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+        .withDepthWrite(false)
+		.buildSnippet();
+
+    private static final RenderPipeline.Snippet NOVIA_POSITION_TEX_COLOR_SNIPPET = RenderPipeline
+        .builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+		.withVertexShader("core/position_tex_color")
+		.withFragmentShader("core/position_tex_color")
+		.withSampler("Sampler0")
+		.withBlend(BlendFunction.TRANSLUCENT)
+		.withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+        .withDepthWrite(false)
+		.buildSnippet();
+
+    private static final RenderPipeline NOVIA_GUI = RenderPipelines.register(RenderPipeline
+        .builder(NOVIA_GUI_SNIPPET)
+        .withLocation(Identifier.of(ApiDefine.API_ID, "pipeline/gui"))
+        .build());
+
+    private static final RenderPipeline NOVIA_GUI_TEXTURED = RenderPipelines.register(RenderPipeline
+        .builder(NOVIA_POSITION_TEX_COLOR_SNIPPET)
+        .withLocation(Identifier.of(ApiDefine.API_ID, "pipeline/gui_textured"))
+        .build());
+
     //******************************************************************************************************************
     private final List<ContentLayer> layers = new ArrayList<>(2);
     private final List<ScreenLayer>  addonLayers;
@@ -197,7 +236,7 @@ public final class ScreenInterop
     
     public @NotNull GuiFont getFont()
     {
-        return Objects.requireNonNullElseGet(this.guiScreen.font, GuiFont::getDefault);
+        return Objects.requireNonNullElseGet(this.guiScreen.font, GuiFont.DEFAULT);
     }
 
     //==================================================================================================================
@@ -728,8 +767,8 @@ public final class ScreenInterop
         final Canvas canvas = new Canvas(
             context,
             new Point(mouseX, mouseY),
-            RenderPipelines.GUI,
-            RenderPipelines.GUI_TEXTURED,
+            ScreenInterop.NOVIA_GUI,
+            ScreenInterop.NOVIA_GUI_TEXTURED,
             deltaTicks);
 
         CanvasAttorney.initFramebuffer(canvas, this.guiScreen);

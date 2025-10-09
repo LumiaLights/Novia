@@ -81,7 +81,7 @@ public class OptionList
                          boolean            hovered,
                          boolean            focused)
         {
-            canvas.drawText(this.text, bounds.withLocalPos(), Alignment.BOTTOM_LEFT);
+            canvas.drawTextAligned(this.text, bounds.withLocalPos(), Alignment.BOTTOM_LEFT);
         }
     }
     

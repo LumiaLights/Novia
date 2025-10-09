@@ -33,7 +33,7 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
  */
-package xyz.lumialights.novia.api.gui.canvas.brush;
+package xyz.lumialights.novia.api.gui.util;
 
 import net.minecraft.client.render.VertexConsumer;
 import org.jetbrains.annotations.NotNull;

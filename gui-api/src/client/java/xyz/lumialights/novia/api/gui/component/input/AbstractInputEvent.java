@@ -35,13 +35,13 @@
  */
 package xyz.lumialights.novia.api.gui.component.input;
 
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 
 import java.util.*;
 import java.util.function.BiFunction;
+
 
 
 //**********************************************************************************************************************
@@ -66,16 +66,23 @@ public sealed abstract class AbstractInputEvent<Self extends AbstractInputEvent<
     
     //==================================================================================================================
     /**
-     * Gets the final component on which this event has been triggered, by that means,
-     * the component successfully handling the event.
+     * Gets the final component on which this event has been successfully handled.
+     * <p>
+     * Do note that this is only accurate upon completion of all handlers, by that means, only when this event is being
+     * monitored from the outside (such as through a monitoring parent) the returned target is available,
+     * otherwise this will always be the current handler component.
      *
      * @return The handler component
      */
     public final @NotNull GuiComponent target() { return this.target; }
     
     //==================================================================================================================
+    /**
+     * Posts the event to the component hierarchy.
+     * @param listener The listener function
+     * @return {@code true} if any one of the components handled this event successfully
+     */
     @SuppressWarnings("unchecked")
-    @ApiStatus.Internal
     public final boolean post(final @NotNull BiFunction<GuiComponent, Self, Boolean> listener)
     {
         Objects.requireNonNull(listener, "input listener must not be null");
@@ -92,17 +99,13 @@ public sealed abstract class AbstractInputEvent<Self extends AbstractInputEvent<
             
             this.target = parent;
         }
-        
-        GuiComponent parent = this.target.getParent();
-        
-        while (parent != null)
+
+        for (GuiComponent parent = this.target.getParent(); parent != null; parent = parent.getParent())
         {
             if (parent.isMonitoringChildren())
             {
                 listener.apply(parent, self);
             }
-            
-            parent = parent.getParent();
         }
         
         return true;

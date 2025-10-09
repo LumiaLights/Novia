@@ -48,6 +48,8 @@ import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.INVItemModel;
 import xyz.lumialights.novia.api.gui.component.provided.NVListBox;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
+import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 
@@ -217,8 +219,8 @@ public class SchemaList
     }
     
     //==================================================================================================================
-    @Override public void addChangeListener(@NotNull ChangeListener<SchemaList> listener) {}
-    @Override public void removeChangeListener(@NotNull ChangeListener<SchemaList> listener) {}
+    @Override public void addChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
+    @Override public void removeChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
     @Override public void mute()   {}
     @Override public void unmute() {}
 }

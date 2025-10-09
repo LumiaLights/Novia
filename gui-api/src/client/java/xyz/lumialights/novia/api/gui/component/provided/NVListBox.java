@@ -50,9 +50,12 @@ import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -64,9 +67,6 @@ import java.util.stream.Stream;
 //**********************************************************************************************************************
 /**
  * A component, which allows listing custom-defined items in a list.
- * <p>
- * This component is not scrollable, however, it can be easily combined with {@link NVViewport} to allow scrolling the
- * items if the list box gets too big.
  * <p>
  * Do note, however, that changing order, adding or removing items, {@link NVListBox#refreshList()} should be called
  * after these operations to not leave the list in an intermediary state, working on the list could have
@@ -99,22 +99,57 @@ public class NVListBox<T extends INVItemModel>
         @Override public String asString() { return this.name().toLowerCase(); }
     }
     
-    /**
-     * A function listener interface that can be attached to listen to items that changed their selection state.
-     * @param <T> The item implementation based on {@link INVItemModel}
-     */
-    @FunctionalInterface
-    public interface SelectionListener<T extends INVItemModel>
-    {
-        //**************************************************************************************************************
-        void select(@NotNull T item, int index, boolean selected);
-    }
-    
     public interface Template
     {
         //**************************************************************************************************************
-        <T extends INVItemModel> void nvListBoxDrawBackground(@NotNull Canvas canvas, @NotNull NVListBox<T> nvListBox);
+        /**
+         * Draws the list box's background.
+         * @param canvas  The {@link Canvas}
+         * @param listBox The {@link NVListBox}
+         * @param <T> The item model type
+         */
+        <T extends INVItemModel> void nvListBoxDrawBackground(@NotNull Canvas canvas, @NotNull NVListBox<T> listBox);
     }
+    
+    public interface ItemEventArgsBase<T extends INVItemModel>
+        extends GuiEventArgs
+    {
+        //**************************************************************************************************************
+        int itemIndex();
+        
+        //==============================================================================================================
+        /**
+         * Gets the item at the index specified by the current event.
+         * <p>
+         * Do only use the current handler's sender object!
+         * @param sender The sender object of the current handler
+         * @return {@link INVItemModel} the item model
+         */
+        @SuppressWarnings("unchecked")
+        default @NotNull T getItem(final GuiComponent sender)
+        {
+            return ((NVListBox<T>) sender).getItemAt(this.itemIndex()).orElseThrow();
+        }
+        
+        /**
+         * Gets whether the item at the index specified by the current event is currently selected.
+         * <p>
+         * Do only use the current handler's sender object!
+         * @param sender The sender object of the current handler
+         * @return {@code true} if the item is selected
+         */
+        @SuppressWarnings("unchecked")
+        default boolean isSelected(final GuiComponent sender)
+        {
+            return ((NVListBox<T>) sender).isItemSelectedAt(this.itemIndex());
+        }
+    }
+    
+    public record ItemEventArgs<T extends INVItemModel>(int itemIndex) implements ItemEventArgsBase<T> {}
+    
+    public record ItemRemovedEventArgs<T extends INVItemModel>(@NotNull T item) implements GuiEventArgs {}
+    
+    public record ItemMovedEventArgs<T extends INVItemModel>(int itemIndex, int oldIndex) implements GuiEventArgs {}
     
     //------------------------------------------------------------------------------------------------------------------
     private interface ListHandler
@@ -242,12 +277,12 @@ public class NVListBox<T extends INVItemModel>
             }
             
             this.selected = selected;
-            NVListBox.this.onSelectionChanged(this.getNavigationOrder(), this);
+            NVListBox.this.sendSelectionChangeNotification(this);
         }
         
         //==============================================================================================================
         @Override
-        protected boolean onMouseDown(final @NotNull MouseEvent e)
+        public boolean onMouseDown(final @NotNull MouseEvent e)
         {
             if (!this.isActive())
             {
@@ -264,7 +299,7 @@ public class NVListBox<T extends INVItemModel>
         }
         
         @Override
-        protected boolean onKeyDown(final @NotNull KeyEvent e)
+        public boolean onKeyDown(final @NotNull KeyEvent e)
         {
             if (!this.isActive())
             {
@@ -313,7 +348,7 @@ public class NVListBox<T extends INVItemModel>
         }
         
         @Override
-        protected boolean onKeyUp(final @NotNull KeyEvent e)
+        public boolean onKeyUp(final @NotNull KeyEvent e)
         {
             if (!this.isActive())
             {
@@ -339,7 +374,7 @@ public class NVListBox<T extends INVItemModel>
         
         //==============================================================================================================
         @Override
-        protected void draw(final @NotNull Canvas canvas)
+        public void draw(final @NotNull Canvas canvas)
         {
             this.model.draw(
                 canvas,
@@ -354,13 +389,13 @@ public class NVListBox<T extends INVItemModel>
         
         //==============================================================================================================
         @Override
-        protected void onFocusChanged(final @NotNull GuiNavigationType type)
+        public void onFocusChanged(final @NotNull GuiNavigationType type)
         {
-            this.childFocusChanged(this, type);
+            this.onChildFocusChanged(this, type);
         }
         
         @Override
-        protected void childFocusChanged(final @NotNull GuiComponent child, final @NotNull GuiNavigationType type)
+        public void onChildFocusChanged(final @NotNull GuiComponent child, final @NotNull GuiNavigationType type)
         {
             if (child.isFocused())
             {
@@ -392,7 +427,7 @@ public class NVListBox<T extends INVItemModel>
         extends GuiComponent
     {
         //**************************************************************************************************************
-        @Override protected boolean isPinningAllowed(@NotNull GuiComponent child) { return false; }
+        @Override public boolean isPinningAllowed(@NotNull GuiComponent child) { return false; }
         
         //==============================================================================================================
         @SuppressWarnings("unchecked")
@@ -474,11 +509,23 @@ public class NVListBox<T extends INVItemModel>
     /** Describes the size of the items in the list box (height for vertical and width for horizontal). */
     public final GuiProperty.NonNull<Integer> itemSize;
     
-    //******************************************************************************************************************
-    private final List<Item>                items     = new ArrayList<>();
-    private final Set<SelectionListener<T>> listeners = new HashSet<>();
-    private final Container                 container = new Container();
-    private final NVViewport                viewport;
+    //==================================================================================================================
+    /** Triggered whenever an item has changed its selection state. */
+    public final GuiEvent<ItemEventArgs<T>> selectionChanged = new GuiEvent<>();
+    
+    /** Triggered whenever an item has been added to the list (not necessarily on screen). */
+    public final GuiEvent<ItemEventArgs<T>> itemAdded = new GuiEvent<>();
+    
+    /** Triggered whenever an item has been removed from the list (not necessarily on screen). */
+    public final GuiEvent<ItemRemovedEventArgs<T>> itemRemoved = new GuiEvent<>();
+    
+    /** Triggered whenever an item has moved inside the list (not necessarily on screen). */
+    public final GuiEvent<ItemMovedEventArgs<T>> itemMoved = new GuiEvent<>();
+    
+    //==================================================================================================================
+    private final List<Item> items     = new ArrayList<>();
+    private final Container  container = new Container();
+    private final NVViewport viewport;
     
     private boolean        needsRefresh    = false;
     private boolean        sendUpdate      = true;
@@ -495,28 +542,38 @@ public class NVListBox<T extends INVItemModel>
     {
         super(message);
         
-        this.vertical       = GuiProperty.nonNull(NVListBox.DEFAULT_VERTICAL,       this::updateOrientation);
-        this.selectionMode  = GuiProperty.nonNull(NVListBox.DEFAULT_SELECTION_MODE, this::updateSelectionMode);
-        this.alwaysSelected = GuiProperty.nonNull(NVListBox.DEFAULT_ALWAYS_SELECTED, (val ->
-        {
-            if (val && this.selectionMode.get() != SelectionMode.NONE && !this.hasSelectedItems())
+        this.vertical       = GuiPropertyBuilder.nonNull(NVListBox.DEFAULT_VERTICAL)
+            .withSetter(this::updateOrientation)
+            .build();
+        this.selectionMode  = GuiPropertyBuilder.nonNull(NVListBox.DEFAULT_SELECTION_MODE)
+            .withSetter(this::updateSelectionMode)
+            .build();
+        this.alwaysSelected = GuiPropertyBuilder.nonNull(NVListBox.DEFAULT_ALWAYS_SELECTED)
+            .withSetter(val ->
             {
-                this.getDefaultItem().ifPresent(def_item -> def_item.setSelected(true));
-            }
-        }));
+                if (val && this.selectionMode.get() != SelectionMode.NONE && !this.hasSelectedItems())
+                {
+                    this.getDefaultItem().ifPresent(def_item -> def_item.setSelected(true));
+                }
+            })
+            .build();
         this.defaultItem    = GuiProperty.nonNull(NVListBox.DEFAULT_DEFAULT_ITEM_INDEX);
         this.canDeselect    = GuiProperty.nonNull(NVListBox.DEFAULT_CAN_DESELECT);
-        this.canFocusItems  = GuiProperty.nonNull(NVListBox.DEFAULT_CAN_FOCUS_ITEMS, (val -> this.updateFocusState()));
-        this.itemSize       = GuiProperty.nonNull(NVListBox.DEFAULT_ITEM_SIZE, (val ->
-        {
-            int pos = 0;
-            
-            for (final var item : NVListBox.this.items)
+        this.canFocusItems  = GuiPropertyBuilder.nonNull(NVListBox.DEFAULT_CAN_FOCUS_ITEMS)
+            .withNoArgSetter(this::updateFocusState)
+            .build();
+        this.itemSize       = GuiPropertyBuilder.nonNull(NVListBox.DEFAULT_ITEM_SIZE)
+            .withSetter(val ->
             {
-                item.setBounds(this.handler.getItemBounds(pos));
-                pos += val;
-            }
-        }));
+                int pos = 0;
+                
+                for (final var item : NVListBox.this.items)
+                {
+                    item.setBounds(this.handler.getItemBounds(pos));
+                    pos += val;
+                }
+            })
+            .build();
         
         final boolean vertical = this.vertical.get();
         
@@ -689,10 +746,8 @@ public class NVListBox<T extends INVItemModel>
     }
     
     /**
-     * Gets the internal viewport component managed by this list box.
-     * <p>
-     * Use this with caution, generally only for styling purposes or for changing the viewport's scroll-bar behaviour.
-     *
+     * Gets the internal viewport component managed by this list box. Use this with caution, generally only for styling
+     * purposes or for changing the viewport's scroll-bar behaviour.
      * @return The {@link NVViewport}
      */
     public @NotNull NVViewport getViewport() { return this.viewport; }
@@ -987,9 +1042,14 @@ public class NVListBox<T extends INVItemModel>
             return;
         }
         
+        index = Math.clamp(index, 0, this.getItemCount());
+        
         final Item new_item = new Item(item);
         new_item.setWantsFocus(this.canFocusItems.get());
-        this.items.add(Math.clamp(index, 0, this.getItemCount()), new_item);
+        this.items.add(index, new_item);
+        
+        this.onItemAdded(index);
+        this.itemAdded.post(this, new ItemEventArgs<>(index));
         
         this.needsRefresh = true;
     }
@@ -1032,7 +1092,11 @@ public class NVListBox<T extends INVItemModel>
         }
         
         this.needsRefresh = true;
-        return this.items.remove(index).model;
+        
+        final T removed = this.items.remove(index).model;
+        this.sendItemRemovedNotification(removed);
+        
+        return removed;
     }
     
     /**
@@ -1087,6 +1151,9 @@ public class NVListBox<T extends INVItemModel>
         {
             this.moveRange = new Range<>(move_start, move_end);
         }
+        
+        this.onItemMoved(newIndex, oldIndex);
+        this.itemMoved.post(this, new ItemMovedEventArgs<>(newIndex, oldIndex));
     }
     
     /**
@@ -1118,8 +1185,12 @@ public class NVListBox<T extends INVItemModel>
      */
     public void clearItems()
     {
+        final List<Item> items = new ArrayList<>(this.items);
+        
         this.items.clear();
         this.needsRefresh = true;
+        
+        items.forEach(item -> this.sendItemRemovedNotification(item.model));
     }
     
     /**
@@ -1235,22 +1306,16 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private void onSelectionChanged(final int index, final @NotNull Item item)
+    private void sendSelectionChangeNotification(final @NotNull Item item)
     {
         if (!this.sendUpdate)
         {
             return;
         }
         
-        this.listeners.forEach(listener -> listener.select(item.model, index, item.selected));
+        this.onSelectionChanged(item.getNavigationOrder());
+        this.selectionChanged.post(this, new ItemEventArgs<>(item.getNavigationOrder()));
     }
-    
-    //==================================================================================================================
-    /**
-     * Adds a {@link SelectionListener} that responds to the selection change of the items in this list box.
-     * @param listener The listener to attach
-     */
-    public void addSelectionListener(final @NotNull SelectionListener<T> listener) { this.listeners.add(listener); }
     
     //==================================================================================================================
     /**
@@ -1336,7 +1401,7 @@ public class NVListBox<T extends INVItemModel>
                 
                 item.setBounds(this.handler.getItemBounds(pos));
                 pos += item_size;
-                item.setFocusOrder(i);
+                item.setNavigationOrder(i);
                 
                 if (!item.initialised)
                 {
@@ -1387,7 +1452,7 @@ public class NVListBox<T extends INVItemModel>
                 
                 this.handler.setPos(item, pos);
                 pos += item_size;
-                item.setFocusOrder(i);
+                item.setNavigationOrder(i);
             }
         }
         
@@ -1400,12 +1465,12 @@ public class NVListBox<T extends INVItemModel>
     {
         final Item item = this.items.get(index);
         item.refresh();
-        item.setFocusOrder(index);
+        item.setNavigationOrder(index);
     }
     
     //==================================================================================================================
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (!this.isActive())
         {
@@ -1464,7 +1529,7 @@ public class NVListBox<T extends INVItemModel>
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         this.viewport.setBounds(this.getLocalBounds());
         this.handler.resize();
@@ -1472,10 +1537,43 @@ public class NVListBox<T extends INVItemModel>
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         canvas.getTemplate().nvListBoxDrawBackground(canvas, this);
     }
+    
+    //==================================================================================================================
+    private void sendItemRemovedNotification(final @NotNull T item)
+    {
+        this.onItemRemoved(item);
+        this.itemRemoved.post(this, new ItemRemovedEventArgs<>(item));
+    }
+    
+    //==================================================================================================================
+    /**
+     * Called whenever the selection state of an item changed.
+     * @param itemIndex The index of the item
+     */
+    public void onSelectionChanged(int itemIndex) {}
+    
+    /**
+     * Called whenever an item has been added to this list box (not necessarily on screen).
+     * @param itemIndex The index of the item
+     */
+    public void onItemAdded(int itemIndex) {}
+    
+    /**
+     * Called whenever an item has been removed from this list box (not necessarily on screen).
+     * @param item The item that was removed
+     */
+    public void onItemRemoved(@NotNull T item) {}
+    
+    /**
+     * Called whenever an item has moved inside the list (not necessarily on screen).
+     * @param itemIndex The new item index
+     * @param oldIndex  The old item index
+     */
+    public void onItemMoved(int itemIndex, int oldIndex) {}
     
     //==================================================================================================================
     private void updateFocusState()

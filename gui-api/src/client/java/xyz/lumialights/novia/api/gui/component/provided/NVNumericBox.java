@@ -43,7 +43,6 @@ import net.minecraft.util.Util;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.jetbrains.annotations.NotNull;
 import org.lwjgl.glfw.GLFW;
-import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.NormalisedRange;
 import xyz.lumialights.novia.api.gui.GuiApiId;
@@ -56,6 +55,7 @@ import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.text.DecimalFormat;
 import java.util.function.Supplier;
@@ -70,43 +70,47 @@ import java.util.stream.Stream;
  * This special text box comes with two {@link NVSimpleButton}, used to decrement and increment the current numeric
  * value and a {@link NVTextBox} that displays the current value.
  * <p>
- * This is a stateful GUI component, the number it contains can be converted to and from {@link Value}.
- * (for more details, see {@link #getValue()}, {@link #setValue(Value)} and {@link IValueConvertible})
+ * This is a stateful GUI component, the number it contains represents the number currently contained inside the box,
+ * it can be converted between number qualified {@link Value} objects.
  */
 public class NVNumericBox
-    extends StatefulGuiComponent<NVNumericBox>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
     public interface Template
     {
         //**************************************************************************************************************
+        /**
+         * Draws the numeric box's up- and down-arrow button background.
+         * @param canvas     The {@link Canvas}
+         * @param numericBox The {@link NVNumericBox}
+         * @param button     The button to draw
+         * @param isUpButton Draws the up-arrow button if {@code true}, otherwise draws the down-arrow button
+         */
         void nvNumericBoxDrawArrowButton(@NotNull Canvas canvas, @NotNull NVNumericBox numericBox,
-                                         @NotNull NVAbstractButton<?> button, @NotNull String text);
+                                         @NotNull NVAbstractButton button, boolean isUpButton);
     }
     
     //------------------------------------------------------------------------------------------------------------------
     private class ArrowButton
-        extends NVAbstractButton<ArrowButton>
+        extends NVAbstractButton
     {
         //**************************************************************************************************************
-        private final String text;
+        private final boolean isUp;
         
         //**************************************************************************************************************
-        public ArrowButton(final @NotNull Runnable action, final @NotNull String text)
+        public ArrowButton(final boolean isUp)
         {
-            super((btt -> action.run()), Text.of(text));
-            
-            this.text = text;
-            
+            this.isUp = isUp;
             this.setWantsFocus(false);
             this.setPinned(true);
         }
         
         //==============================================================================================================
         @Override
-        protected void draw(final @NotNull Canvas canvas)
+        public void draw(final @NotNull Canvas canvas)
         {
-            canvas.getTemplate().nvNumericBoxDrawArrowButton(canvas, NVNumericBox.this, this, this.text);
+            canvas.getTemplate().nvNumericBoxDrawArrowButton(canvas, NVNumericBox.this, this, this.isUp);
         }
     }
     
@@ -123,6 +127,7 @@ public class NVNumericBox
     {
         final DecimalFormat format = new DecimalFormat("0");
         format.setMaximumFractionDigits(300);
+        
         return format;
     });
     
@@ -143,7 +148,7 @@ public class NVNumericBox
      */
     public final GuiProperty.NonNull<DecimalFormat> numberFormat;
     
-    //------------------------------------------------------------------------------------------------------------------
+    //==================================================================================================================
     private final NVTextBox   textBox;
     private final ArrowButton upButton;
     private final ArrowButton downButton;
@@ -163,17 +168,25 @@ public class NVNumericBox
     {
         super(message);
         
-        this.range        = GuiProperty.nonNull(NVNumericBox.DEFAULT_RANGE,                 this::updateRange);
-        this.numberFormat = GuiProperty.nonNull(NVNumericBox.DEFAULT_FORMAT_SUPPLIER.get(), this::updateText);
+        this.range        = GuiPropertyBuilder.nonNull(NVNumericBox.DEFAULT_RANGE)
+            .withNoArgSetter(this::updateRange)
+            .build();
+        this.numberFormat = GuiPropertyBuilder.nonNull(NVNumericBox.DEFAULT_FORMAT_SUPPLIER.get())
+            .withSetter(this::updateText)
+            .build();
         
-        this.upButton   = this.addChild(new ArrowButton(this::countUp,   "▴"));
-        this.downButton = this.addChild(new ArrowButton(this::countDown, "▾"));
-        this.value      = this.range.get().clamp(value);
+        this.upButton = this.addChild(new ArrowButton(true));
+        this.upButton.clicked.subscribe((sender, args) -> this.countUp());
+        
+        this.downButton = this.addChild(new ArrowButton(false));
+        this.downButton.clicked.subscribe((sender, args) -> this.countDown());
+
+        this.value = this.range.get().clamp(value);
         
         this.textBox = this.addChild(new NVTextBox());
         this.textBox.predicateStopsInput.set(true);
         this.textBox.textPredicate.set(NumberUtils::isParsable);
-        this.textBox.addChangeListener(this::textboxTextChanged);
+        this.textBox.valueChanged.subscribe((sender, args) -> this.textboxTextChanged((NVTextBox) sender));
         
         this.setMonitorChildren(true);
         this.updateText(this.numberFormat.get());
@@ -199,7 +212,7 @@ public class NVNumericBox
      * Gets the last valid number of this number box.
      * @return The number
      */
-    public double getDouble() { return this.value; }
+    public double getValueAsDouble() { return this.value; }
     
     /**
      * Gets the textual representation of the number inside the numeric text box.
@@ -213,7 +226,6 @@ public class NVNumericBox
      */
     public @NotNull NVTextBox getTextBox() { return this.textBox; }
     
-    //------------------------------------------------------------------------------------------------------------------
     @Override
     public @NotNull Stream<GuiPropertyDescription<?>> getGuiProperties()
     {
@@ -231,28 +243,9 @@ public class NVNumericBox
     
     //==================================================================================================================
     /**
-     * Sets the value of this box to the new value.
-     * <p>
-     * If the value is outside the range, it will be adjusted to fit.
-     *
-     * @param value The new value to set
-     */
-    public void setValue(double value)
-    {
-        value = this.range.get().clamp(value);
-        
-        if (this.value != value)
-        {
-            this.value = value;
-            
-            this.updateText(this.numberFormat.get());
-            this.notifyChangeListeners();
-        }
-    }
-    
-    /**
-     * Sets the number content from the given {@link Value} object if it is a number, otherwise does nothing.
-     * @param value The new {@link Value}
+     * Sets the value of this numeric box as a number qualified {@link Value} object. If the value is not a number
+     * value, this does nothing and if the value is outside the specified range, it will be clamped to fit.
+     * @param value The new boolean {@link Value}
      */
     @Override
     public void setValue(final @NotNull Value value)
@@ -265,6 +258,27 @@ public class NVNumericBox
         this.setValue(value.getNumber().doubleValue());
     }
     
+    /**
+     * Sets the value of this box to the new value. If the value is outside the range, it will be clamped to fit.
+     * @param value The new value to set
+     */
+    public void setValue(final @NotNull Number value)
+    {
+        final double new_value = this.range.get().clamp(value.doubleValue());
+        
+        if (this.value != new_value)
+        {
+            this.value = new_value;
+            
+            this.updateText(this.numberFormat.get());
+            this.sendChangeNotification();
+        }
+    }
+    
+    /**
+     * Sets numeric box's number text explicitly, if it is not a valid number nothing happens.
+     * @param text The number text to set
+     */
     public void setText(final @NotNull String text) { this.textBox.setText(text); }
     
     //==================================================================================================================
@@ -273,7 +287,7 @@ public class NVNumericBox
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         final int       size        = (this.getHeight() / 2);
         final Rectangle local       = this.getLocalBounds();
@@ -288,7 +302,7 @@ public class NVNumericBox
     
     //==================================================================================================================
     @Override
-    protected boolean onMouseScroll(final @NotNull MouseEvent e)
+    public boolean onMouseScroll(final @NotNull MouseEvent e)
     {
         if (!this.isFocused() || !this.isActive())
         {
@@ -310,7 +324,7 @@ public class NVNumericBox
     }
     
     @Override
-    protected boolean onMouseDown(final @NotNull MouseEvent e)
+    public boolean onMouseDown(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -332,7 +346,7 @@ public class NVNumericBox
     }
     
     @Override
-    protected boolean onMouseUp(@NotNull MouseEvent e)
+    public boolean onMouseUp(@NotNull MouseEvent e)
     {
         e.enableCursor();
         this.countMode = 0;
@@ -341,7 +355,7 @@ public class NVNumericBox
     }
     
     @Override
-    protected boolean onMouseDrag(final @NotNull MouseEvent e)
+    public boolean onMouseDrag(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -366,7 +380,7 @@ public class NVNumericBox
     }
     
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (!this.isActive())
         {
@@ -394,12 +408,12 @@ public class NVNumericBox
     protected void textboxTextChanged(final @NotNull NVTextBox box)
     {
         this.value = NumberUtils.toDouble(box.getText());
-        this.notifyChangeListeners();
+        this.sendChangeNotification();
     }
     
     //==================================================================================================================
     @Override
-    protected void onDeltaTick(final @NotNull Point mousePos, final float delta)
+    public void onDeltaTick(final @NotNull Point mousePos, final float delta)
     {
         if (this.countMode == 0)
         {
@@ -421,7 +435,7 @@ public class NVNumericBox
     }
     
     //==================================================================================================================
-    private void updateRange(final @NotNull NormalisedRange range) { this.setValue(this.value); }
+    private void updateRange() { this.setValue(this.value); }
     
     private void updateText(final @NotNull DecimalFormat format)
     {

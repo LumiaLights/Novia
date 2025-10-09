@@ -33,58 +33,32 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
  */
-package xyz.lumialights.novia.api.gui.component;
+package xyz.lumialights.novia.api.gui.component.integration;
 
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 
 
 
 //**********************************************************************************************************************
-public interface IComponentListener
+public interface INavigable
 {
     //******************************************************************************************************************
     /**
-     * Called when the bounds of the component (inside its parent) changed.
-     *
-     * @param component The component, which changed its bounds
-     * @param resized   Whether the component's size changed
-     * @param moved     Whether the component's position changed
+     * Gets the {@link IComponentNavigator} for the component's children, or {@code null} if the component's children
+     * should not be navigated to.
+     * @return The {@link IComponentNavigator}
      */
-    default void componentBoundsChanged(@NotNull GuiComponent component, boolean resized, boolean moved) {}
+    @Nullable IComponentNavigator getNavigator();
     
     /**
-     * Called when the visibility of the component changed.
+     * Gets the navigation order.
      * <p>
-     * This does not trigger if the visibility on screen changed but only whether the internal visibility flag for that
-     * component changed. If you want to know whether the component is now visible on screen or not,
-     * check with {@link #componentScreenStateChanged(GuiComponent)} instead.
-     *
-     * @param component The component, which visibility flag changed
-     */
-    default void componentVisibilityChanged(@NotNull GuiComponent component) {}
-    
-    /**
-     * Called when the activity state of the component changed.
+     * A negative value means not being discoverable by navigation, a positive value indicates the navigation priority,
+     * by that means, a navigation order of 0 will be navigated to first and then to all the others with higher orders.
      * <p>
-     * This does not trigger if the activity state of parent components changed but only whether the internal activity
-     * flag for that component changed.
-     *
-     * @param component The component, which activity state flag changed
+     * Among equal navigation orders, navigation follows order of appearance.
+     * @return The navigation order
      */
-    default void componentActivityChanged(@NotNull GuiComponent component) {}
-    
-    /**
-     * Called when the children of the component changed.
-     * @param component The component, which children changed
-     */
-    default void componentChildrenChanged(@NotNull GuiComponent component) {}
-    
-    /**
-     * Called when the state of the component on the screen changes.
-     * <p>
-     * This is either when its own or any of its parent's visibility or parent hierarchy changes.
-     *
-     * @param component The component the listener is attached to
-     */
-    default void componentScreenStateChanged(@NotNull GuiComponent component) {}
+    int getNavigationOrder();
 }

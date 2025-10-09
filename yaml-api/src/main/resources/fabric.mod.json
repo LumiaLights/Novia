@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "id": "${mod_id}",
+    "id": "novia-yaml-api",
     "version": "${version}",
     "name": "${mod_name}",
     "description": "A 3rd party library module that deals with the integration of YAML into Minecraft.",
@@ -11,7 +11,7 @@
         "issues": "https://github.com/LumiaLights/Novia/issues"
     },
     "license": "MIT",
-    "icon": "assets/${mod_id}/icon.png",
+    "icon": "assets/novia-yaml-api/icon.png",
     "environment": "*",
     "entrypoints": {
         "main": [ "xyz.lumialights.novia.api.yaml.YamlApi" ]

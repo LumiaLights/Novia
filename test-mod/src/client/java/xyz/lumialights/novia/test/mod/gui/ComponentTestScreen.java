@@ -51,6 +51,7 @@ import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.GuiScreen;
 import xyz.lumialights.novia.api.gui.component.provided.*;
 import xyz.lumialights.novia.api.gui.font.FontSize;
+import xyz.lumialights.novia.api.gui.font.GlyphBank;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
@@ -123,15 +124,14 @@ public class ComponentTestScreen
 
         // create and add component
         // note: we can also create the component and add it at the end
-        this.basicComponentsButton = this.addChild(new NVSimpleButton(
-            (btt ->
-            {
-                this.testListBox.addItem(new Item(UUID.randomUUID().toString()));
-                this.testListBox.refreshList();
-            }),
-            Text.literal("Basic Components")));
+        this.basicComponentsButton = this.addChild(new NVSimpleButton(Text.literal("Basic Components")));
         this.basicComponentsButton.setTooltip(Tooltip.of(Text.literal("Add Listbox Item\nThis is a button haha")));
         this.basicComponentsButton.setTooltipDelay(Duration.ofSeconds(1));
+        this.basicComponentsButton.clicked.subscribe((sender, args) ->
+        {
+            this.testListBox.addItem(new Item(UUID.randomUUID().toString()));
+            this.testListBox.refreshList();
+        });
         
         this.testListBox = this.addChild(new NVListBox<>());
         this.testListBox.itemSize.set(20);
@@ -159,7 +159,7 @@ public class ComponentTestScreen
             final double normalised = slider.range.get().normalise(slider.getValueAsDouble());
             slider.setTooltip(Tooltip.of(Text.literal("Slider value: " + ((int)(normalised * 100.0) / 100.0) + "%")));
         });
-        this.testSlider.setFont(GuiFont.getUnicode());
+        this.testSlider.setFont(GuiFont.UNICODE.get());
         
         this.testDropdown = this.addChild(new NVDropdown());
         this.testDropdown.addOption(new Value(323));
@@ -218,14 +218,14 @@ public class ComponentTestScreen
             canvas.addTransform(AffineTransform.translation(gradient_test_bounds.x(), gradient_test_bounds.y()));
             
             final GuiFont font = canvas.getFont();
-            font.setSize(FontSize.pixels(20));
+            font.setScale(FontSize.pixels(20));
 
             canvas.setGradient(new Gradient(0x77898989, 0xAA323232, Direction.HORIZONTAL));
             canvas.fill();
             
-            canvas.setGradient(new Gradient(0xFFFF0000, 0xFF0000FF, Direction.HORIZONTAL));
-            canvas.setFont(font.withFormattingPreserved(GuiFont.Format.BOLD, GuiFont.Format.STRIKETHROUGH));
-            canvas.drawText(
+            final GlyphBank bank = new GlyphBank();
+            bank.addText(
+                font.withFormattingPreserved(GuiFont.Format.BOLD, GuiFont.Format.STRIKETHROUGH),
                 Text
                     .literal("Hello this is a ")
                     .copy()
@@ -237,10 +237,21 @@ public class ComponentTestScreen
                             .withColor(Colour.GOLD.colour())))
                     .append(Text.literal(" test gradient")),
                 10, 10);
-            
-            canvas.setGradient(new Gradient(0xFFFFFF00, 0xFF00FF00, Direction.VERTICAL));
-            canvas.setFont(font.withFormattingPreserved(GuiFont.Format.ITALIC, GuiFont.Format.UNDERLINED));
-            canvas.drawText(
+
+            canvas.setColour(Colour.WHITE);
+            canvas.fill(bank.getBoundingBox());
+
+            canvas.setGradient(new Gradient(0xFFFF0000, 0xFF0000FF, Direction.HORIZONTAL));
+            bank.draw(canvas);
+
+            final Rectangle second_area = this.getLocalBounds()
+                .pad(100, 0)
+                .setHeight(50)
+                .translateY(40);
+
+            final GlyphBank bank2 = new GlyphBank();
+            bank2.addTextAligned(
+                font.withFormattingPreserved(GuiFont.Format.ITALIC, GuiFont.Format.UNDERLINED),
                 Text
                     .literal("Hello this is a ")
                     .copy()
@@ -251,7 +262,17 @@ public class ComponentTestScreen
                             .withItalic(false)
                             .withColor(Colour.GOLD.colour())))
                     .append(Text.literal(" test gradient")),
-                10, 30);
+                second_area,
+                Alignment.BOTTOM_CENTRE);
+
+            canvas.setColour(Colour.WHITE);
+            canvas.fill(bank2.getBoundingBox());
+
+            canvas.setGradient(new Gradient(0xFFFFFF00, 0xFF00FF00, Direction.VERTICAL));
+            bank2.draw(canvas);
+
+            canvas.setColour(Colour.GOLD);
+            canvas.drawRect(second_area);
         });
 
         canvas.setColour(Colour.GOLD);

@@ -35,13 +35,12 @@
  */
 package xyz.lumialights.novia.api.gui.property;
 
-
-
-//**********************************************************************************************************************
-
 import com.mojang.serialization.Codec;
 import org.jetbrains.annotations.NotNull;
 
+
+
+//**********************************************************************************************************************
 /**
  * The base class for {@link GuiProperty} and {@link GuiProperty.Reference}.
  * <p>

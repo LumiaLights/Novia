@@ -1,11 +1,11 @@
 {
     "schemaVersion": 1,
-    "id": "${mod_id}",
+    "id": "novia-config-api",
     "version": "${version}",
     "name": "${mod_name}",
     "description": "A Novia module for building elaborate configuration systems.",
     "authors": [ "LumiaLights" ],
-    "icon": "assets/${mod_id}/icon.png",
+    "icon": "assets/novia-config-api/icon.png",
     "contact": {
         "homepage": "https://lumialights.xyz/",
         "sources": "https://github.com/LumiaLights/Novia",
@@ -21,11 +21,11 @@
     },
     "mixins": [
         {
-            "config": "${mod_id}.server.mixins.json",
+            "config": "novia-config-api.server.mixins.json",
             "environment": "server"
         },
         {
-            "config": "${mod_id}.client.mixins.json",
+            "config": "novia-config-api.client.mixins.json",
             "environment": "client"
         }
     ],

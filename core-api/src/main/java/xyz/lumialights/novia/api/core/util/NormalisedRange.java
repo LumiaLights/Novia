@@ -46,6 +46,19 @@ import org.jetbrains.annotations.NotNull;
 
 
 //**********************************************************************************************************************
+/**
+ * Represents a number range that can be converted from and to the normalised/denormalised domain.
+ * <p>
+ * A denormalised number is any number that is representable by the Java double type, while a normalised value
+ * represents a given range's min/max constraints as a value between (and including) 0 and 1, where 0 is the range
+ * minimum, 1 is the maximum and anything in-between is a decimal value that is the normalised representation of a given
+ * denormalised value.
+ * <p>
+ * Furthermore, this class provides two additional features for fine-tuning the conversion process between these two
+ * domains, on one hand there is the step size which, when using the {@link #snap(double)} function, makes sure that
+ * the given value is snapped to a discrete number in bounds of the given range constraints and the step size. The
+ * second feature is the conversion skew, which allows skewing the converted value (in both domains) logarithmically.
+ */
 public record NormalisedRange(double min, double max, double step, double skew)
 {
     //******************************************************************************************************************
@@ -84,6 +97,15 @@ public record NormalisedRange(double min, double max, double step, double skew)
         NormalisedRange::new);
     
     //******************************************************************************************************************
+    /**
+     * Constructs a new normalised range from the given range.
+     * @param min The minimum value of the range
+     * @param max The maximum value of the range
+     * @param step  The stepping size (only important when using {@link NormalisedRange#snap(double)})
+     * @param skew  The skew factor (pow and log) of the conversion between the different range domains
+     * @throws IllegalArgumentException If skew is less than or equal to 0, step is less than 0,
+     *                                  or if min is greater than max
+     */
     public NormalisedRange
     {
         if (min > max)
@@ -102,43 +124,116 @@ public record NormalisedRange(double min, double max, double step, double skew)
         }
     }
     
+    /**
+     * Constructs a new normalised range from the given range, with a step size of 0 and a skew of 1.
+     * @param range The {@link Range} to gather min and max from
+     */
     public NormalisedRange(final @NotNull Range<Double> range) { this(range, 0.0, 1.0); }
     
-    public NormalisedRange(final double start, final double end) { this(start, end, 0.0, 1.0); }
+    /**
+     * Constructs a new normalised range from the given min/max, with a step size of 0 and a skew of 1.
+     * @param min The minimum value of the range
+     * @param max The maximum value of the range
+     * @throws IllegalArgumentException If min is greater than max
+     */
+    public NormalisedRange(final double min, final double max) { this(min, max, 0.0, 1.0); }
     
+    /**
+     * Constructs a new normalised range from the given range, with a skew of 1.
+     * @param range The {@link Range} to gather min and max from
+     * @param step  The stepping size (only important when using {@link NormalisedRange#snap(double)})
+     * @throws IllegalArgumentException If step is less than 0
+     */
     public NormalisedRange(final @NotNull Range<Double> range, final double step) { this(range, step, 1.0); }
     
-    public NormalisedRange(final double start, final double end, final double step) { this(start, end, step, 1.0); }
+    /**
+     * Constructs a new normalised range from the given range, with a skew of 1.
+     * @param min  The minimum value of the range
+     * @param max  The maximum value of the range
+     * @param step The stepping size (only important when using {@link NormalisedRange#snap(double)})
+     * @throws IllegalArgumentException If step is less than 0, or if min is greater than max
+     */
+    public NormalisedRange(final double min, final double max, final double step) { this(min, max, step, 1.0); }
     
+    /**
+     * Constructs a new normalised range from the given range.
+     * @param range The {@link Range} to gather min and max from
+     * @param step  The stepping size (only important when using {@link NormalisedRange#snap(double)})
+     * @param skew  The skew factor (pow and log) of the conversion between the different range domains
+     * @throws IllegalArgumentException If skew is less than or equal to 0, or if step is less than 0
+     */
     public NormalisedRange(final @NotNull Range<Double> range, final double step, final double skew)
     {
         this(range.minInclusive(), range.maxInclusive(), step, skew);
     }
     
     //==================================================================================================================
+    /**
+     * Gets the distance between the minimum and the maximum of this range.
+     * @return The length of the range
+     */
     public double getDistance() { return (this.max - this.min); }
     
+    /**
+     * Converts this range to a Minecraft range object.
+     * @return The new {@link Range}
+     */
     public @NotNull Range<Double> getRange() { return new Range<>(this.min, this.max); }
     
     //==================================================================================================================
-    public boolean isInRange(final @NotNull Double value) { return (value >= this.min && value <= this.max); }
+    /**
+     * Determines whether the given number is inside the min/max constraints of this range.
+     * @param value The number to check
+     * @return {@code true} if the given value is in range, otherwise {@code false}
+     */
+    public boolean isInRange(final @NotNull Number value)
+    {
+        final double val = value.doubleValue();
+        return (val >= this.min && val <= this.max);
+    }
     
     //==================================================================================================================
-    public double normalise(final double value)
+    /**
+     * Normalises the given value relative to the min/max constraints of this range.
+     * <p>
+     * If this range provides a skew value that is not 1, the given value will be normalised but skewed logarithmically
+     * using the {@link Math#pow(double, double)} function. For example, consider we have the range min=0 and max=10,
+     * usually when normalising a value like 5, the result should be 0.5, however, if we are providing a skew of 2,
+     * the resulting normalised value will be "0.25"
+     * <p>
+     * Check out this <a href="https://www.desmos.com/calculator/rtncdj0wd1">Desmos graph</a> for testing different
+     * inputs.
+     * @param value The value to normalise
+     * @return The normalised value
+     */
+    public float normalise(final double value)
     {
-        final double normalised = (double) Math.clamp(((value - this.min) / this.getDistance()), 0.0, 1.0);
+        final float normalised = Math.clamp((float) ((value - this.min) / this.getDistance()), 0f, 1f);
         
         if (this.skew == 1.0)
         {
             return normalised;
         }
         
-        return (double) Math.pow(normalised, this.skew);
+        return (float) Math.pow(normalised, this.skew);
     }
     
-    public double denormalise(final double normalised)
+    /**
+     * Denormalises the given value relative to the min/max constraints of this range.
+     * <p>
+     * If this range provides a skew value that is not 1, the given value will be de normalised but skewed
+     * logarithmically using the {@link Math#log(double)} function. For example, consider we have the range
+     * min=0 and max=10, usually when denormalising a value like 0.5, the result should be 5, however,
+     * if we are providing a skew of 2, the resulting denormalised value will be "7.071...".
+     * <p>
+     * Check out this <a href="https://www.desmos.com/calculator/2rgzdsgabl">Desmos graph</a> for testing different
+     * inputs.
+     * @param normalised The value to denormalise
+     * @return The denormalised value
+     */
+    public double denormalise(final float normalised)
     {
-        double adjusted = Math.clamp(normalised, 0.0, 1.0);
+        double adjusted = Math.clamp(normalised, 0f, 1f);
         
         if (this.skew != 1.0 && adjusted > 0.0)
         {
@@ -148,8 +243,28 @@ public record NormalisedRange(double min, double max, double step, double skew)
         return (this.min + (this.getDistance() * adjusted));
     }
     
+    /**
+     * Clamps the denormalised value to the given min/max constraints of this range.
+     * @param value The denormalised value to clamp
+     * @return The clamped denormalised value
+     */
     public double clamp(final double value) { return Math.clamp(value, this.min, this.max); }
     
+    /**
+     * Snaps the denormalised value to the given min/max constraints of this range and step value.
+     * <p>
+     * If this range provides a snap value that is not 0, the given value will be snapped to the closest interval
+     * of the range's min/max constraints. For example, consider we have the range min=0 and max=10, now let's give
+     * this range a snap value of 5 (which is the dead middle), the range will be divided in 3 possible values it can
+     * have: 0, 5 and 10 as it can only go in 5-step intervals. If the given value is crossing the bounds of an
+     * interval, the interval will be the new value, so for the result to be 5 the input value would have to be between
+     * {@code ≥ 2.5} and {@code < 7.5}
+     * <p>
+     * Check out this <a href="https://www.desmos.com/calculator/bskopovrf8">Desmos graph</a> for testing different
+     * inputs.
+     * @param value The denormalised value to snap
+     * @return The snapped denormalised value
+     */
     public double snap(double value)
     {
         if (this.step > 0.0)
@@ -157,6 +272,6 @@ public record NormalisedRange(double min, double max, double step, double skew)
             value = (this.min + (this.step * Math.floor((value - this.min) / this.step + 0.5)));
         }
         
-        return ((value <= this.min || this.max == this.min) ? this.min : Math.min(value, this.max));
+        return this.clamp(value);
     }
 }

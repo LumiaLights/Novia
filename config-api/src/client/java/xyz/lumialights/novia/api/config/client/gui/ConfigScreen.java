@@ -36,9 +36,12 @@
 package xyz.lumialights.novia.api.config.client.gui;
 
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xyz.lumialights.novia.api.config.ApiDefine;
 import xyz.lumialights.novia.api.config.ConfigManager;
 import xyz.lumialights.novia.api.config.PropertyId;
 import xyz.lumialights.novia.api.config.client.document.ScreenDocument;
@@ -57,6 +60,9 @@ import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVLabel;
+import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
+import xyz.lumialights.novia.api.gui.geometry.Alignment;
+import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.util.KeyboardUtil;
 
 
@@ -66,14 +72,28 @@ public class ConfigScreen
     extends GuiScreen
 {
     //******************************************************************************************************************
+    private static final Identifier TEXTURE_UNCATEGORISED;
+    private static final Identifier TEXTURE_CATEGORISED;
+
+    //==================================================================================================================
+    static
+    {
+        TEXTURE_UNCATEGORISED = Identifier.of(ApiDefine.API_ID, "category/uncategorised");
+        TEXTURE_CATEGORISED   = Identifier.of(ApiDefine.API_ID, "category/categorised");
+    }
+
+    //******************************************************************************************************************
     private final ConfigScreenLookAndFeel    lookAndFeel;
     private final TabManager                 tabManager;
     private final TabList                    tabList;
     private final OptionList                 optList;
+    private final NVSimpleButton             viewButton;
     private final NVLabel                    title;
     private final TreeMap<PropertyId, Value> cache;
     //private final EditScreen                 editScreen;
-    
+
+    private boolean isCategorised = true;
+
     //******************************************************************************************************************
     ConfigScreen(@NotNull final Screen                  parent,
                  @NotNull final String                  modId,
@@ -105,6 +125,32 @@ public class ConfigScreen
         
         //this.editScreen = new EditScreen(this, this.lookAndFeel, this::valueChanged);
 
+        this.viewButton = this.addChild(new NVSimpleButton());
+        this.viewButton.setIcon(this.isCategorised
+            ? ConfigScreen.TEXTURE_CATEGORISED
+            : ConfigScreen.TEXTURE_UNCATEGORISED);
+        this.viewButton.setTooltip(Tooltip.of(Text.of(this.isCategorised ? "Categorised" : "Uncategorised")));
+        this.viewButton.clicked.subscribe((sender, args) ->
+        {
+            this.isCategorised = !this.isCategorised;
+            this.optList.setDisplayMode(new OptionList.DisplayMode(
+                null,
+                Comparator.comparing(Text::getString),
+                this.isCategorised));
+
+            final int selected = this.tabList.getIndexOfFirstSelectedItem();
+            this.onTabChanged(this.tabList.getItemAt(selected).orElseThrow(), selected, true);
+
+            sender.setTooltip(Tooltip.of(Text.of(this.isCategorised ? "Categorised" : "Uncategorised")));
+            ((NVSimpleButton) sender).setIcon(this.isCategorised
+                ? ConfigScreen.TEXTURE_CATEGORISED
+                : ConfigScreen.TEXTURE_UNCATEGORISED);
+        });
+        this.optList.setDisplayMode(new OptionList.DisplayMode(
+            null,
+            Comparator.comparing(Text::getString),
+            this.isCategorised));
+
         this.setFont(lookAndFeel.getDefaultFont());
     }
     
@@ -124,12 +170,20 @@ public class ConfigScreen
     protected void resized()
     {
         this.lookAndFeel.resize(this.getLocalBounds());
-        
-        this.title.setBounds(this.lookAndFeel.getTitleBounds(
+
+        final Rectangle title_bounds = this.lookAndFeel.getTitleBounds(
             this.title.getMessage(),
-            this.lookAndFeel.getConfigPanelClientBounds()));
+            this.lookAndFeel.getConfigPanelClientBounds());
+
+        this.title  .setBounds(title_bounds);
         this.tabList.setBounds(this.lookAndFeel.getTabListBounds());
         this.optList.setBounds(this.lookAndFeel.getOptionListBounds());
+
+        final Rectangle button_area = title_bounds.withRightCut(100).pad(10, 0);
+        this.viewButton.setBounds(button_area
+            .withSize(16, 16)
+            .align(Alignment.BOTTOM_RIGHT, button_area)
+            .translateY(-5));
     }
     
     //==================================================================================================================
@@ -162,7 +216,7 @@ public class ConfigScreen
     
     //==================================================================================================================
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         final int number = KeyboardUtil.getKeyNumber(e.input);
 

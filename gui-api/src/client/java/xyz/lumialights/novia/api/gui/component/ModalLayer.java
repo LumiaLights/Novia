@@ -45,7 +45,6 @@ import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 //**********************************************************************************************************************
 final class ModalLayer
     extends ContentLayer
-    implements IComponentListener
 {
     //******************************************************************************************************************
     public static final GuiComponent END = new GuiComponent();
@@ -109,8 +108,6 @@ final class ModalLayer
         super.init();
         this.args.associatedComponent().ifPresent(comp ->
         {
-            comp.addComponentListener(this);
-            
             if (this.content.template == null)
             {
                 this.content.template = comp.getTemplate();
@@ -121,13 +118,13 @@ final class ModalLayer
                 this.content.font = comp.getFont();
             }
         });
+        
         this.content.onModalOpened();
     }
     
     @Override
     public void release()
     {
-        this.args.associatedComponent().ifPresent(comp -> comp.removeComponentListener(this));
         this.result.complete(this.content);
         this.content.onModalClosed();
         super.release();
@@ -147,6 +144,9 @@ final class ModalLayer
         
         super.render(canvas);
     }
+    
+    //==================================================================================================================
+    @Override public void visibilityChanged(final GuiComponent component) { this.close(); }
     
     //==================================================================================================================
     @Override public void close() { this.screen.removeLayer(this); }

@@ -66,4 +66,8 @@ public record Restrainer(int minWidth, int maxWidth, int minHeight, int maxHeigh
             throw new IllegalArgumentException("minWidth and minHeight can't be greater than maxWidth and maxHeight");
         }
     }
+
+    //==================================================================================================================
+    public int clampWidth(final int width) { return Math.clamp(width, this.minWidth, this.maxWidth); }
+    public int clampHeight(final int height) { return Math.clamp(height, this.minHeight, this.maxHeight); }
 }

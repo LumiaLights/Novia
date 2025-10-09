@@ -55,15 +55,20 @@ import java.util.function.Function;
 
 
 //**********************************************************************************************************************
+/**
+ * The gui text renderer is a compatibility layer for the Minecraft {@link TextRenderer} class. Since text renderer do
+ * not support advanced features such as scaling, gradients or texturing, it should not really be used except for cases
+ * where the text renderer is required; it is almost always better to use {@link GlyphBank} instead.
+ */
 public class GuiTextRenderer
     extends TextRenderer
 {
     //******************************************************************************************************************
-    private record GuiGlyphDrawable(
-        @NotNull  GlyphBank glyphBank,
-        @Nullable Rectangle boundingBox,
-        int                 colour,
-        boolean             shadow
+    public record GuiGlyphDrawable(
+        @NotNull GlyphBank glyphBank,
+        @NotNull Rectangle boundingBox,
+        int                colour,
+        boolean            shadow
     )
         implements GlyphDrawable
     {
@@ -71,43 +76,37 @@ public class GuiTextRenderer
         @Override
         public void draw(final @NotNull GlyphDrawer glyphDrawer)
         {
-            final int        shadow_colour = ColorHelper.scaleRgb(this.colour, 0.25f);
-            final BakedGlyph blank_glyph   = GuiFont.getDefault().getRectangleBakedGlyph();
+            final BakedGlyph blank_glyph = GuiFont.DEFAULT.get().getRectangleBakedGlyph();
             
             for (final var unit : this.glyphBank)
             {
-                final Style style = Style.EMPTY
-                    .withItalic(unit.italic())
-                    .withBold(unit.bold());
-                
+                final Style style           = Style.EMPTY.withItalic(unit.italic()).withBold(unit.bold());
+                final int   override        = Objects.requireNonNullElse(unit.override(), this.colour);
+                final int   shadow_override = Objects.requireNonNullElse(
+                    unit.shadowOverride(),
+                    ColorHelper.scaleRgb(this.colour, 0.25f));
+
                 if (unit.glyph() != null)
                 {
-                    glyphDrawer.drawGlyph(new BakedGlyph.DrawnGlyph(unit.x(), unit.y(), this.colour, shadow_colour,
+                    glyphDrawer.drawGlyph(new BakedGlyph.DrawnGlyph(unit.x(), unit.y(), override, shadow_override,
                                                                     (BakedGlyph) unit.glyph(), style, unit.boldOffset(),
                                                                     unit.shadowOffset()));
                 }
                 
-                final int font_height = MinecraftClient.getInstance().textRenderer.fontHeight;
-                
-                final float min_x = (unit.x() + unit.lineOffset());
-                final float max_x = (min_x + unit.advance() + Math.abs(unit.lineOffset()));
-                
-                if (unit.strikethrough())
+                if (unit.strikethroughRect() != null)
                 {
-                    final float min_y = (unit.y() + (font_height * 0.5f) - 1);
-                    final float max_y = (min_y + 1);
-                    glyphDrawer.drawRectangle(blank_glyph, new BakedGlyph.Rectangle(min_x, min_y, max_x, max_y, 0.01f,
-                                                                                    this.colour, shadow_colour,
-                                                                                    unit.shadowOffset()));
+                    glyphDrawer.drawRectangle(blank_glyph, unit.strikethroughRect().toBaked(
+                        0.01f,
+                        override, shadow_override,
+                        unit.shadowOffset()));
                 }
                 
-                if (unit.underlined())
+                if (unit.underlineRect() != null)
                 {
-                    final float min_y = (unit.y() + font_height - 1);
-                    final float max_y = (min_y + 1);
-                    glyphDrawer.drawRectangle(blank_glyph, new BakedGlyph.Rectangle(min_x, min_y, max_x, max_y, 0.01f,
-                                                                                    this.colour, shadow_colour,
-                                                                                    unit.shadowOffset()));
+                    glyphDrawer.drawRectangle(blank_glyph, unit.underlineRect().toBaked(
+                        0.01f,
+                        override, shadow_override,
+                        unit.shadowOffset()));
                 }
             }
         }
@@ -115,9 +114,9 @@ public class GuiTextRenderer
         @Override
         public @Nullable ScreenRect getScreenRect()
         {
-            return (this.boundingBox != null ? this.boundingBox.toScreenRect() : null);
+            return (!this.boundingBox.isEmpty() ? this.boundingBox.toScreenRect() : null);
         }
-    };
+    }
     
     //******************************************************************************************************************
     private static GuiTextRenderer INSTANCE = null;
@@ -127,7 +126,7 @@ public class GuiTextRenderer
     {
         if (GuiTextRenderer.INSTANCE == null)
         {
-            GuiTextRenderer.INSTANCE = new GuiTextRenderer(GuiFont.getDefault());
+            GuiTextRenderer.INSTANCE = new GuiTextRenderer(GuiFont.DEFAULT.get());
         }
         
         return GuiTextRenderer.INSTANCE;
@@ -137,8 +136,8 @@ public class GuiTextRenderer
     @SuppressWarnings("resource")
     private static @NotNull Function<Identifier, FontStorage> storageIdentifierFunction()
     {
-        final FontManagerAccessor manager = (FontManagerAccessor)
-            (((MinecraftClientAccessor) MinecraftClient.getInstance()).novia$getFontManager());
+        final FontManagerAccessor manager =
+            (FontManagerAccessor) (((MinecraftClientAccessor) MinecraftClient.getInstance()).novia$getFontManager());
         return manager::novia$getFontStorage;
     }
     
@@ -163,8 +162,8 @@ public class GuiTextRenderer
      */
     public GuiTextRenderer(final @NotNull GuiFont font) { this(font, false); }
     
-    /** Constructs a new text renderer with {@link GuiFont#getDefault()} that does not validate its glyph's advance. */
-    public GuiTextRenderer() { this(GuiFont.getDefault()); }
+    /** Constructs a new text renderer with {@link GuiFont#DEFAULT} that does not validate its glyph's advance. */
+    public GuiTextRenderer() { this(GuiFont.DEFAULT.get()); }
     
     //==================================================================================================================
     public @NotNull GuiFont getFont() { return this.font; }
@@ -226,12 +225,12 @@ public class GuiTextRenderer
     
     //==================================================================================================================
     @Override
-    public @NotNull GlyphDrawable prepare(      @NotNull String  string,
-                                          final          float   x,
-                                          final          float   y,
-                                          final          int     color,
-                                          final          boolean shadow,
-                                          final          int     backgroundColor)
+    public @NotNull TextRenderer.GlyphDrawable prepare(      @NotNull String  string,
+                                                       final          float   x,
+                                                       final          float   y,
+                                                       final          int     color,
+                                                       final          boolean shadow,
+                                                       final          int     backgroundColor)
     {
         if (this.isRightToLeft())
         {
@@ -242,15 +241,16 @@ public class GuiTextRenderer
     }
     
     @Override
-    public @NotNull GlyphDrawable prepare(final @NotNull OrderedText text,
-                                          final          float       x,
-                                          final          float       y,
-                                          final          int         color,
-                                          final          boolean     shadow,
-                                          final          int         backgroundColor)
+    public @NotNull TextRenderer.GlyphDrawable prepare(final @NotNull OrderedText text,
+                                                       final          float       x,
+                                                       final          float       y,
+                                                       final          int         color,
+                                                       final          boolean     shadow,
+                                                       final          int         backgroundColor)
     {
-        final GlyphBank bank  = new GlyphBank();
+        final GlyphBank bank = new GlyphBank();
         this.font.setShaded(shadow);
+        this.font.setScale(1.0f);
         bank.addText(this.font, text, x, y);
         return new GuiGlyphDrawable(bank, bank.getBoundingBox(), color, shadow);
     }

@@ -804,7 +804,18 @@ public class Rectangle
         this.setY(neighbour.getBottom());
         return this;
     }
-    
+
+    /**
+     * Resets the position and size of this rectangle to an empty rectangle.
+     * @return {@code this}
+     */
+    public @NotNull Rectangle reset()
+    {
+        this.setPosition(0, 0);
+        this.setSize(0, 0);
+        return this;
+    }
+
     /**
      * Resets the position of this rectangle to [0, 0].
      * @return {@code this}
@@ -1050,14 +1061,12 @@ public class Rectangle
     public @NotNull Rectangle combine(final @NotNull Number x, final @NotNull Number y, final @NotNull Number width,
                                       final @NotNull Number height)
     {
-        final int new_x = Math.min(this.x(), x.intValue());
-        final int new_y = Math.min(this.y(), y.intValue());
-        
-        this.width  = Math.max(0, (Math.max(this.getRight(),  (x.intValue() + width .intValue())) - new_x));
-        this.height = Math.max(0, (Math.max(this.getBottom(), (y.intValue() + height.intValue())) - new_y));
-        this.setPosition(new_x, new_y);
-        
-        return this;
+        final int min_x = Math.min(this.x(), x.intValue());
+        final int min_y = Math.min(this.y(), y.intValue());
+        final int max_x = Math.max(this.getRight(),  (x.intValue() + width .intValue()));
+        final int max_y = Math.max(this.getBottom(), (y.intValue() + height.intValue()));
+
+        return this.setBounds(min_x, min_y, (max_x - min_x), (max_y - min_y));
     }
     
     /**

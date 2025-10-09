@@ -55,7 +55,7 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
-public class Novia
+public final class Novia
     extends BaseEnvironmentHandler
     implements ModInitializer
 {
@@ -68,12 +68,12 @@ public class Novia
     //******************************************************************************************************************
     public static @NotNull Novia getInstance()
     {
-        if (INSTANCE == null)
+        if (Novia.INSTANCE == null)
         {
             throw new InternalModException("Novia environment handler has not yet been initialised");
         }
 
-        return INSTANCE;
+        return Novia.INSTANCE;
     }
 
     //******************************************************************************************************************
@@ -83,32 +83,32 @@ public class Novia
     //******************************************************************************************************************
     public Novia()
     {
-        if (INSTANCE != null)
+        if (Novia.INSTANCE != null)
         {
             throw new UnsupportedOperationException("Novia mutual handler had already been initialised");
         }
         
         if (FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT)
         {
-            this.handler = getHandler(ClientModInitializer.class);
+            this.handler = this.getHandler(ClientModInitializer.class);
         }
         else
         {
-            this.handler = getHandler(DedicatedServerModInitializer.class);
+            this.handler = this.getHandler(DedicatedServerModInitializer.class);
         }
-        
-        this.dirMods = FabricLoader.getInstance().getGameDir().resolve("mods");
-        
-        INSTANCE = this;
+
+        Novia.INSTANCE = this;
+        this.dirMods   = FabricLoader.getInstance().getGameDir().resolve("mods");
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private <T> @NotNull BaseEnvironmentHandler getHandler(@NotNull final Class<T> initializerClass)
+    private <T> @NotNull BaseEnvironmentHandler getHandler(final @NotNull Class<T> initializerClass)
     {
-        final String                          environment_name
-            = FabricLoader.getInstance().getEnvironmentType().toString().toLowerCase();
-        final List<EntrypointContainer<T>>    initializers
-            = FabricLoader.getInstance().getEntrypointContainers(environment_name, initializerClass);
+        final String                       environment_name = FabricLoader.getInstance().getEnvironmentType().toString()
+                                                                          .toLowerCase();
+        final List<EntrypointContainer<T>> initializers     = FabricLoader.getInstance().getEntrypointContainers(
+            environment_name,
+            initializerClass);
         
         return (BaseEnvironmentHandler) initializers
             .stream()
@@ -124,13 +124,12 @@ public class Novia
     {
         ServerLifecycleEvents.SERVER_STARTING.register(this::initServer);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::shutdownServer);
-
         CoreApiBootstrap.init();
     }
     
     //==================================================================================================================
     /**
-     * Gets the path to the current mod directory.
+     * Gets the path to the mods directory.
      * @return The mods directory
      */
     public @NotNull Path getModsFolder() { return this.dirMods; }
@@ -139,14 +138,10 @@ public class Novia
     @Override public @NotNull  Path            getDataFolder() { return this.handler.getDataFolder(); }
     
     //==================================================================================================================
-    @Override
-    public void initServer(@Nullable final MinecraftServer server)
-    {
-        this.handler.initServer(server);
-    }
+    @Override public void initServer(final @Nullable MinecraftServer server) { this.handler.initServer(server); }
 
     @Override
-    public void shutdownServer(@Nullable final MinecraftServer server)
+    public void shutdownServer(final @Nullable MinecraftServer server)
     {
         this.handler.shutdownServer(server);
     }

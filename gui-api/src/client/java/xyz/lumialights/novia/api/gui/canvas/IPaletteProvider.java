@@ -45,6 +45,10 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
+/**
+ * Objects inheriting this interface provide the gui API with the information that the overriding class is an interface
+ * that provides a set of colours for use internally.
+ */
 public interface IPaletteProvider
 {
     //******************************************************************************************************************

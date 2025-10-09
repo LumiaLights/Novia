@@ -166,112 +166,16 @@ public sealed class GuiProperty<T>
     }
 
     //******************************************************************************************************************
-    /**
-     * Creates a new nullable gui property.
-     * @param initValue The initial value of the property
-     * @param setter    A setter that is executed whenever the internal value is changed
-     * @return The new {@link GuiProperty}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull GuiProperty<T> nullable(final @Nullable T           initValue,
-                                                       final @NotNull  Consumer<T> setter)
+    public static <T> @NotNull GuiProperty<T> nullable(final @Nullable T initialValue)
     {
-        return new GuiProperty<>(initValue, setter, RefUtils.alwaysTrue());
+        return new GuiProperty<>(initialValue, RefUtils.emptyConsumer(), RefUtils.alwaysTrue());
     }
-
-    /**
-     * Creates a new nullable gui property.
-     * @param initValue The initial value of the property
-     * @return The new {@link GuiProperty}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull GuiProperty<T> nullable(final @Nullable T initValue)
+    
+    public static <T> GuiProperty.@NotNull NonNull<T> nonNull(final @NotNull T initialValue)
     {
-        return new GuiProperty<>(initValue, RefUtils.emptyConsumer(), RefUtils.alwaysTrue());
+        return new GuiProperty.NonNull<>(initialValue, RefUtils.emptyConsumer(), RefUtils.alwaysTrue());
     }
-
-    /**
-     * Creates a new nullable gui property that validates its internal value.
-     * @param initValue The initial value of the property
-     * @param setter    A setter that is executed whenever the internal value is changed
-     * @param validator A validator that will throw an exception if the value is invalid
-     * @return The new {@link GuiProperty}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull GuiProperty<T> nullableChecked(final @Nullable T            initValue,
-                                                              final @NotNull  Consumer<T>  setter,
-                                                              final @NotNull  Predicate<T> validator)
-    {
-        return new GuiProperty<>(initValue, setter, validator);
-    }
-
-    /**
-     * Creates a new nullable gui property that validates its internal value.
-     * @param initValue The initial value of the property
-     * @param validator A validator that will throw an exception if the value is invalid
-     * @return The new {@link GuiProperty}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull GuiProperty<T> nullableChecked(final @Nullable T            initValue,
-                                                              final @NotNull  Predicate<T> validator)
-    {
-        return new GuiProperty<>(initValue, RefUtils.emptyConsumer(), validator);
-    }
-
-    /**
-     * Creates a new non-null gui property that throws an exception when it encounters {@code null}.
-     * @param initValue The initial value of the property
-     * @param setter    A setter that is executed whenever the internal value is changed
-     * @return The new {@link GuiProperty.NonNull}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull NonNull<T> nonNull(final @NotNull T                    initValue,
-                                                  final @NotNull Consumer<@NotNull T> setter)
-    {
-        return new NonNull<>(initValue, setter, RefUtils.alwaysTrue());
-    }
-
-    /**
-     * Creates a new non-null gui property that throws an exception when it encounters {@code null}.
-     * @param initValue The initial value of the property
-     * @return The new {@link GuiProperty.NonNull}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull NonNull<T> nonNull(final @NotNull T initValue)
-    {
-        return new NonNull<>(initValue, RefUtils.emptyConsumer(), RefUtils.alwaysTrue());
-    }
-
-    /**
-     * Creates a new non-null gui property that throws an exception when it encounters {@code null} and which further
-     * evaluates its value based on the given {@code validator}.
-     * @param initValue The initial value of the property
-     * @param setter    A setter that is executed whenever the internal value is changed
-     * @param validator A validator that will throw an exception if the value is invalid
-     * @return The new {@link GuiProperty.NonNull}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull NonNull<T> nonNullChecked(final @NotNull T                     initValue,
-                                                         final @NotNull Consumer<@NotNull T>  setter,
-                                                         final @NotNull Predicate<@NotNull T> validator)
-    {
-        return new NonNull<>(initValue, setter, validator);
-    }
-
-    /**
-     * Creates a new non-null gui property that throws an exception when it encounters {@code null} and which further
-     * evaluates its value based on the given {@code validator}.
-     * @param initValue The initial value of the property
-     * @param validator A validator that will throw an exception if the value is invalid
-     * @return The new {@link GuiProperty.NonNull}
-     * @param <T> The type of content the property holds
-     */
-    public static <T> @NotNull NonNull<T> nonNullChecked(final @NotNull T                     initValue,
-                                                         final @NotNull Predicate<@NotNull T> validator)
-    {
-        return new NonNull<>(initValue, RefUtils.emptyConsumer(), validator);
-    }
-
+    
     /**
      * Creates a reference to another property.
      * @param owner    The owning {@link GuiComponent}

@@ -35,10 +35,16 @@
  */
 package xyz.lumialights.novia.api.gui.component.integration;
 
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
+import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
+
 
 
 //**********************************************************************************************************************
@@ -47,48 +53,45 @@ import xyz.lumialights.novia.api.gui.component.GuiComponent;
  * provide listeners that track changes and the {@link IValueConvertible} for interoperability with {@link Value}
  * objects.
  */
-public interface IStatefulComponent<Self extends GuiComponent & IStatefulComponent<Self>>
+public interface IStatefulComponent
     extends IValueConvertible
 {
     //******************************************************************************************************************
-    
-    /** A functional interface for listening to state changed in a stateful component. */
-    @FunctionalInterface
-    interface ChangeListener<Self extends GuiComponent & IStatefulComponent<Self>>
-    {
-        //**************************************************************************************************************
-        void onChange(@NotNull Self component);
-    }
-    
-    //******************************************************************************************************************
     /**
-     * Adds a change listener to the internal listener queue that can be triggered upon change notifications.
-     * <p>
-     * Listeners are compared by identity, meaning no two listeners of the same instance can be added or removed.
-     *
-     * @param listener The listener instance
+     * Gets the event used to notify when state changes occurred.
+     * @return The change {@link GuiEvent}
      */
-    void addChangeListener(@NotNull ChangeListener<Self> listener);
-    
-    /**
-     * Removes a change listener to the internal listener queue that can be triggered upon change notifications.
-     * <p>
-     * Listeners are compared by identity, meaning no two listeners of the same instance can be added or removed.
-     *
-     * @param listener The listener instance
-     */
-    void removeChangeListener(@NotNull ChangeListener<Self> listener);
+    @NotNull GuiEvent.Simple getChangeEvent();
     
     //==================================================================================================================
     /**
      * Disables change notifications for the component.
      * <p>
      * When muting a component, the caller of this method has to make sure to always unmute this component after
-     * the necessary changes have been made; otherwise the component is at risk of never notifying its
-     * listeners any more.
+     * the necessary changes have been made; otherwise the component is at risk of never notifying its subscribers
+     * anymore.
      */
     void mute();
     
     /** Re-enables change notifications for the component. */
     void unmute();
+    
+    //==================================================================================================================
+    default <T> @NotNull DataResult<T> write(final @NotNull DynamicOps<T> dynOps)
+    {
+        return Value.CODEC.encodeStart(dynOps, this.getValue());
+    }
+    
+    default <T> @NotNull DataResult<Value> read(final @NotNull DynamicOps<T> dynOps, final @NotNull T data)
+    {
+        final DataResult<Value> result = Value.CODEC.parse(dynOps, data);
+        
+        if (result.isError())
+        {
+            return result;
+        }
+        
+        this.setValue(result.getOrThrow());
+        return result;
+    }
 }

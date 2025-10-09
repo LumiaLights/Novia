@@ -143,7 +143,7 @@ public class GuiScreen
      * Disallowing modal promotion for screens because of potential issues with the way screens work.
      * @return {@code false}
      */
-    @Override protected final boolean isModalPromotionAllowed() { return false; }
+    @Override public final boolean isModalPromotionAllowed() { return false; }
     
     //==================================================================================================================
     /**

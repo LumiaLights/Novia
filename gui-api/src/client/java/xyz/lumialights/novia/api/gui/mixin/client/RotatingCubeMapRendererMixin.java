@@ -83,7 +83,7 @@ public abstract class RotatingCubeMapRendererMixin
 		}
 
 		this.cubeMap.draw(this.client, 10.0F, -this.pitch);
-		canvas.drawTexture(RotatingCubeMapRenderer.OVERLAY_TEXTURE, x, y, width, height, 0.0F, 0.0F, 16, 128, 16, 128,
+		canvas.drawTexture(RotatingCubeMapRenderer.OVERLAY_TEXTURE, x, y, width, height, 0, 0, 16, 128, 16, 128,
                            false);
     }
 }

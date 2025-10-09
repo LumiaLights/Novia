@@ -48,6 +48,7 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
+/** Describes the natural navigation order that is used by default to navigate between components on screen. */
 public class NaturalNavigator
     implements IComponentNavigator
 {
@@ -61,7 +62,7 @@ public class NaturalNavigator
     //==================================================================================================================
     static
     {
-        NATURAL_TAB_COMPARATOR = Comparator
+        NATURAL_TAB_COMPARATOR    = Comparator
             .comparingInt(GuiComponent::getNavigationOrder)
             .thenComparing(component1 -> !component1.isPinned());
         NATURAL_ARROW_COMPARATORS = Arrays
@@ -187,9 +188,9 @@ public class NaturalNavigator
                 {
                     case GuiNavigation.Tab   ignored -> NATURAL_TAB_COMPARATOR;
                     case GuiNavigation.Arrow arrow   -> NaturalNavigator.NATURAL_ARROW_COMPARATORS
-                        .get(arrow.getDirection().ordinal());
+                                                                        .get(arrow.getDirection().ordinal());
                     case GuiNavigation.Down  ignored -> NaturalNavigator.NATURAL_ARROW_COMPARATORS
-                        .get(NavigationDirection.DOWN.ordinal());
+                                                                        .get(NavigationDirection.DOWN.ordinal());
                     
                     default -> throw new UnsupportedOperationException("Unsupported navigation type: " + nav);
                 }),

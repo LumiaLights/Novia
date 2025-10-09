@@ -42,291 +42,33 @@ import net.minecraft.client.font.BakedGlyph;
 import net.minecraft.client.font.EmptyBakedGlyph;
 import net.minecraft.client.font.Glyph;
 import net.minecraft.client.gui.ScreenRect;
-import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.text.*;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.util.Language;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4f;
 import xyz.lumialights.novia.api.gui.canvas.AffineTransform;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
-import xyz.lumialights.novia.api.gui.canvas.brush.DrawUtil;
 import xyz.lumialights.novia.api.gui.canvas.brush.IBrush;
-import xyz.lumialights.novia.api.gui.canvas.brush.gradient.IGradientProvider;
 import xyz.lumialights.novia.api.gui.canvas.impl.SolidUnitRenderState;
+import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.impl.BakedGlyphAccessor;
-import xyz.lumialights.novia.api.gui.impl.StyleAccessor;
 
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 
 //**********************************************************************************************************************
 /** Represents a list of glyphs gathered from the characters of a string. */
 public final class GlyphBank
-    implements Iterable<GlyphBank.Unit>
+    implements Iterable<TextGlyph>
 {
     //******************************************************************************************************************
-    public record Unit(
-        @Nullable BakedGlyphAccessor glyph,
-        @Nullable Integer            override,
-        @Nullable Integer            shadowOverride,
-                  float              scale,
-                  float              x,
-                  float              y,
-                  float              advance,
-                  float              boldOffset,
-                  float              shadowOffset,
-                  float              lineOffset,
-                  boolean            italic,
-                  boolean            bold,
-                  boolean            underlined,
-                  boolean            strikethrough
-    )
-    {
-        //**************************************************************************************************************
-        public float getEffectiveMinX()
-        {
-            float min_rect_x = (this.x + (this.underlined || this.strikethrough ? this.lineOffset : 0));
-            
-            if (this.glyph != null)
-            {
-                min_rect_x = Math.min(min_rect_x, (this.x + this.glyph.minX()));
-            }
-            else
-            {
-                return min_rect_x;
-            }
-            
-            return Math.min(
-                (this.x
-                    + this.glyph.minX()
-                    + (this.italic ? Math.min(this.getItalicOffsetAtMinY(), this.getItalicOffsetAtMaxY()) : 0.0F)
-                    - this.getXExpansion()),
-                min_rect_x
-            );
-        }
-        
-        public float getEffectiveMinY()
-        {
-            final int font_height = MinecraftClient.getInstance().textRenderer.fontHeight;
-            float min_rect_y = (this.y + (this.strikethrough
-                ? (font_height * 0.5f)
-                : (this.underlined ? (font_height - 1) : 0)));
-            
-            if (this.glyph != null)
-            {
-                min_rect_y = Math.min(min_rect_y, (this.y + this.glyph.minY()));
-            }
-            else
-            {
-                return min_rect_y;
-            }
-            
-            return Math.min((this.y + this.glyph.minY() - this.getXExpansion()), min_rect_y);
-        }
-        
-        public float getEffectiveMaxX()
-        {
-            float max_rect_x = (this.x + (this.underlined || this.strikethrough ? this.advance : 0));
-            
-            if (this.glyph != null)
-            {
-                max_rect_x = Math.max(max_rect_x, (this.x + this.glyph.maxX()));
-            }
-            else
-            {
-                return max_rect_x;
-            }
-            
-            return Math.max(
-                (this.x
-                    + this.glyph.maxX()
-                    + this.shadowOffset
-                    + (this.italic ? Math.max(this.getItalicOffsetAtMinY(), this.getItalicOffsetAtMaxY()) : 0.0F)
-                    + this.getXExpansion()),
-                max_rect_x
-            );
-        }
+    private record Run(@NotNull List<TextGlyph> textGlyphs, @NotNull Rectangle area) {}
 
-        public float getEffectiveMaxY()
-        {
-            final int font_height = MinecraftClient.getInstance().textRenderer.fontHeight;
-            float max_rect_y = (this.y + (this.strikethrough
-                ? (font_height * 0.5f + 1)
-                : (this.underlined ? font_height : 0)));
-            
-            if (this.glyph != null)
-            {
-                max_rect_y = Math.max(max_rect_y, (this.y + this.glyph.maxY()));
-            }
-            else
-            {
-                return max_rect_y;
-            }
-            
-            return Math.max((this.y + this.glyph.maxY() + this.shadowOffset + this.getXExpansion()), max_rect_y);
-        }
-        
-        public float getXExpansion() { return (this.bold ? 0.1F : 0.0F); }
-        
-        public float getItalicOffsetAtMaxY()
-        {
-            assert (this.glyph != null);
-            return (1.0F - 0.25F * this.glyph.maxY());
-        }
-    
-        public float getItalicOffsetAtMinY()
-        {
-            assert (this.glyph != null);
-            return (1.0F - 0.25F * this.glyph.minY());
-        }
-        
-        //==============================================================================================================
-        public void draw(@NotNull Matrix4f matrix, final @NotNull VertexConsumer consumer,
-                         final @NotNull BakedGlyphAccessor rectangleGlyph, final @NotNull IGradientProvider palette,
-                         final @Nullable IGradientProvider shadowPalette, final int originX, final int originY,
-                         final int light)
-        {
-            if (this.scale != 1.0f)
-            {
-                matrix = (new Matrix4f(matrix)).scale(this.scale);
-            }
-            
-            if (this.glyph != null)
-            {
-                this.drawGlyph(matrix, consumer, palette, shadowPalette, originX, originY, light);
-            }
-            
-            final int font_height = MinecraftClient.getInstance().textRenderer.fontHeight;
-            
-            if (this.strikethrough)
-            {
-                this.drawRectangle(rectangleGlyph, (font_height * 0.5f - 1), matrix, consumer, palette, shadowPalette,
-                                   originX, originY, light);
-            }
-            
-            if (this.underlined)
-            {
-                this.drawRectangle(rectangleGlyph, (font_height - 1), matrix, consumer, palette, shadowPalette,
-                                   originX, originY, light);
-            }
-        }
-        
-        public void drawGlyph(final @NotNull Matrix4f matrix, final @NotNull VertexConsumer consumer,
-                              final @NotNull IGradientProvider palette, final @Nullable IGradientProvider shadowPalette,
-                              final int originX, final int originY, final int light)
-        {
-            final float x               = this.x();
-            final float y               = this.y();
-            final float shadow_offset_x = (x + this.shadowOffset() - (this.italic ? 0.25F : 0.0F));
-            final float shadow_offset_y = (y + this.shadowOffset());
-            
-            if (shadowPalette != null)
-            {
-                this.drawGlyphVerts(shadow_offset_x, shadow_offset_y, 0.0F, matrix, consumer, shadowPalette, originX,
-                                    originY, light);
-                
-                if (this.bold())
-                {
-                    this.drawGlyphVerts((shadow_offset_x + this.boldOffset), shadow_offset_y, 0.0f, matrix, consumer,
-                                        shadowPalette, originX, originY, light);
-                }
-            }
-      
-            this.drawGlyphVerts(x, y, 0.0f, matrix, consumer, palette, originX, originY, light);
-      
-            if (this.bold())
-            {
-                this.drawGlyphVerts((x + this.boldOffset), y, 0.0f, matrix, consumer, palette, originX, originY, light);
-            }
-        }
-        
-        public void drawRectangle(final @NotNull BakedGlyphAccessor glyph, final float lineHeight,
-                                  final @NotNull Matrix4f matrix, final @NotNull VertexConsumer consumer,
-                                  final @NotNull IGradientProvider palette,
-                                  final @Nullable IGradientProvider shadowPalette, final int originX, final int originY,
-                                  final int light)
-        {
-            final float x = this.x();
-            final float y = this.y();
-            
-            if (shadowPalette != null)
-            {
-                this.drawRectangleVerts(glyph, x, y, 0.0f, lineHeight, matrix, consumer, this.shadowOffset,
-                                        shadowPalette, originX, originY, light);
-            }
-            
-            this.drawRectangleVerts(glyph, x, y, 0.0f, lineHeight, matrix, consumer, 0.0f, palette, originX, originY,
-                                    light);
-        }
-        
-        //--------------------------------------------------------------------------------------------------------------
-        private void drawGlyphVerts(final float x, final float y, final float z, final @NotNull Matrix4f matrix,
-                                    final @NotNull VertexConsumer vertexConsumer,
-                                    final @NotNull IGradientProvider palette, final int originX, final int originY,
-                                    final int light)
-        {
-            assert (this.glyph != null);
-            
-            final float x1          = (x + this.glyph.minX());
-            final float y1          = (y + this.glyph.minY());
-            final float x2          = (x + this.glyph.maxX());
-            final float y2          = (y + this.glyph.maxY());
-            final float italic_y1   = (this.italic ? this.getItalicOffsetAtMinY() : 0.0f);
-            final float italic_y2   = (this.italic ? this.getItalicOffsetAtMaxY() : 0.0f);
-            final float bold_offset = this.getXExpansion();
-            
-            palette.accept((x1 - originX), (y1 - originY), (x2 - originX), (y2 - originY), ((tl, tr, bl, br) ->
-            {
-                vertexConsumer
-                    .vertex(matrix, (x1 + italic_y1 - bold_offset), (y1 - bold_offset), z)
-                    .color(tl)
-                    .texture(this.glyph.minU(), this.glyph.minV())
-                    .light(light);
-                vertexConsumer
-                    .vertex(matrix, (x1 + italic_y2 - bold_offset), (y2 + bold_offset), z)
-                    .color(bl)
-                    .texture(this.glyph.minU(), this.glyph.maxV())
-                    .light(light);
-                vertexConsumer
-                    .vertex(matrix, (x2 + italic_y2 + bold_offset), (y2 + bold_offset), z)
-                    .color(br)
-                    .texture(this.glyph.maxU(), this.glyph.maxV())
-                    .light(light);
-                vertexConsumer
-                    .vertex(matrix, (x2 + italic_y1 + bold_offset), (y1 - bold_offset), z)
-                    .color(tr)
-                    .texture(this.glyph.maxU(), this.glyph.minV())
-                    .light(light);
-            }));
-        }
-        
-        private void drawRectangleVerts(final @NotNull BakedGlyphAccessor glyph, final float x, final float y,
-                                        final float z, final float lineHeight, final @NotNull Matrix4f matrix,
-                                        final @NotNull VertexConsumer consumer, final float offset,
-                                        final @NotNull IGradientProvider palette, final int originX, final int originY,
-                                        final int light)
-        {
-            final float x1 = (x + this.lineOffset + offset);
-            final float y1 = (y + lineHeight + offset);
-            final float x2 = (x + this.advance + offset + Math.abs(this.lineOffset()));
-            final float y2 = (y1 + 1);
-            
-            palette.accept((x1 - originX), (y1 - originY), (x2 - originX), (y2 - originY), ((tl, tr, bl, br) ->
-                DrawUtil.drawTexturedRect(
-                    matrix, consumer,
-                    z, x1, y1, x2, y2,
-                    glyph.minU(), glyph.minV(), glyph.maxU(), glyph.maxV(),
-                    tl, tr, bl, br,
-                    light)));
-        }
-    }
-    
     //******************************************************************************************************************
     private static @Nullable Integer getShadowColor(final @NotNull Style style, final @Nullable Integer override)
     {
@@ -355,78 +97,80 @@ public final class GlyphBank
     }
 
     //******************************************************************************************************************
-    private final List<Unit> units = new ArrayList<>();
+    private final List<Run> runs = new ArrayList<>(1);
 
-    private transient GuiFont defaultFont;
-    private transient GuiFont font;
-    private transient float   scale;
-    private transient boolean shaded;
-    private transient float   left;
-    private transient float   top;
+    private Rectangle bounds = null;
+
+    //==================================================================================================================
+    private transient float           minX;
+    private transient float           minY;
+    private transient float           maxX;
+    private transient float           maxY;
+    private transient List<TextGlyph> textGlyphs;
+    private transient boolean         isFirst;
+    private transient float           top;
+    private transient float           left;
+    private transient float           height;
 
     //******************************************************************************************************************
     /** Constructs a new empty glyph bank. */
     public GlyphBank() {}
 
-    /** Constructs a new glyph bank and copies all units from the given other glyph bank. */
-    public GlyphBank(final @NotNull GlyphBank other) { this.units.addAll(other.units); }
+    /** Constructs a new glyph bank and copies all text glyphs from the given other glyph bank. */
+    public GlyphBank(final @NotNull GlyphBank other)
+    {
+        this.runs.addAll(other.runs);
+        this.bounds = new Rectangle(other.bounds);
+    }
 
     //==================================================================================================================
     /**
      * Gets the minimum area that encompasses all stored units in this glyph bank.
      * @return The area rectangle
      */
-    public @Nullable Rectangle getBoundingBox()
+    public @NotNull Rectangle getBoundingBox() { return this.bounds; }
+
+    /**
+     * Gets a text glyph object stored in this bank at the given index.
+     * @param index The index of the {@link TextGlyph}
+     * @return The {@link TextGlyph} at the given index
+     * @throws IndexOutOfBoundsException If the index is out of bounds
+     */
+    public @NotNull TextGlyph getTextGlyph(final int index)
     {
-        float min_x = Float.MAX_VALUE;
-        float min_y = Float.MAX_VALUE;
-        float max_x = -Float.MAX_VALUE;
-        float max_y = -Float.MAX_VALUE;
-        
-        for (final var unit : this.units)
-        {
-            min_x = Math.min(min_x, unit.getEffectiveMinX());
-            min_y = Math.min(min_y, unit.getEffectiveMinY());
-            max_x = Math.max(max_x, unit.getEffectiveMaxX());
-            max_y = Math.max(max_y, unit.getEffectiveMaxY());
-        }
-        
-        return ((min_x <= max_x && min_y <= max_y)
-            ? new Rectangle((int) min_x, (int) min_y, (int) (max_x - min_x), (int) (max_y - min_y))
-            : null);
+        return this.stream()
+            .skip(index)
+            .findFirst()
+            .orElseThrow(() -> new IndexOutOfBoundsException("index " + index + " is out of bounds"));
     }
 
     /**
-     * Gets a unit object stored in this bank at the given index.
-     * @param index The index of the {@link Unit}
-     * @return The {@link Unit} at the given index
-     * @throws IndexOutOfBoundsException If the index is out of bounds
+     * Gets a list of all text glyphs in this glyph bank in insertion order.
+     * @return A {@link List} of all stored {@link TextGlyph} objects
      */
-    public @NotNull Unit getUnit(final int index) { return this.units.get(index); }
+    public @NotNull List<TextGlyph> toList() { return this.stream().collect(Collectors.toList()); }
 
     /**
-     * Gets a list of all units in this glyph bank.
-     * @return A {@link List} of all stored {@link Unit} objects
+     * Gets all text glyphs as a stream in insertion order.
+     * @return The text glyph {@link Stream}
      */
-    public @NotNull List<Unit> toList() { return new ArrayList<>(this.units); }
-
-    /**
-     * Accepts a consumer for each unit stored in this glyph bank.
-     * @param consumer The {@link Consumer} that is called for each {@link Unit}
-     */
-    public void forEachUnit(final @NotNull Consumer<Unit> consumer) { this.units.forEach(consumer); }
+    public @NotNull Stream<TextGlyph> stream() { return this.runs.stream().flatMap(run -> run.textGlyphs.stream()); }
     
     //==================================================================================================================
-    /** {@return the number of units in this glyph bank} */
-    public int size() { return this.units.size(); }
+    /** {@return the number of text glyphs in this glyph bank} */
+    public int size() { return this.textGlyphs.size(); }
     
     //==================================================================================================================
-    /** {@return whether this glyph bank contains no units}*/
-    public boolean isEmpty() { return this.units.isEmpty(); }
+    /** {@return whether this glyph bank contains no text glyphs}*/
+    public boolean isEmpty() { return this.textGlyphs.isEmpty(); }
     
     //==================================================================================================================
-    /** Clears all units from this bank. */
-    public void clear() { this.units.clear(); }
+    /** Clears all text glyphs from this bank. */
+    public void clear()
+    {
+        this.runs.clear();
+        this.bounds.reset();
+    }
     
     //==================================================================================================================
     /**
@@ -442,8 +186,7 @@ public final class GlyphBank
     public void addText(final @NotNull GuiFont font, final @NotNull String text, final @NotNull Style style,
                         final float x, final float y)
     {
-        this.prepare(font, x, y);
-        TextVisitFactory.visitFormatted(text, style, this::addUnit);
+        this.addText(font, Language.getInstance().reorder(StringVisitable.styled(text, style)), x, y);
     }
 
     /**
@@ -457,22 +200,7 @@ public final class GlyphBank
      */
     public void addText(final @NotNull GuiFont font, final @NotNull String text, final float x, final float y)
     {
-        this.addText(font, text, Style.EMPTY, x, y);
-    }
-
-    /**
-     * Adds the given string as text to this glyph bank object and uses the given font as base information
-     * on how the text should be rendered.
-     *
-     * @param font The base font and formatting to use when no style overrides it
-     * @param text The text to add
-     * @param x    The x position of the text
-     * @param y    The y position of the text
-     */
-    public void addText(final @NotNull GuiFont font, final @NotNull OrderedText text, final float x, final float y)
-    {
-        this.prepare(font, x, y);
-        text.accept(this::addUnit);
+        this.addText(font, Language.getInstance().reorder(StringVisitable.plain(text)), x, y);
     }
 
     /**
@@ -490,66 +218,157 @@ public final class GlyphBank
     }
 
     /**
-     * Adds all units from the given glyph bank to this one (if {@code bank} is not {@code this}).
-     * @param bank The {@link GlyphBank} to copy all {@link Unit} objects from
+     * Adds the given string as text to this glyph bank object and uses the given font as base information
+     * on how the text should be rendered.
+     *
+     * @param font The base font and formatting to use when no style overrides it
+     * @param text The text to add
+     * @param x    The x position of the text
+     * @param y    The y position of the text
+     */
+    public void addText(final @NotNull GuiFont font, final @NotNull OrderedText text, final float x, final float y)
+    {
+        this.prepare();
+        IGuiCharacterVisitor.of(this::addGlyph).visitFormatted(font, text);
+
+        if (this.minX < this.maxX && this.minY < this.maxY)
+        {
+            final int min_x = Math.round(x + this.minX);
+            final int min_y = Math.round(y + this.minY);
+            final int max_x = Math.round(x + this.maxX);
+            final int max_y = Math.round(y + this.maxY);
+
+            this.runs.add(new Run(this.textGlyphs, new Rectangle(x, y, this.left, this.height)));
+
+            if (this.bounds != null)
+            {
+                this.bounds.combine(min_x, min_y, (max_x - min_x), (max_y - min_y));
+            }
+            else
+            {
+                this.bounds = new Rectangle(min_x, min_y, (max_x - min_x), (max_y - min_y));
+            }
+        }
+    }
+
+    public void addTextAligned(final @NotNull GuiFont   font,
+                               final @NotNull String    text,
+                               final          float     x,
+                               final          float     y,
+                               final          float     width,
+                               final          float     height,
+                               final @NotNull Alignment alignment)
+    {
+        this.addTextAligned(font, Language.getInstance().reorder(StringVisitable.plain(text)), x, y, width, height,
+                            alignment);
+    }
+
+    public void addTextAligned(final @NotNull GuiFont   font,
+                               final @NotNull String    text,
+                               final @NotNull Rectangle container,
+                               final @NotNull Alignment alignment)
+    {
+        container.accept((x, y, w, h) -> this.addTextAligned(font, text, x, y, w, h, alignment));
+    }
+
+    public void addTextAligned(final @NotNull GuiFont   font,
+                               final @NotNull Text      text,
+                               final          float     x,
+                               final          float     y,
+                               final          float     width,
+                               final          float     height,
+                               final @NotNull Alignment alignment)
+    {
+        this.addTextAligned(font, text.asOrderedText(), x, y, width, height, alignment);
+    }
+
+    public void addTextAligned(final @NotNull GuiFont   font,
+                               final @NotNull Text      text,
+                               final @NotNull Rectangle container,
+                               final @NotNull Alignment alignment)
+    {
+        container.accept((x, y, w, h) -> this.addTextAligned(font, text, x, y, w, h, alignment));
+    }
+
+    public void addTextAligned(final @NotNull GuiFont     font,
+                               final @NotNull OrderedText text,
+                               final @NotNull Rectangle   container,
+                               final @NotNull Alignment   alignment)
+    {
+        container.accept((x, y, w, h) -> this.addTextAligned(font, text, x, y, w, h, alignment));
+    }
+
+    public void addTextAligned(final @NotNull GuiFont     font,
+                               final @NotNull OrderedText text,
+                               final          float       x,
+                               final          float       y,
+                               final          float       width,
+                               final          float       height,
+                               final @NotNull Alignment   alignment)
+    {
+        this.prepare();
+        IGuiCharacterVisitor.of(this::addGlyph).visitFormatted(font, text);
+
+        if (this.minX < this.maxX && this.minY < this.maxY)
+        {
+            final Rectangle aligned = alignment.align(x, y, width, height, this.left, this.height);
+
+            final int min_x = Math.round(aligned.x() + this.minX);
+            final int min_y = Math.round(aligned.y() + this.minY);
+            final int max_x = Math.round(aligned.x() + this.maxX);
+            final int max_y = Math.round(aligned.y() + this.maxY);
+
+            this.runs.add(new Run(this.textGlyphs, aligned));
+
+            if (this.bounds != null)
+            {
+                this.bounds.combine(min_x, min_y, (max_x - min_x), (max_y - min_y));
+            }
+            else
+            {
+                this.bounds = new Rectangle(min_x, min_y, (max_x - min_x), (max_y - min_y));
+            }
+        }
+    }
+
+    /**
+     * Adds all text glyphs from the given glyph bank to this one (if {@code bank} is not {@code this}).
+     * @param bank The {@link GlyphBank} to copy all {@link TextGlyph} objects from
      */
     public void addBank(final @NotNull GlyphBank bank)
     {
         if (bank != this)
         {
-            this.units.addAll(bank.units);
+            this.textGlyphs.addAll(bank.textGlyphs);
         }
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private void prepare(final @NotNull GuiFont font, final float x, final float y)
+    private void prepare()
     {
-        this.defaultFont = Objects.requireNonNull(font, "font must not be null");
-        this.font        = font;
-        this.scale       = font.getSize();
-        this.shaded      = font.isShaded();
-        this.left        = x;
-        this.top         = y;
+        this.isFirst    = true;
+        this.top        = 0f;
+        this.left       = 0f;
+        this.height     = 0f;
+        this.textGlyphs = new ArrayList<>(64);
+        this.minX       = Float.MAX_VALUE;
+        this.minY       = Float.MAX_VALUE;
+        this.maxX       = -Float.MAX_VALUE;
+        this.maxY       = -Float.MAX_VALUE;
     }
 
-    private boolean addUnit(final int i, final @NotNull Style style, final int codePoint)
+    private boolean addGlyph(final int i, final @NotNull GuiFont font, final @NotNull Style style, final int codePoint)
     {
-        final StyleAccessor style_acc = (StyleAccessor) style;
-        
-        if (!style_acc.novia$isFontSet() || style.getFont().equals(this.defaultFont.getId()))
-        {
-            this.font = this.defaultFont;
-        }
-        else
-        {
-            final Identifier font_id = style.getFont();
-            
-            if (!font_id.equals(this.font.getId()))
-            {
-                this.font = GuiFont.getFont(font_id);
-            }
-        }
-        
-        final float      line_offset   = (i == 0 ? -1.0F : 0);
-        final boolean    bold          = style_acc.novia$getFormatting(Formatting.BOLD)  .orElse(this.font.isBold());
-        final boolean    italic        = style_acc.novia$getFormatting(Formatting.ITALIC).orElse(this.font.isItalic());
-        final Glyph      glyph         = this.font.getGlyph(codePoint);
-        final float      advance       = glyph.getAdvance(bold);
-        final boolean    underlined    = style_acc.novia$getFormatting(Formatting.UNDERLINE)
-                                                  .orElse(this.font.isUnderlined());
-        final boolean    strikethrough = style_acc.novia$getFormatting(Formatting.STRIKETHROUGH)
-                                                  .orElse(this.font.isStrikethrough());
-        final Integer    override      = (style.getColor() != null ? (style.getColor().getRgb() | 0xFF000000) : null);
-        final boolean    obfuscated    = style_acc.novia$getFormatting(Formatting.OBFUSCATED)
-                                                  .orElse(this.font.isObfuscated());
-        final BakedGlyph baked         = (obfuscated && codePoint != 32 ? this.font.getObfuscatedBakedGlyph(glyph)
-                                                                        : this.font.getBaked(codePoint));
-        final float      shadow_offset;
-        final Integer    shadow_colour;
+        final float   scale    = font.getScale();
+        final Glyph   glyph    = font.getGlyph(codePoint);
+        final Integer override = (style.getColor() != null ? (style.getColor().getRgb() | 0xFF000000) : null);
 
-        if (this.shaded)
+        final float   shadow_offset;
+        final Integer shadow_colour;
+
+        if (font.isShaded())
         {
-            shadow_offset = glyph.getShadowOffset();
+            shadow_offset = (glyph.getShadowOffset() * scale);
             shadow_colour = GlyphBank.getShadowColor(style, override);
         }
         else
@@ -557,137 +376,181 @@ public final class GlyphBank
             shadow_offset = 0.0f;
             shadow_colour = null;
         }
+        
+        final boolean bold        = font.isBold();
+        final boolean underlined  = font.isUnderlined();
+        final float   line_offset = (this.isFirst ? -scale : 0);
+        final float   bold_offset = (bold ? (glyph.getBoldOffset() * scale) : 0.0F);
+        final float   advance     = (glyph.getAdvance() * scale + bold_offset);
+        final float   font_size   = (GuiFont.getRenderHeight() * scale);
+        final float   rect_start  = (this.left + line_offset);
+        final float   rect_extent = (this.left + advance);
+        
+        final TextRect underline_rect;
+        final TextRect strikethrough_rect;
+        
+        TextGlyph text_glyph = null;
 
-        Unit unit = null;
+        if (underlined)
+        {
+            final float line_start = (font_size - scale);
+            underline_rect = new TextRect(rect_start, line_start, rect_extent, (line_start + scale), shadow_offset);
+        } else underline_rect = null;
+        
+        final boolean strikethrough = font.isStrikethrough();
+        
+        if (strikethrough)
+        {
+            final float line_start = ((font_size * 0.5f) - scale);
+            strikethrough_rect = new TextRect(rect_start, line_start, rect_extent, (line_start + scale), shadow_offset);
+        } else strikethrough_rect = null;
+        
+        final boolean    italic         = font.isItalic();
+        final float      kerning_offset = (!this.isFirst ? (font_size * font.getTracking()) : 0f);
+        final BakedGlyph baked          = (font.isObfuscated() && codePoint != 32
+            ? font.getObfuscatedBakedGlyph(glyph)
+            : font.getBaked(codePoint));
         
         if (!(baked instanceof EmptyBakedGlyph))
         {
-            final float bold_offset = (bold ? glyph.getBoldOffset() : 0.0F);
-            unit = new Unit((BakedGlyphAccessor) baked, override, shadow_colour, this.scale, this.left, this.top,
-                            advance, bold_offset, shadow_offset, line_offset, italic, bold, underlined, strikethrough);
+            text_glyph = new TextGlyph((BakedGlyphAccessor) baked, override, shadow_colour, underline_rect,
+                                       strikethrough_rect, scale, (this.left + kerning_offset), 0, advance, bold_offset,
+                                       shadow_offset, line_offset, italic, bold);
         }
         else if (underlined || strikethrough)
         {
-            unit = new Unit(null, override, shadow_colour, this.scale, this.left, this.top, advance, 0, shadow_offset,
-                            line_offset, italic, bold, underlined, strikethrough);
+            text_glyph = new TextGlyph(null, override, shadow_colour, underline_rect, strikethrough_rect, scale,
+                                       (this.left + kerning_offset), 0, advance, 0, shadow_offset, line_offset, italic,
+                                       bold);
         }
         
-        if (unit != null)
+        if (text_glyph != null)
         {
-            this.units.add(unit);
+            this.textGlyphs.add(text_glyph);
+
+            this.minX   = Math.min(this.minX,   text_glyph.getEffectiveMinX());
+            this.minY   = Math.min(this.minY,   text_glyph.getEffectiveMinY());
+            this.maxX   = Math.max(this.maxX,   text_glyph.getEffectiveMaxX());
+            this.maxY   = Math.max(this.maxY,   text_glyph.getEffectiveMaxY());
+            this.height = Math.max(this.height, (this.maxY - this.minY));
         }
-        
-        this.left += advance;
+
+        this.isFirst = false;
+        this.left   += (advance + kerning_offset);
         
         return true;
     }
-    
+
     //==================================================================================================================
     /**
-     * Draws this bank's units to the given canvas object.
-     * @param canvas The {@link Canvas} to render the {@link Unit} objects with
+     * Draws this bank's text glyphs to the given canvas object.
+     * @param canvas The {@link Canvas} to render the {@link TextGlyph} objects with
      */
     public void draw(final @NotNull Canvas canvas)
     {
-        if (this.units.isEmpty())
+        if (this.runs.isEmpty())
         {
             return;
         }
-        
-        Rectangle area = this.getBoundingBox();
-        
-        if (area == null || area.isEmpty())
+
+        final IBrush brush = canvas.getBrush().copy();
+
+        for (final var run : this.runs)
         {
-            return;
-        }
-        
-        float min_x =  Float.MAX_VALUE;
-        float min_y =  Float.MAX_VALUE;
-        float max_x = -Float.MAX_VALUE;
-        float max_y = -Float.MAX_VALUE;
-        
-        final List<GlyphBank.Unit> units = new ArrayList<>();
-        final IBrush               brush = canvas.getBrush().copy();
-        
-        final BakedGlyph     rect_glyph     = GuiFont.getDefault().getRectangleBakedGlyph();
-        final GpuTextureView blank          = Objects.requireNonNull(rect_glyph.getTexture());
-        final RenderPipeline blank_pipeline = rect_glyph.getPipeline();
-        
-        GpuTextureView texture  = null;
-        RenderPipeline pipeline = null;
-        
-        {
-            final BakedGlyphAccessor first = this.units.getFirst().glyph();
-            
-            if (first != null)
+            final Rectangle area = run.area();
+
+            if (area.isEmpty())
             {
-                texture  = first.getTexture();
-                pipeline = (first.getPipeline());
+                continue;
             }
-            else
+
+            final BakedGlyph     rect_glyph     = GuiFont.DEFAULT.get().getRectangleBakedGlyph();
+            final GpuTextureView blank          = Objects.requireNonNull(rect_glyph.getTexture());
+            final RenderPipeline blank_pipeline = rect_glyph.getPipeline();
+
+            final List<TextGlyph> text_glyphs = new ArrayList<>();
+            float                 min_x       =  Float.MAX_VALUE;
+            float                 min_y       =  Float.MAX_VALUE;
+            float                 max_x       = -Float.MAX_VALUE;
+            float                 max_y       = -Float.MAX_VALUE;
+
+            GpuTextureView texture;
+            RenderPipeline pipeline;
+
             {
-                pipeline = blank_pipeline;
-            }
-        }
-        
-        for (final var unit : this.units)
-        {
-            final GpuTextureView unit_texture;
-            final RenderPipeline unit_pipeline;
-            
-            if (unit.glyph() != null)
-            {
-                unit_texture  = unit.glyph().getTexture();
-                unit_pipeline = unit.glyph().getPipeline();
-            }
-            else
-            {
-                unit_texture  = null;
-                unit_pipeline = blank_pipeline;
-            }
-            
-            if (!GlyphBank.compareGpuTexture(texture, unit_texture) || pipeline != unit_pipeline)
-            {
-                if (!units.isEmpty() && min_x < max_x && min_y < max_y)
+                final BakedGlyphAccessor first = this.textGlyphs.getFirst().glyph();
+
+                if (first != null)
                 {
-                    final TextureSetup setup = new TextureSetup(
-                        texture,
-                        blank,
-                        MinecraftClient.getInstance().gameRenderer.getLightmapTextureManager().getGlTextureView());
-                    this.addUnitsToCanvas(canvas, new ArrayList<>(units), brush, pipeline, setup, area, min_x, min_y,
-                                          max_x, max_y);
+                    texture  = first.getTexture();
+                    pipeline = (first.getPipeline());
                 }
-                
-                units.clear();
-                
-                min_x    =  Float.MAX_VALUE;
-                min_y    =  Float.MAX_VALUE;
-                max_x    = -Float.MAX_VALUE;
-                max_y    = -Float.MAX_VALUE;
-                texture  = unit_texture;
-                pipeline = unit_pipeline;
+                else
+                {
+                    texture  = null;
+                    pipeline = blank_pipeline;
+                }
             }
-            
-            units.add(unit);
-            
-            min_x = Math.min(min_x, unit.getEffectiveMinX());
-            min_y = Math.min(min_y, unit.getEffectiveMinY());
-            max_x = Math.max(max_x, unit.getEffectiveMaxX());
-            max_y = Math.max(max_y, unit.getEffectiveMaxY());
-        }
-        
-        if (!units.isEmpty() && min_x < max_x && min_y < max_y)
-        {
-            final TextureSetup setup = new TextureSetup(
-                texture,
-                blank,
-                MinecraftClient.getInstance().gameRenderer.getLightmapTextureManager().getGlTextureView());
-            this.addUnitsToCanvas(canvas, units, brush, pipeline, setup, area, min_x,  min_y, max_x, max_y);
+
+            for (final var text_glyph : run.textGlyphs)
+            {
+                final GpuTextureView unit_texture;
+                final RenderPipeline unit_pipeline;
+
+                if (text_glyph.glyph() != null)
+                {
+                    unit_texture  = text_glyph.glyph().getTexture();
+                    unit_pipeline = text_glyph.glyph().getPipeline();
+                }
+                else
+                {
+                    unit_texture  = null;
+                    unit_pipeline = blank_pipeline;
+                }
+
+                if (!GlyphBank.compareGpuTexture(texture, unit_texture) || pipeline != unit_pipeline)
+                {
+                    if (!text_glyphs.isEmpty() && min_x < max_x && min_y < max_y)
+                    {
+                        final TextureSetup setup = new TextureSetup(
+                            texture,
+                            blank,
+                            MinecraftClient.getInstance().gameRenderer.getLightmapTextureManager().getGlTextureView());
+                        this.addUnitsToCanvas(canvas, new ArrayList<>(text_glyphs), brush, pipeline, setup, area,
+                                              min_x, min_y, max_x, max_y);
+                    }
+
+                    text_glyphs.clear();
+
+                    min_x    =  Float.MAX_VALUE;
+                    min_y    =  Float.MAX_VALUE;
+                    max_x    = -Float.MAX_VALUE;
+                    max_y    = -Float.MAX_VALUE;
+                    texture  = unit_texture;
+                    pipeline = unit_pipeline;
+                }
+
+                text_glyphs.add(text_glyph);
+
+                min_x = Math.min(min_x, text_glyph.getEffectiveMinX());
+                min_y = Math.min(min_y, text_glyph.getEffectiveMinY());
+                max_x = Math.max(max_x, text_glyph.getEffectiveMaxX());
+                max_y = Math.max(max_y, text_glyph.getEffectiveMaxY());
+            }
+
+            if (!text_glyphs.isEmpty() && min_x < max_x && min_y < max_y)
+            {
+                final TextureSetup setup = new TextureSetup(
+                    texture,
+                    blank,
+                    MinecraftClient.getInstance().gameRenderer.getLightmapTextureManager().getGlTextureView());
+                this.addUnitsToCanvas(canvas, text_glyphs, brush, pipeline, setup, area, min_x, min_y, max_x, max_y);
+            }
         }
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private void addUnitsToCanvas(final @NotNull Canvas canvas, final @NotNull List<Unit> units,
+    private void addUnitsToCanvas(final @NotNull Canvas canvas, final @NotNull List<TextGlyph> textGlyphs,
                                   final @NotNull IBrush brush, final @NotNull RenderPipeline pipeline,
                                   final @NotNull TextureSetup texture, final @NotNull Rectangle area,
                                   final float minX, final float minY, final float maxX, final float maxY)
@@ -701,11 +564,11 @@ public final class GlyphBank
             texture,
             canvas.getClippingRegion().toScreenRect(),
             (new ScreenRect((int) minX, (int) minY, (int) (maxX - minX), (int) (maxY - minY))),
-            ((consumer, depth) -> brush.drawUnits(units, consumer, transform.getMatrixWithDepth(depth), area,
-                                                  opacity))));
+            ((consumer, depth) -> brush.drawTextGlyphs(textGlyphs, consumer, transform.getMatrixWithDepth(depth), area,
+                                                       opacity))));
     }
     
     //==================================================================================================================
     /** {@return the iterator for this glyph bank} */
-    @Override public @NotNull Iterator<Unit> iterator() { return this.units.iterator(); }
+    @Override public @NotNull Iterator<TextGlyph> iterator() { return this.textGlyphs.iterator(); }
 }

@@ -39,6 +39,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.IPaletteProvider;
+import xyz.lumialights.novia.api.gui.component.integration.IHierarchyListener;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
+import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 
 import java.util.*;
@@ -48,7 +51,7 @@ import java.util.*;
 //**********************************************************************************************************************
 public abstract class ContentLayer
     extends ScreenLayer
-    implements IComponentListener
+    implements IHierarchyListener
 {
     //******************************************************************************************************************
     public final GuiComponent content;
@@ -79,16 +82,16 @@ public abstract class ContentLayer
         assert (this.content.parent == null);
         
         this.content.setVisible(true);
-        this.content.addComponentListener(this);
-        this.content.setScreenContainer(this.screen);
+        this.content.addHierarchyListeners(this);
+        this.content.screen = this.screen;
         
         this.resized(this.getBounds());
     }
     
     public void release()
     {
-        this.content.removeComponentListener(this);
-        this.content.setScreenContainer(null);
+        this.content.removeHierarchyListeners(this);
+        this.content.screen = null;
     }
     
     //==================================================================================================================
@@ -102,5 +105,5 @@ public abstract class ContentLayer
     }
     
     //==================================================================================================================
-    @Override public void componentScreenStateChanged(final @NotNull GuiComponent component) { this.close(); }
+    @Override public void hierarchyChanged(final GuiComponent component) { this.close(); }
 }

@@ -33,100 +33,69 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
  */
-package xyz.lumialights.novia.api.core.server;
+package xyz.lumialights.novia.api.gui.property;
 
-import net.fabricmc.api.DedicatedServerModInitializer;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.server.MinecraftServer;
+import com.mojang.datafixers.util.Function3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.lumialights.novia.api.core.BaseEnvironmentHandler;
+import xyz.lumialights.novia.api.core.util.RefUtils;
 
-import xyz.lumialights.novia.api.core.mutual.LogicalSide;
-
-import java.nio.file.Path;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 
 
 //**********************************************************************************************************************
-public class NoviaServerHandler
-    extends BaseEnvironmentHandler
-    implements DedicatedServerModInitializer
+public final class GuiPropertyBuilder<T, U extends IGuiProperty<T>>
 {
     //******************************************************************************************************************
-    private static NoviaServerHandler INSTANCE = null;
-
+    public static <T> @NotNull GuiPropertyBuilder<T, GuiProperty<T>> nullable(final @Nullable T initialValue)
+    {
+        return new GuiPropertyBuilder<>(initialValue, GuiProperty::new);
+    }
+    
+    public static <T> @NotNull GuiPropertyBuilder<T, GuiProperty.NonNull<T>> nonNull(final @NotNull T initialValue)
+    {
+        return new GuiPropertyBuilder<>(initialValue, GuiProperty.NonNull::new);
+    }
+    
     //******************************************************************************************************************
-    public static @Nullable NoviaServerHandler getInstance()
-    {
-        return INSTANCE;
-    }
-
+    private final Function3<T, Consumer<T>, Predicate<T>, U> generator;
+    private final T                                          initialValue;
+    
+    private Consumer<T>  setter    = RefUtils.emptyConsumer();
+    private Predicate<T> validator = RefUtils.alwaysTrue();
+    
     //******************************************************************************************************************
-    private final Path serverDataFolder;
-
-    private MinecraftServer server = null;
-
-    //******************************************************************************************************************
-    public NoviaServerHandler()
+    private GuiPropertyBuilder(final          T                                          initialValue,
+                               final @NotNull Function3<T, Consumer<T>, Predicate<T>, U> generator)
     {
-        if (INSTANCE != null)
-        {
-            throw new UnsupportedOperationException("server handler already initialised");
-        }
-
-        INSTANCE = this;
-
-        this.serverDataFolder = FabricLoader.getInstance().getConfigDir().resolve("constructeer");
+        this.generator    = generator;
+        this.initialValue = initialValue;
     }
-
+    
     //==================================================================================================================
-    @Override
-    public void initServer(@Nullable MinecraftServer server)
+    public @NotNull GuiPropertyBuilder<T, U> withValidator(final @NotNull Predicate<T> validator)
     {
-        this.server = server;
+        this.validator = Objects.requireNonNull(validator, "validator must not be null");
+        return this;
     }
-
-    @Override
-    public void shutdownServer(@Nullable MinecraftServer server)
+    
+    public @NotNull GuiPropertyBuilder<T, U> withSetter(final @NotNull Consumer<T> setter)
     {
-        this.server = null;
+        this.setter = Objects.requireNonNull(setter, "setter must not be null");
+        return this;
     }
-
+    
+    public @NotNull GuiPropertyBuilder<T, U> withNoArgSetter(final @NotNull Runnable setter)
+    {
+        Objects.requireNonNull(setter, "setter must not be null");
+        this.setter = (val -> setter.run());
+        
+        return this;
+    }
+    
     //==================================================================================================================
-    @Override
-    public void onInitializeServer() {}
-
-    //==================================================================================================================
-    @Override
-    public boolean isRenderThread()
-    {
-        return false;
-    }
-
-    @Override
-    public boolean isServerThread()
-    {
-        return (this.server != null && this.server.isOnThread());
-    }
-
-    //==================================================================================================================
-    @Override
-    public @Nullable LogicalSide guessLogicalSide()
-    {
-        return (isServerThread() ? LogicalSide.SERVER : null);
-    }
-
-    //==================================================================================================================
-    @Override
-    public @Nullable MinecraftServer getServer()
-    {
-        return server;
-    }
-
-    @Override
-    public @NotNull Path getDataFolder()
-    {
-        return this.serverDataFolder;
-    }
+    public @NotNull U build() { return this.generator.apply(this.initialValue, this.setter, this.validator); }
 }

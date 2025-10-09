@@ -42,16 +42,18 @@ import org.joml.Matrix3x2f;
 import org.joml.Matrix4f;
 import xyz.lumialights.novia.api.gui.canvas.brush.gradient.Gradient;
 import xyz.lumialights.novia.api.gui.canvas.brush.gradient.IGradientProvider;
-import xyz.lumialights.novia.api.gui.font.GlyphBank;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.TextGlyph;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.impl.BakedGlyphAccessor;
+import xyz.lumialights.novia.api.gui.util.DrawUtil;
 
 import java.util.*;
 
 
 
 //**********************************************************************************************************************
+/** Describes a brush that applies a gradient on shapes and textures. */
 public class GradientBrush
     implements IBrush
 {
@@ -59,20 +61,33 @@ public class GradientBrush
     private Gradient gradient;
     
     //******************************************************************************************************************
+    /**
+     * Constructs a new gradient brush.
+     * @param gradient The {@link Gradient}
+     */
     public GradientBrush(final @NotNull Gradient gradient)
     {
         this.gradient = Objects.requireNonNull(gradient, "gradient must not be null");
     }
-    
-    public GradientBrush(final @NotNull GradientBrush other)
-    {
-        this(other.gradient);
-    }
+
+    /**
+     * Copies another gradient brush.
+     * @param other The other {@link GradientBrush}
+     */
+    public GradientBrush(final @NotNull GradientBrush other) { this(other.gradient); }
     
     //==================================================================================================================
+    /**
+     * Gets the brush's gradient.
+     * @return The current {@link Gradient}
+     */
     public @NotNull Gradient getGradient() { return this.gradient; }
     
     //==================================================================================================================
+    /**
+     * Sets this brush's gradient.
+     * @param gradient The new {@link Gradient}
+     */
     public void setGradient(final @NotNull Gradient gradient)
     {
         this.gradient = Objects.requireNonNull(gradient, "gradient must not be null");
@@ -113,35 +128,34 @@ public class GradientBrush
     }
     
     @Override
-    public void drawUnits(final @NotNull List<GlyphBank.Unit> units, final @NotNull VertexConsumer consumer,
-                          final @NotNull Matrix4f matrix, final @NotNull Rectangle area, final float opacity)
+    public void drawTextGlyphs(final @NotNull List<TextGlyph> textGlyphs, final @NotNull VertexConsumer consumer,
+                               final @NotNull Matrix4f matrix, final @NotNull Rectangle area, final float opacity)
     {
         final Gradient           adjusted_gradient   = this.gradient.withOpacity(opacity);
-        final BakedGlyphAccessor line_glyph          = (BakedGlyphAccessor) GuiFont
-            .getDefault()
-            .getRectangleBakedGlyph();
+        final BakedGlyphAccessor line_glyph          = (BakedGlyphAccessor) GuiFont.DEFAULT.get()
+                                                                                   .getRectangleBakedGlyph();
         final IGradientProvider def_gradient        = IGradientProvider.of(adjusted_gradient,
-                                                                            area.width(), area.height());
+                                                                           area.width(), area.height());
         final IGradientProvider def_shadow_gradient = IGradientProvider.of(
             adjusted_gradient.withColours(
                 ColorHelper.scaleRgb(adjusted_gradient.startColour(), 0.25F),
                 ColorHelper.scaleRgb(adjusted_gradient.endColour(),   0.25F)),
             area.width(), area.height());
         
-        for (final var unit : units)
+        for (final var text_glyph : textGlyphs)
         {
             final IGradientProvider gradient;
             final IGradientProvider shadow_gradient;
 
-            final Integer override = unit.override();
+            final Integer override = text_glyph.override();
 
             if (override == null)
             {
                 gradient = def_gradient;
 
-                if (unit.shadowOffset() != 0.0f)
+                if (text_glyph.shadowOffset() != 0.0f)
                 {
-                    final Integer shadow_override = unit.shadowOverride();
+                    final Integer shadow_override = text_glyph.shadowOverride();
                     shadow_gradient = (shadow_override != null
                         ? IGradientProvider.of(
                             adjusted_gradient.withColours(
@@ -157,9 +171,9 @@ public class GradientBrush
                 final int override_adjusted = IBrush.forOpacity(override, opacity);
                 gradient = IGradientProvider.solid(override_adjusted);
 
-                if (unit.shadowOffset() != 0.0f)
+                if (text_glyph.shadowOffset() != 0.0f)
                 {
-                    final Integer shadow_override = unit.shadowOverride();
+                    final Integer shadow_override = text_glyph.shadowOverride();
                     shadow_gradient = IGradientProvider.solid((shadow_override != null
                         ? IBrush.mixAlpha(override_adjusted, shadow_override)
                         : ColorHelper.scaleRgb(override_adjusted, 0.25f)));
@@ -167,7 +181,7 @@ public class GradientBrush
                 else { shadow_gradient = null; }
             }
             
-            unit.draw(matrix, consumer, line_glyph, gradient, shadow_gradient, area.x(), area.y(), 15728880);
+            text_glyph.draw(matrix, consumer, line_glyph, gradient, shadow_gradient, area.x(), area.y(), 15728880);
         }
     }
     

@@ -37,6 +37,7 @@ package xyz.lumialights.novia.api.gui.component.provided;
 
 import com.mojang.serialization.Codec;
 import net.minecraft.client.input.KeyCodes;
+import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,11 +47,11 @@ import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
 
-import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
+
 
 
 //**********************************************************************************************************************
@@ -61,14 +62,9 @@ import java.util.stream.Stream;
  * custom implementations can implement this class to render custom things on top of the button texture
  * (e.g. {@link NVSimpleButton} for buttons providing rendering text on top).
  */
-public abstract class NVAbstractButton<S extends NVAbstractButton<S>>
+public abstract class NVAbstractButton
     extends GuiComponent
 {
-    //******************************************************************************************************************
-    /** The interface used to listen to button click actions. */
-    @FunctionalInterface
-    public interface ActionListener<S extends NVAbstractButton<S>> extends Consumer<S> {}
-    
     //******************************************************************************************************************
     /** See {@link NVAbstractButton#playClickSound}. */
     public static final boolean DEFAULT_SHOULD_PLAY_SOUND = true;
@@ -77,24 +73,27 @@ public abstract class NVAbstractButton<S extends NVAbstractButton<S>>
     /** Describes whether the iconic click sound should play upon clicking the button. */
     public final GuiProperty.NonNull<Boolean> playClickSound;
     
-    //------------------------------------------------------------------------------------------------------------------
-    private ActionListener<S> action;
+    //==================================================================================================================
+    /** Triggered whenever the button was clicked. */
+    public final GuiEvent.Simple clicked = new GuiEvent.Simple();
     
     //******************************************************************************************************************
-    public NVAbstractButton(final @NotNull ActionListener<S> action, final @NotNull Text message)
+    /**
+     * Constructs a new abstract button.
+     * @param message The component message
+     */
+    public NVAbstractButton(final @NotNull Text message)
     {
         super(message);
         
         this.playClickSound = GuiProperty.nonNull(NVAbstractButton.DEFAULT_SHOULD_PLAY_SOUND);
-        this.action         = Objects.requireNonNull(action, "action must not be null");
-        
         this.setWantsFocus(true);
     }
     
+    public NVAbstractButton() { this(ScreenTexts.EMPTY); }
+    
     //==================================================================================================================
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
-    
-    public @NotNull ActionListener<S> getActionListener() { return this.action; }
     
     //------------------------------------------------------------------------------------------------------------------
     @Override
@@ -108,14 +107,7 @@ public abstract class NVAbstractButton<S extends NVAbstractButton<S>>
     }
     
     //==================================================================================================================
-    public void setActionListener(final @NotNull ActionListener<S> action)
-    {
-        this.action = Objects.requireNonNull(action, "action must not be null");
-    }
-    
-    //==================================================================================================================
     /** Explicitly executes the button's associated click handler. */
-    @SuppressWarnings("unchecked")
     public void makePress()
     {
         if (this.playClickSound.get())
@@ -124,12 +116,12 @@ public abstract class NVAbstractButton<S extends NVAbstractButton<S>>
         }
         
         this.onPress();
-        this.action.accept((S) this);
+        this.clicked.post(this);
     }
     
     //==================================================================================================================
     @Override
-    protected boolean onMouseDown(final @NotNull MouseEvent e)
+    public boolean onMouseDown(final @NotNull MouseEvent e)
     {
         if (!this.isActive() || !e.isLeftButtonDown())
         {
@@ -141,7 +133,7 @@ public abstract class NVAbstractButton<S extends NVAbstractButton<S>>
     }
     
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (this.isActive() && KeyCodes.isToggle(e.input))
         {
@@ -154,5 +146,5 @@ public abstract class NVAbstractButton<S extends NVAbstractButton<S>>
     
     //==================================================================================================================
     /** Can be overridden to let child implementations also listen to click events internally. */
-    protected void onPress() {}
+    public void onPress() {}
 }

@@ -38,123 +38,48 @@ package xyz.lumialights.novia.api.gui.component.provided;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
-import xyz.lumialights.novia.api.gui.GuiApiId;
-import xyz.lumialights.novia.api.gui.canvas.Canvas;
-import xyz.lumialights.novia.api.gui.canvas.ColourId;
-import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
-import xyz.lumialights.novia.api.gui.property.GuiProperty;
 
-import java.util.*;
-import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/** An {@link NVAbstractButton} implementation that can render a given text. */
+/** An {@link NVAbstractButton} implementation with an optional label and icon. */
 public class NVLabelButton
-    extends NVAbstractButton<NVLabelButton>
+    extends NVAbstractButton
 {
     //******************************************************************************************************************
-    public interface Template
-    {
-        //**************************************************************************************************************
-        void nvLabelButtonDrawBackground(@NotNull Canvas canvas, @NotNull NVLabelButton button);
-        
-        void nvLabelButtonDrawText(@NotNull Canvas canvas, @NotNull NVLabelButton button);
-    }
-    
-    //******************************************************************************************************************
-    public static final ColourId COLOUR_TEXT          = ColourId.reserve();
-    public static final ColourId COLOUR_TEXT_INACTIVE = ColourId.reserve();
-    
-    //==================================================================================================================
-    public static final Alignment DEFAULT_TEXT_ALIGNMENT = Alignment.MIDDLE_CENTRE;
-    
-    //==================================================================================================================
-    public static final Text DEFAULT_TEXT = Text.literal("LabelButton");
-    
-    //******************************************************************************************************************
-    /** Describes the alignment of the text inside the component bounds. */
-    public final GuiProperty.NonNull<Alignment> textAlign;
-    
-    //------------------------------------------------------------------------------------------------------------------
-    private Text text;
-    
+    private final NVLabel label;
+
     //******************************************************************************************************************
     /**
      * Constructs a new button with the given action and label.
-     * @param action  The {@link ActionListener}
      * @param label   The text drawn onto the button
      * @param message The message and the initial text on the button
      */
-    public NVLabelButton(final @NotNull ActionListener<NVLabelButton> action,
-                         final @NotNull Text                          label,
-                         final @NotNull Text                          message)
+    public NVLabelButton(final @NotNull Text label, final @NotNull Text message)
     {
-        super(action, message);
-        
-        this.textAlign = GuiProperty.nonNull(NVLabelButton.DEFAULT_TEXT_ALIGNMENT);
-        this.text      = Objects.requireNonNull(label, "label must not be null");
+        super(message);
+
+        this.label = this.addChild(new NVLabel(label));
+        this.label.textAlign.set(Alignment.CENTRE);
     }
     
     /**
      * Constructs a new button with the given action and label.
-     * @param action The action when clicking the button
-     * @param label   The text drawn onto the button
-     */
-    public NVLabelButton(final @NotNull ActionListener<NVLabelButton> action, final @NotNull Text label)
-    {
-        this(action, label, ScreenTexts.EMPTY);
-    }
-    
-    /**
-     * Constructs a new button with the given action and no text.
-     * @param action The action when clicking the button
-     */
-    public NVLabelButton(final @NotNull ActionListener<NVLabelButton> action)
-    {
-        this(action, NVLabelButton.DEFAULT_TEXT, ScreenTexts.EMPTY);
-    }
-    
-    /**
-     * Constructs a new button with the given text and no action.
      * @param label The text drawn onto the button
      */
-    public NVLabelButton(final @NotNull Text label) { this((t -> {}), label, ScreenTexts.EMPTY); }
+    public NVLabelButton(final @NotNull Text label) { this(label, ScreenTexts.EMPTY); }
     
     /** Constructs a new button with no text and no action. */
-    public NVLabelButton() { this(NVLabelButton.DEFAULT_TEXT); }
+    public NVLabelButton() { this(ScreenTexts.EMPTY); }
     
     //==================================================================================================================
     /**
-     * Gets the text displayed on the button.
-     * @return The button {@link Text}
+     * Gets the internal label the button uses to display its text. Use this only for styling purposes or changing text.
+     * @return The internal {@link NVLabel}
      */
-    public @NotNull Text getText() { return this.text; }
-    
-    //------------------------------------------------------------------------------------------------------------------
-    @Override
-    public @NotNull Stream<GuiPropertyDescription<?>> getGuiProperties()
-    {
-        return Stream.concat(super.getGuiProperties(), Stream.of(new GuiPropertyDescription<>(
-            GuiApiId.GuiProperty.LABEL_BUTTON_TEXT_ALIGN,
-            this.textAlign,
-            Alignment.CODEC)));
-    }
+    public @NotNull NVLabel getLabel() { return this.label; }
     
     //==================================================================================================================
-    /**
-     * Sets the text displayed on the button.
-     * @param text The button {@link Text}
-     */
-    public void setText(final @NotNull Text text) { this.text = Objects.requireNonNull(text, "text must not be null"); }
-    
-    //==================================================================================================================
-    @Override
-    protected void draw(final @NotNull Canvas canvas)
-    {
-        final IGuiTemplate template = canvas.getTemplate();
-        template.nvLabelButtonDrawBackground(canvas, this);
-        template.nvLabelButtonDrawText(canvas, this);
-    }
+    @Override public void resized() { this.label.setBounds(this.getLocalBounds()); }
 }

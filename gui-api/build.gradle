@@ -8,5 +8,5 @@ fabricApi {
 addSubmodules(project, ['core-api'])
 
 loom {
-    accessWidenerPath = file("src/main/resources/novia-gui-api.accesswidener")
+    accessWidenerPath = file("src/client/resources/novia-gui-api.accesswidener")
 }

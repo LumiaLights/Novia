@@ -38,13 +38,19 @@ package xyz.lumialights.novia.api.gui.canvas.brush;
 
 
 //**********************************************************************************************************************
-public record VertexPalette(
-    int topLeft,
-    int topRight,
-    int bottomLeft,
-    int bottomRight
-)
+/**
+ * Describes a colour palette that maps a colour to each vertex of a rectangular area.
+ * @param topLeft     The colour value of the top-left vertex
+ * @param topRight    The colour value of the top-right vertex
+ * @param bottomLeft  The colour value of the bottom-left vertex
+ * @param bottomRight The colour value of the bottom-right vertex
+ */
+public record VertexPalette(int topLeft, int topRight, int bottomLeft, int bottomRight)
 {
     //******************************************************************************************************************
+    /**
+     * Constructs a solid vertex palette with all vertices having the same colour.
+     * @param all The colour of all vertices
+     */
     public VertexPalette(final int all) { this(all, all, all, all); }
 }

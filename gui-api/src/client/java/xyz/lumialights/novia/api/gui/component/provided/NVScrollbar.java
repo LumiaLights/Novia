@@ -42,7 +42,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.RefUtils;
 import xyz.lumialights.novia.api.gui.GuiApiId;
@@ -50,13 +49,16 @@ import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.component.StatefulGuiComponent;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.geometry.Point;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.util.*;
 import java.util.stream.Stream;
+
 
 
 //**********************************************************************************************************************
@@ -68,19 +70,31 @@ import java.util.stream.Stream;
  * <p>
  * By default, this component does not participate in the focus chain of the component hierarchy.
  * <p>
- * This is a stateful GUI component; the value it contains determines the scroll offset of the specified overflow area.
- * This value can be converted to and from {@link Value}.
- * (for more details, see {@link #getValue()}, {@link #setValue(Value)} and {@link IValueConvertible})
+ * This is a stateful GUI component, the value it contains represents the normalised scroll offset of the specified
+ * overflow area, it can be converted between number qualified {@link Value} objects.
  */
 public class NVScrollbar
-    extends StatefulGuiComponent<NVScrollbar>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
     public interface Template
     {
         //**************************************************************************************************************
+        /**
+         * Draws the scroll bar's background.
+         * @param canvas      The {@link Canvas}
+         * @param scrollbar   The {@link NVScrollbar}
+         * @param trackBounds The bounds of the track that the thumb can slide in
+         */
         void nvScrollbarDrawBackground(@NotNull Canvas canvas, @NotNull NVScrollbar scrollbar,
                                        @NotNull Rectangle trackBounds);
+        
+        /**
+         * Draws the scroll bar's thumb.
+         * @param canvas    The {@link Canvas}
+         * @param scrollbar The {@link NVScrollbar}
+         * @param bounds    The bounds of the thumb
+         */
         void nvScrollbarDrawThumb(@NotNull Canvas canvas, @NotNull NVScrollbar scrollbar, @NotNull Rectangle bounds);
     }
     
@@ -178,6 +192,10 @@ public class NVScrollbar
     public final GuiProperty.NonNull<Integer> minThumbSize;
     
     //==================================================================================================================
+    /** Triggered whenever the available scroll space of the scroll-bar changed. */
+    public final GuiEvent.Simple scrollSpaceChanged = new GuiEvent.Simple();
+    
+    //==================================================================================================================
     private final Rectangle trackBounds = new Rectangle();
     private final Rectangle thumbBounds = new Rectangle();
     
@@ -200,10 +218,14 @@ public class NVScrollbar
     {
         super(message);
         
-        this.vertical     = GuiProperty.nonNull(NVScrollbar.DEFAULT_IS_VERTICAL, (val -> this.resized()));
+        this.vertical     = GuiPropertyBuilder.nonNull(NVScrollbar.DEFAULT_IS_VERTICAL)
+            .withNoArgSetter(this::resized)
+            .build();
         this.delta        = GuiProperty.nonNull(NVScrollbar.DEFAULT_DELTA);
-        this.minThumbSize = GuiProperty.nonNullChecked(NVScrollbar.DEFAULT_MIN_THUMB_SIZE,
-                                                       (val -> this.updateThumbBounds()), RefUtils.greaterThan(0));
+        this.minThumbSize = GuiPropertyBuilder.nonNull(NVScrollbar.DEFAULT_MIN_THUMB_SIZE)
+            .withNoArgSetter(this::updateThumbBounds)
+            .withValidator(RefUtils.greaterThan(0))
+            .build();
         
         this.space = Objects.requireNonNull(scrollSpace, "scroll space must not be null");
     }
@@ -219,21 +241,27 @@ public class NVScrollbar
     
     //==================================================================================================================
     /**
-     * Gets the current scroll offset as a {@link Value} object
-     * (for more details see {@link #setOffset(int)}).
-     * @return The current scroll value
+     * Gets the current scroll offset as number qualified {@link Value} object. The value returned is a
+     * normalised float (see {@link #getOffsetNormalised()}).
+     * @return The current scroll offset {@link Value}
      */
-    @Override public @NotNull Value getValue() { return new Value(this.offset); }
+    @Override public @NotNull Value getValue() { return new Value(this.getOffsetNormalised()); }
     
     /**
      * Gets the current offset from the target's origin point.
      * <p>
      * If the scroll bar's thumb is all the way on the top this will return 0, if it is all the way on the bottom
      * this will return {@link #getOverflow()}.
-     *
      * @return The offset of the overflow
      */
     public int getOffset() { return this.offset; }
+    
+    /**
+     * Gets the current offset as normalised number with values ranging between 0 (included) and 1 (included), where
+     * 0 means the start of the scroll bar and 1 means the end.
+     * @return The normalised scroll bar offset
+     */
+    public float getOffsetNormalised() { return (this.overflow > 0 ? (this.offset / (float) this.overflow) : 0f); }
     
     /**
      * Gets the maximum overflow the scroll bar can scroll to.
@@ -242,16 +270,6 @@ public class NVScrollbar
     public int getOverflow() { return this.overflow; }
     
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
-    
-    //------------------------------------------------------------------------------------------------------------------
-    /** Track start position. */
-    protected int getTrackStart() { return 0; }
-    
-    /** Track end position. */
-    protected int getTrackEnd() { return (this.vertical.get() ? this.getHeight() : this.getWidth()); }
-    
-    /** Track size. */
-    protected int getTrackSize() { return Math.max(0, (this.getTrackEnd() - this.getTrackStart())); }
     
     @Override
     public @NotNull Stream<GuiPropertyDescription<?>> getGuiProperties()
@@ -272,13 +290,20 @@ public class NVScrollbar
         );
     }
     
+    //------------------------------------------------------------------------------------------------------------------
+    /** Track start position. */
+    protected int getTrackStart() { return 0; }
+    
+    /** Track end position. */
+    protected int getTrackEnd() { return (this.vertical.get() ? this.getHeight() : this.getWidth()); }
+    
+    /** Track size. */
+    protected int getTrackSize() { return Math.max(0, (this.getTrackEnd() - this.getTrackStart())); }
+    
     //==================================================================================================================
     /**
-     * Sets the scroll offset from the given {@link Value} object.
-     * <p>
-     * If the {@link Value} object is not a number, or the scroll bar is already at the given offset,
-     * this will do nothing.
-     *
+     * Sets the scroll offset from the given {@link Value} object (see {@link #getOffsetNormalised()}). If the
+     * {@link Value} object is not a number this will do nothing.
      * @param value The scroll offset value
      */
     @Override
@@ -289,25 +314,35 @@ public class NVScrollbar
             return;
         }
         
-        this.setOffset(value.getNumber().intValue());
+        this.setOffsetNormalised(value.getNumber().floatValue());
     }
     
     /**
-     * Sets the scroll offset of the target on this scrollbar.
-     * The value is between 0, and the {@link #getOverflow()}; everything above or below will be clamped.
-     *
-     * @param value The scroll offset
+     * Sets the scroll offset of the target on this scrollbar. The value is between 0 and {@link #getOverflow()};
+     * anything above or below will be clamped.
+     * @param offset The scroll offset
      */
-    public void setOffset(int value)
+    public void setOffset(final @NotNull Number offset)
     {
-        value = Math.clamp(value, 0, this.overflow);
+        final int new_offset = Math.clamp(offset.intValue(), 0, this.overflow);
         
-        if (value != this.offset)
+        if (this.offset != new_offset)
         {
-            this.offset = value;
+            this.offset = new_offset;
+            
             this.updateThumbBounds();
-            this.notifyChangeListeners();
+            this.sendChangeNotification();
         }
+    }
+    
+    /**
+     * Sets the scroll offset of the target on this scrollbar to the given normalised value
+     * (see {@link #getOffsetNormalised()}).
+     * @param offsetNormalised The normalised scroll offset
+     */
+    public void setOffsetNormalised(final float offsetNormalised)
+    {
+        this.setOffset(this.overflow * Math.clamp(offsetNormalised, 0f, 1f));
     }
     
     /**
@@ -350,6 +385,9 @@ public class NVScrollbar
         {
             this.updateThumbBounds();
         }
+        
+        this.onScrollSpaceChanged();
+        this.scrollSpaceChanged.post(this);
     }
     
     //==================================================================================================================
@@ -385,7 +423,7 @@ public class NVScrollbar
     
     //==================================================================================================================
     @Override
-    protected boolean onMouseDown(final @NotNull MouseEvent e)
+    public boolean onMouseDown(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -436,7 +474,7 @@ public class NVScrollbar
     }
     
     @Override
-    protected boolean onMouseScroll(final @NotNull MouseEvent e)
+    public boolean onMouseScroll(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -448,7 +486,7 @@ public class NVScrollbar
     }
     
     @Override
-    protected boolean onMouseDrag(final @NotNull MouseEvent e)
+    public boolean onMouseDrag(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -499,7 +537,7 @@ public class NVScrollbar
     }
     
     @Override
-    protected boolean onMouseUp(final @NotNull MouseEvent e)
+    public boolean onMouseUp(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -514,7 +552,7 @@ public class NVScrollbar
     
     //==================================================================================================================
     @Override
-    protected void onDeltaTick(final @NotNull Point mousePos, final float delta)
+    public void onDeltaTick(final @NotNull Point mousePos, final float delta)
     {
         if (!this.canPull)
         {
@@ -568,7 +606,7 @@ public class NVScrollbar
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         final IGuiTemplate template = canvas.getTemplate();
         template.nvScrollbarDrawBackground(canvas, this, new Rectangle(this.trackBounds));
@@ -577,7 +615,7 @@ public class NVScrollbar
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         if (this.vertical.get())
         {
@@ -590,6 +628,10 @@ public class NVScrollbar
         
         this.updateThumbBounds();
     }
+    
+    //==================================================================================================================
+    /** Called whenever the available scroll space of the scroll-bar changed. */
+    public void onScrollSpaceChanged() {}
     
     //==================================================================================================================
     private void updateThumbBounds()

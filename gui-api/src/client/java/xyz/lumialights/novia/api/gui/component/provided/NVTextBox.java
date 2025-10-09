@@ -51,7 +51,6 @@ import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.Colour;
 import xyz.lumialights.novia.api.core.util.RefUtils;
@@ -62,14 +61,19 @@ import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.component.*;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
+import xyz.lumialights.novia.api.gui.font.FontUtil;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Frame;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Stream;
+
 
 
 //**********************************************************************************************************************
@@ -79,11 +83,11 @@ import java.util.stream.Stream;
  * A text box is a component, which can be used to type text into a rectangular area, you can copy and paste text into
  * this area and use it to display strings.
  * <p>
- * This is a stateful GUI component, the text it contains can be converted to and from {@link Value}.
- * (for more details, see {@link #getValue()}, {@link #setValue(Value)} and {@link IValueConvertible})
+ * This is a stateful GUI component, the value it contains represents the text inside the text box,
+ * it can be converted between string qualified {@link Value} objects.
  */
 public class NVTextBox
-    extends StatefulGuiComponent<NVTextBox>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
     /**
@@ -107,27 +111,73 @@ public class NVTextBox
     {
         //**************************************************************************************************************
         /**
-         * Draws the text box in its entirety.
+         * Draws the text content.
          * @param canvas              The {@link Canvas}
-         * @param textBox             The text box object
+         * @param textBox             The {@link NVTextBox}
          * @param bounds              The bounds of the content (see {@link NVTextBox#getBorderSize()})
          * @param lastSwitchFocusTime The time since the last focus change
          */
         void nvTextboxDrawContent(@NotNull Canvas canvas, @NotNull NVTextBox textBox, @NotNull Rectangle bounds,
                                   long lastSwitchFocusTime);
         
+        /**
+         * Draws the text box background.
+         * @param canvas  The {@link Canvas}
+         * @param textBox The {@link NVTextBox}
+         */
         void nvTextboxDrawBackground(@NotNull Canvas canvas, @NotNull NVTextBox textBox);
         
+       /**
+        * Draws the text box text.
+        * @param canvas     The {@link Canvas}
+        * @param textBox    The {@link NVTextBox}
+        * @param text       The processed text contents of the text box
+        * @param x          The x coordinate of the text start position
+        * @param y          The y coordinate of the text start position
+        * @param textColour The recommended colour to use to draw the text with
+        */
         void nvTextboxDrawText(@NotNull Canvas canvas, @NotNull NVTextBox textBox, @NotNull OrderedText text,
                                int x, int y, @NotNull Colour textColour);
         
+        /**
+         * Draws the text box suggestion text.
+         * @param canvas  The {@link Canvas}
+         * @param textBox The {@link NVTextBox}
+         * @param x       The x coordinate of the text start position
+         * @param y       The y coordinate of the text start position
+         */
         void nvTextboxDrawSuggestion(@NotNull Canvas canvas, @NotNull NVTextBox textBox, int x, int y);
         
+        /**
+         * Draws the text box placeholder text.
+         * @param canvas  The {@link Canvas}
+         * @param textBox The {@link NVTextBox}
+         * @param x       The x coordinate of the text start position
+         * @param y       The y coordinate of the text start position
+         */
         void nvTextboxDrawPlaceholder(@NotNull Canvas canvas, @NotNull NVTextBox textBox, int x, int y);
         
-        void nvTextboxDrawSelection(@NotNull Canvas canvas, @NotNull NVTextBox textBox,
-                                    int x, int y, int width, int height);
+        /**
+         * Draws the text box selection highlight.
+         * @param canvas  The {@link Canvas}
+         * @param textBox The {@link NVTextBox}
+         * @param x       The x coordinate of highlight
+         * @param y       The y coordinate of highlight
+         * @param width   The width of the highlight
+         * @param height  The height of the highlight
+         */
+        void nvTextboxDrawSelection(@NotNull Canvas canvas, @NotNull NVTextBox textBox, int x, int y, int width,
+                                    int height);
     }
+    
+    /**
+     * @param text      The text of the clipboard action
+     * @param range     The character range of the clipboard action
+     * @param modifying {@code true} if this clipboard action was a modifying action (true for cutting or pasting)
+     */
+    public record ClipboardEventArgs(@NotNull String text, @NotNull Range<Integer> range, boolean modifying)
+        implements GuiEventArgs
+    {}
     
     //******************************************************************************************************************
     /** The colour of the text when the text box is editable and no predicate error occurred. */
@@ -156,11 +206,11 @@ public class NVTextBox
     /** See {@link NVTextBox#maxLength}. */
     public static final int DEFAULT_MAX_LENGTH = 1024;
     
-    /** See {@link NVTextBox#editable}. */
-    public static final boolean DEFAULT_IS_EDITABLE = true;
-    
     /** See {@link NVTextBox#predicateStopsInput}. */
     public static final boolean DEFAULT_PREDICATE_STOPS_INPUT = false;
+    
+    /** See {@link NVTextBox#readOnly}. */
+    public static final boolean DEFAULT_READ_ONLY = false;
     
     //==================================================================================================================
     /** The textures used for the text box background. */
@@ -203,19 +253,26 @@ public class NVTextBox
      */
     public final GuiProperty.NonNull<Boolean> predicateStopsInput;
     
-    /**
-     * Describes the suggestive text that should be rendered at the end of the text inside the text-box.
-     * @see #COLOUR_TEXT_SUGGESTION
-     */
+    /** Describes the suggestive text that should be rendered at the end of the text inside the text-box. */
     public final GuiProperty<String> suggestion;
     
-    /**
-     * Describes the text that should be rendered as a placeholder if the text-box is currently holding no text.
-     * @see #COLOUR_TEXT_PLACEHOLDER
-     */
+    /** Describes the text that should be rendered as a placeholder if the text-box is currently holding no text. */
     public final GuiProperty<Text> placeholder;
     
-    //------------------------------------------------------------------------------------------------------------------
+    /** Describes whether the text box should be read-only, which means that text can not be edited. */
+    public final GuiProperty<Boolean> readOnly;
+    
+    //==================================================================================================================
+    /** Triggered whenever the selected text in the box changed. */
+    public final GuiEvent.Simple selectionChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever a given text portion has been copied/cut from the text box. */
+    public final GuiEvent<ClipboardEventArgs> textCopied = new GuiEvent<>();
+    
+    /** Triggered whenever text has been pasted into the text box. */
+    public final GuiEvent<ClipboardEventArgs> textPasted = new GuiEvent<>();
+    
+    //==================================================================================================================
     private final Rectangle textBounds = new Rectangle();
     
     private long    lastSwitchFocusTime = Util.getMeasuringTimeMs();
@@ -223,7 +280,6 @@ public class NVTextBox
     private int     selectionStart      = 0;
     private int     selectionEnd        = 0;
     private Frame   borderSize          = NVTextBox.DEFAULT_BORDER_FRAME;
-    private boolean editable            = true;
     private String  text;
     private boolean erroneous;
     
@@ -241,9 +297,14 @@ public class NVTextBox
         this.predicateStopsInput = GuiProperty.nonNull(NVTextBox.DEFAULT_PREDICATE_STOPS_INPUT);
         this.suggestion          = GuiProperty.nullable(null);
         this.placeholder         = GuiProperty.nullable(null);
-        this.textPredicate       = GuiProperty.nonNull(NVTextBox.DEFAULT_PREDICATE, this::updatePredicate);
-        this.maxLength           = GuiProperty.nonNullChecked(NVTextBox.DEFAULT_MAX_LENGTH, this::updateMaxLength,
-                                                              RefUtils.greaterThanOrEqual(0));
+        this.textPredicate       = GuiPropertyBuilder.nonNull(NVTextBox.DEFAULT_PREDICATE)
+            .withSetter(this::updatePredicate)
+            .build();
+        this.maxLength           = GuiPropertyBuilder.nonNull(NVTextBox.DEFAULT_MAX_LENGTH)
+            .withSetter(this::updateMaxLength)
+            .withValidator(RefUtils.greaterThanOrEqual(0))
+            .build();
+        this.readOnly            = GuiProperty.nonNull(NVTextBox.DEFAULT_READ_ONLY);
         
         this.text = Objects
             .requireNonNull(text, "text must not be null")
@@ -374,7 +435,7 @@ public class NVTextBox
     
     //------------------------------------------------------------------------------------------------------------------
     @Override
-    protected @NotNull MutableText getNarrationMessage()
+    public @NotNull MutableText getNarrationMessage()
     {
         return Text.translatable("gui.narrate.editBox", this.getMessage(), this.text);
     }
@@ -475,12 +536,6 @@ public class NVTextBox
         return this.textPredicate.get().test(Objects.requireNonNull(text, "text must not be null"));
     }
     
-    /**
-     * Gets whether the text of this text box can be modified.
-     * @return {@code true} if the contents are modifiable
-     */
-    public boolean isEditable() { return this.editable; }
-    
     //==================================================================================================================
     /**
      * Gets whether the text in the box is empty.
@@ -497,11 +552,19 @@ public class NVTextBox
      */
     public void setCursor(final int position, final boolean select)
     {
+        final int old_start = this.selectionStart;
+        final int old_end   = this.selectionEnd;
+        
         this.setSelectionStart(position);
         
         if (!select)
         {
             this.setSelectionEnd(this.selectionStart);
+        }
+        
+        if ((old_start != this.selectionStart || old_end != this.selectionEnd) && (select || old_start != old_end))
+        {
+            this.selectionChanged.post(this);
         }
     }
     
@@ -577,7 +640,7 @@ public class NVTextBox
         this.setSelectionEnd(this.selectionStart);
         this.erroneous = !valid;
         
-        this.sendTextChanged();
+        this.sendChangeNotification();
     }
     
     /**
@@ -603,12 +666,6 @@ public class NVTextBox
             this.updateTextBounds();
         }
     }
-    
-    /**
-     * Sets whether the contents of this text box can be modified
-     * @param editable {@code true} if the contents are modifiable
-     */
-    public void setEditable(final boolean editable) { this.editable = editable; }
     
     //==================================================================================================================
     /**
@@ -653,7 +710,7 @@ public class NVTextBox
             this.setSelectionStart(sel_start + l);
             this.setSelectionEnd(this.selectionStart);
             
-            this.sendTextChanged();
+            this.sendChangeNotification();
         }
     }
     
@@ -724,7 +781,7 @@ public class NVTextBox
                     this.erroneous = !valid;
                     this.setCursor(start, false);
                     
-                    this.sendTextChanged();
+                    this.sendChangeNotification();
                 }
             }
         }
@@ -755,7 +812,7 @@ public class NVTextBox
     
     //==================================================================================================================
     @Override
-    protected boolean onMouseDown(final @NotNull MouseEvent e)
+    public boolean onMouseDown(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -763,22 +820,21 @@ public class NVTextBox
         }
         
         final GuiFont font       = this.getFont();
-        final String  string     = font.trimToWidth(
-            this.text.substring(this.firstCharacterIndex),
-            this.textBounds.width());
+        final String  string     = FontUtil.trimToWidth(font, this.text.substring(this.firstCharacterIndex),
+                                                        this.textBounds.width());
         final int     text_width = (
             (MathHelper.floor(e.mousePos.x()) - this.getScreenX())
             - (int) ((this.getWidth() - this.textBounds.width()) * 0.5)
         );
-        
-        this.setCursor((font.trimToWidth(string, text_width, Style.EMPTY).length() + this.firstCharacterIndex),
-                       Screen.hasShiftDown());
+
+        final int trim_len = FontUtil.trimToWidth(font, string, text_width).length();
+        this.setCursor((trim_len + this.firstCharacterIndex), Screen.hasShiftDown());
         
         return true;
     }
     
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (!this.isActive())
         {
@@ -789,7 +845,7 @@ public class NVTextBox
         {
             case GLFW.GLFW_KEY_BACKSPACE ->
             {
-                if (this.editable)
+                if (this.readOnly.get())
                 {
                     this.erase(-1);
                 }
@@ -797,7 +853,7 @@ public class NVTextBox
             
             case GLFW.GLFW_KEY_DELETE ->
             {
-                if (this.editable)
+                if (this.readOnly.get())
                 {
                     this.erase(1);
                 }
@@ -834,18 +890,36 @@ public class NVTextBox
             {
                 if (Screen.isSelectAll(e.input))
                 {
+                    final int old_start = this.selectionStart;
+                    final int old_end   = this.selectionEnd;
+                    
                     this.setCursorToEnd(false);
                     this.setSelectionEnd(0);
+                    
+                    if (this.selectionStart != old_start || this.selectionEnd != old_end)
+                    {
+                        this.selectionChanged.post(this);
+                    }
                 }
                 else if (Screen.isCopy(e.input))
                 {
-                    MinecraftClient.getInstance().keyboard.setClipboard(this.getSelectedText());
+                    final String text = this.getSelectedText();
+                    MinecraftClient.getInstance().keyboard.setClipboard(text);
+
+                    final Range<Integer> range = this.getSelectionRange();
+                    this.onTextCopied(text, range);
+                    this.textCopied.post(this, new ClipboardEventArgs(text, range, false));
                 }
                 else if (Screen.isPaste(e.input))
                 {
-                    if (this.editable)
+                    if (this.readOnly.get())
                     {
-                        this.write(MinecraftClient.getInstance().keyboard.getClipboard());
+                        final String text = MinecraftClient.getInstance().keyboard.getClipboard();
+                        this.write(text);
+                        
+                        final Range<Integer> range = this.getSelectionRange();
+                        this.onTextPasted(text, range);
+                        this.textPasted.post(this, new ClipboardEventArgs(text, range, true));
                     }
                 }
                 else
@@ -855,11 +929,22 @@ public class NVTextBox
                         return false;
                     }
                     
-                    MinecraftClient.getInstance().keyboard.setClipboard(this.getSelectedText());
+                    final String text = this.getSelectedText();
+                    MinecraftClient.getInstance().keyboard.setClipboard(text);
                     
-                    if (this.editable)
+                    final Range<Integer> range = this.getSelectionRange();
+                    
+                    if (this.readOnly.get())
                     {
                         this.write("");
+                        
+                        this.onTextCut(text, range);
+                        this.textCopied.post(this, new ClipboardEventArgs(text, range, true));
+                    }
+                    else
+                    {
+                        this.onTextCopied(text, range);
+                        this.textCopied.post(this, new ClipboardEventArgs(text, range, false));
                     }
                 }
             }
@@ -869,7 +954,7 @@ public class NVTextBox
     }
     
     @Override
-    protected boolean onInput(final @NotNull KeyEvent e)
+    public boolean onInput(final @NotNull KeyEvent e)
     {
         if (!this.isActive())
         {
@@ -880,7 +965,7 @@ public class NVTextBox
         
         if (StringHelper.isValidChar(chr))
         {
-            if (this.editable)
+            if (this.readOnly.get())
             {
                 this.write(Character.toString(chr));
             }
@@ -893,7 +978,7 @@ public class NVTextBox
     
     //==================================================================================================================
     @Override
-    protected void onFocusChanged(final @NotNull GuiNavigationType type)
+    public void onFocusChanged(final @NotNull GuiNavigationType type)
     {
         if (this.isFocused())
         {
@@ -902,12 +987,21 @@ public class NVTextBox
     }
     
     //==================================================================================================================
-    /** Can be overridden by child classes to determine whenever the text has been modified. */
-    protected void onTextChanged() {}
+    /** Called whenever the selected text in the text box changes. */
+    protected void onSelectionChanged() {}
+    
+    /** Called whenever text was copied from the text box. */
+    protected void onTextCopied(@NotNull String text, @NotNull Range<Integer> range) {}
+    
+    /** Called whenever text was cut from the text box. */
+    private void onTextCut(@NotNull String text, @NotNull Range<Integer> range) {}
+    
+    /** Called whenever text was pasted to the text box. */
+    protected void onTextPasted(@NotNull String text, @NotNull Range<Integer> range) {}
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         this.updateTextBounds();
         this.setCursor(this.selectionStart, false);
@@ -915,18 +1009,11 @@ public class NVTextBox
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         final Template template = canvas.getTemplate();
         template.nvTextboxDrawBackground(canvas, this);
         template.nvTextboxDrawContent   (canvas, this, this.textBounds, this.lastSwitchFocusTime);
-    }
-    
-    //==================================================================================================================
-    private void sendTextChanged()
-    {
-        this.onTextChanged();
-        this.notifyChangeListeners();
     }
     
     //==================================================================================================================
@@ -949,7 +1036,7 @@ public class NVTextBox
                 this.setSelectionStart(length);
             }
             
-            this.sendTextChanged();
+            this.sendChangeNotification();
         }
     }
     
@@ -960,12 +1047,15 @@ public class NVTextBox
         this.firstCharacterIndex = Math.min(this.firstCharacterIndex, this.text.length());
         
         final GuiFont font   = this.getFont();
-        final String  text   = font.trimToWidth(this.text.substring(this.firstCharacterIndex), this.textBounds.width());
+        final String  text   = FontUtil.trimToWidth(font, this.text.substring(this.firstCharacterIndex),
+                                                    this.textBounds.width());
         final int     length = (text.length() + this.firstCharacterIndex);
         
         if (cursor == this.firstCharacterIndex)
         {
-            this.firstCharacterIndex -= font.trimToWidth(this.text, this.textBounds.width(), true).length();
+            this.firstCharacterIndex -= FontUtil
+                .trimToWidthBackwards(font, this.text, this.textBounds.width())
+                .length();
         }
         
         if (cursor > length)

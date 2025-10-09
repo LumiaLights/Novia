@@ -45,8 +45,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import xyz.lumialights.novia.api.gui.impl.StyleAccessor;
 
-import java.util.*;
-
+import java.util.Optional;
 
 
 //**********************************************************************************************************************
@@ -63,20 +62,30 @@ public abstract class StyleMixin
     @Shadow @Final @Nullable Boolean    obfuscated;
 
     //******************************************************************************************************************
-    @Override public boolean novia$isFontSet() { return (this.font != null); }
-    
+    @Override public @Nullable Identifier novia$getFontId() { return this.font; }
+
     @Override
-    public @NotNull Optional<Boolean> novia$getFormatting(final @NotNull Formatting formatting)
+    public @Nullable Optional<Boolean> novia$getFormatFlag(final @NotNull Formatting formatting)
     {
         return Optional.ofNullable(switch (formatting)
         {
-            case OBFUSCATED    -> this.obfuscated;
             case BOLD          -> this.bold;
-            case STRIKETHROUGH -> this.strikethrough;
-            case UNDERLINE     -> this.underlined;
             case ITALIC        -> this.italic;
-            
-            default -> throw new IllegalArgumentException("Unknown getter: " + formatting);
+            case UNDERLINE     -> this.underlined;
+            case STRIKETHROUGH -> this.strikethrough;
+            case OBFUSCATED    -> this.obfuscated;
+
+            default -> throw new IllegalArgumentException("invalid format flag " + formatting.asString());
         });
     }
+
+    //==================================================================================================================
+    @Override public boolean novia$isFontSet() { return (this.font != null); }
+
+    //==================================================================================================================
+    @Override public @Nullable Boolean novia$isBold()          { return this.bold; }
+    @Override public @Nullable Boolean novia$isItalic()        { return this.italic; }
+    @Override public @Nullable Boolean novia$isUnderlined()    { return this.underlined; }
+    @Override public @Nullable Boolean novia$isStrikethrough() { return this.strikethrough; }
+    @Override public @Nullable Boolean novia$isObfuscated()    { return this.obfuscated; }
 }

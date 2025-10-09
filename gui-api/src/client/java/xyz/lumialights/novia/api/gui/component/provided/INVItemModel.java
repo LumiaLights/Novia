@@ -107,8 +107,9 @@ public interface INVItemModel
      */
     default void draw(@NotNull Canvas    canvas,
                       @NotNull Rectangle bounds,
-                      int                index,
-                      boolean            selected,
-                      boolean            hovered,
-                      boolean            focused) {}
+                               int       index,
+                               boolean   selected,
+                               boolean   hovered,
+                               boolean   focused)
+    {}
 }

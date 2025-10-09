@@ -46,7 +46,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 import xyz.lumialights.novia.api.GuiApiLang;
-import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.NormalisedRange;
 import xyz.lumialights.novia.api.gui.GuiApiId;
@@ -58,9 +57,10 @@ import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.component.ComponentUtil;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.text.DecimalFormat;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 
@@ -72,21 +72,45 @@ import java.util.stream.Stream;
  * A slider is a component, which can be used to gradually interpolate a number range, where the value will be between
  * the given minimum and maximum values (both inclusive).
  * <p>
- * This is a stateful GUI component, the value it contains can be converted to and from {@link Value}.
- * (for more details, see {@link #getValue()}, {@link #setValue(Value)} and {@link IValueConvertible})
+ * This is a stateful GUI component, the value it contains represents the value of the slider,
+ * it can be converted between number qualified {@link Value} objects.
  */
 public class NVSlider
-    extends StatefulGuiComponent<NVSlider>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
     public interface Template
     {
         //**************************************************************************************************************
+        /**
+         * Draws the slider's background.
+         * @param canvas The {@link Canvas}
+         * @param slider The {@link NVSlider}
+         */
         void nvSliderDrawBackground(@NotNull Canvas canvas, @NotNull NVSlider slider);
         
+        /**
+         * Draws the slider's thumb.
+         * @param canvas      The {@link Canvas}
+         * @param slider      The {@link NVSlider}
+         * @param thumbBounds The bounds of the thumb
+         */
         void nvSliderDrawThumb(@NotNull Canvas canvas, @NotNull NVSlider slider, @NotNull Rectangle thumbBounds);
         
+        /**
+         * Draws the slider's text.
+         * @param canvas The {@link Canvas}
+         * @param slider The {@link NVSlider}
+         * @param text   The text
+         */
         void nvSliderDrawText(@NotNull Canvas canvas, @NotNull NVSlider slider, @NotNull Text text);
+    }
+    
+    @FunctionalInterface
+    public interface TextProvider
+    {
+        //**************************************************************************************************************
+        Text provide(@NotNull NVSlider slider);
     }
     
     //******************************************************************************************************************
@@ -98,7 +122,7 @@ public class NVSlider
     
     //==================================================================================================================
     /** See {@link NVSlider#displayTextProvider}. */
-    public static final Function<Double, Text> DEFAULT_DISPLAY_TEXT_PROVIDER;
+    public static final TextProvider DEFAULT_DISPLAY_TEXT_PROVIDER;
     
     /**
      * Ranges from 0 to 100 with a step size of {@code 1.0}.
@@ -127,9 +151,15 @@ public class NVSlider
         TEXTURE_HANDLE           = Identifier.ofVanilla("widget/slider_handle");
         TEXTURE_HANDLE_HIGHLIGHT = Identifier.ofVanilla("widget/slider_handle_highlighted");
         
-        final DecimalFormat format = new DecimalFormat("0");
-        format.setMaximumFractionDigits(300);
-        DEFAULT_DISPLAY_TEXT_PROVIDER = (val -> GuiApiLang.GUI_COMPONENT_SLIDER_MESSAGE.withArgs(format.format(val)));
+        
+        {
+            final DecimalFormat format = new DecimalFormat("0");
+            format.setMaximumFractionDigits(300);
+            
+            DEFAULT_DISPLAY_TEXT_PROVIDER = (slider -> GuiApiLang
+                .GUI_COMPONENT_SLIDER_MESSAGE
+                .withArgs(format.format(slider.getValueAsDouble())));
+        }
         
         DEFAULT_RANGE = new NormalisedRange(0, 100);
     }
@@ -145,7 +175,7 @@ public class NVSlider
      * The text provider that provides the text to be displayed on the slider,
      * where the given parameter is the value currently held by the slider.
      */
-    public final GuiProperty<Function<Double, Text>> displayTextProvider;
+    public final GuiProperty<TextProvider> displayTextProvider;
     
     //------------------------------------------------------------------------------------------------------------------
     private final Rectangle thumbBounds = new Rectangle();
@@ -160,59 +190,61 @@ public class NVSlider
      * @param value   The initial slider value (will be clamped to the slider range)
      * @param message The component message
      */
-    public NVSlider(final double value, final @NotNull Text message)
+    public NVSlider(final @NotNull Number value, final @NotNull Text message)
     {
         super(message);
         
-        this.range               = GuiProperty.nonNull(NVSlider.DEFAULT_RANGE,                 this::updateRange);
-        this.displayTextProvider = GuiProperty.nonNull(NVSlider.DEFAULT_DISPLAY_TEXT_PROVIDER, this::updateMessage);
+        this.range               = GuiPropertyBuilder.nonNull(NVSlider.DEFAULT_RANGE)
+            .withSetter(this::updateRange)
+            .build();
+        this.displayTextProvider = GuiPropertyBuilder.nonNull(NVSlider.DEFAULT_DISPLAY_TEXT_PROVIDER)
+            .withNoArgSetter(this::updateText)
+            .build();
         
-        this.value      = this.range.get().clamp(value);
+        this.value      = this.range.get().clamp(value.doubleValue());
         this.normalised = this.range.get().normalise(this.value);
         
         this.setWantsFocus(true);
-        this.updateMessage();
+        this.updateText();
     }
     
     /**
      * Constructs a new slider with the given initial value.
      * @param value The initial slider value (will be clamped to the slider range)
      */
-    public NVSlider(final double value) { this(value, ScreenTexts.EMPTY); }
+    public NVSlider(final @NotNull Number value) { this(value, ScreenTexts.EMPTY); }
     
     /** Constructs a new slider with value {@link NormalisedRange#min()} of {@link NVSlider#DEFAULT_RANGE}. */
     public NVSlider() { this(NVSlider.DEFAULT_RANGE.min(), ScreenTexts.EMPTY); }
     
     //==================================================================================================================
     /**
-     * Gets the current slider value as a {@code double} {@link Value} object
-     * (for more details see {@link #setValue(double)}).
-     * @return The current slider value
+     * Gets the current slider value as a number qualified {@link Value} object (see {@link #getValueAsDouble()}).
+     * @return The current slider {@link Value}
      */
     @Override public @NotNull Value getValue() { return new Value(this.value); }
     
+    /**
+     * Gets the slider's current value as double. The number returned is any valid value that complies with the given
+     * range {@link #range}.
+     * @return The slider value
+     */
     public double getValueAsDouble() { return this.value; }
+    
+    /**
+     * Gets the slider's value in normalised range between 0 (including) and 1 (including), where 0 is the start of the
+     * slider and 1 is the end.
+     * @return The normalised slider value
+     */
+    public float getValueNormalised() { return this.range.get().normalise(this.value); }
     
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
     
-    //------------------------------------------------------------------------------------------------------------------
     @Override
-    protected @NotNull MutableText getNarrationMessage()
+    public @NotNull MutableText getNarrationMessage()
     {
         return Text.translatable("gui.narrate.slider", this.getMessage());
     }
-    
-    /** Track start X pos. */
-    protected int getTrackStart() { return 0; }
-    
-    /** Track end X pos. */
-    protected int getTrackEnd() { return this.getWidth(); }
-    
-    /** Track length. */
-    protected int getTrackLength() { return (this.getTrackEnd() - this.getTrackStart()); }
-    
-    /** Thumb width. */
-    protected int getThumbSize() { return 8; }
     
     @Override
     public @NotNull Stream<GuiPropertyDescription<?>> getGuiProperties()
@@ -227,13 +259,24 @@ public class NVSlider
                 this.displayTextProvider));
     }
     
+    //------------------------------------------------------------------------------------------------------------------
+    /** Track start X pos. */
+    protected int getTrackStart() { return 0; }
+    
+    /** Track end X pos. */
+    protected int getTrackEnd() { return this.getWidth(); }
+    
+    /** Track length. */
+    protected int getTrackLength() { return (this.getTrackEnd() - this.getTrackStart()); }
+    
+    /** Thumb width. */
+    protected int getThumbSize() { return 8; }
+    
     //==================================================================================================================
     /**
-     * Sets the slider value from the given {@link Value} object (for more information see {@link #setValue(double)}).
-     * <p>
-     * If the {@link Value} object is not a number, this will do nothing.
-     *
-     * @param value The slider value value
+     * Sets the value of this slider as a number qualified {@link Value} object. If the value is not a number value,
+     * this does nothing and if the value is outside the specified range, it will be clamped to fit.
+     * @param value The new boolean {@link Value}
      */
     @Override
     public void setValue(final @NotNull Value value)
@@ -247,23 +290,25 @@ public class NVSlider
     }
     
     /**
-     * Sets the slider's current value.
-     * <p>
-     * The value is any valid number defined for the range of this slider's given {@link NormalisedRange}.
-     * If the new value is outside the range, it will be automatically adjusted to the nearest valid value.
-     *
-     * @param value The new slider value
+     * Sets the value of this slider to the new value. If the value is outside the range, it will be clamped to fit.
+     * @param value The new value to set
      */
-    public void setValue(final double value)
+    public void setValue(final @NotNull Number value)
     {
-        if (this.setValueInternal(value))
+        if (this.setValueInternal(value.doubleValue()))
         {
-            this.notifyChangeListeners();
+            this.sendChangeNotification();
         }
     }
     
+    /**
+     * Sets the slider's value in normalised range (see {@link #getValueNormalised()}).
+     * @param normalisedValue The normalised value
+     */
+    public void setValueNormalised(final float normalisedValue) { this.setValueNormalisedInternal(normalisedValue); }
+    
     //------------------------------------------------------------------------------------------------------------------
-    private boolean setValueNormalised(final double normalised)
+    private boolean setValueNormalisedInternal(final float normalised)
     {
         if (this.normalised != normalised)
         {
@@ -277,7 +322,7 @@ public class NVSlider
             if (this.value != old)
             {
                 this.updateThumbPos();
-                this.updateMessage();
+                this.updateText();
                 
                 return true;
             }
@@ -297,7 +342,7 @@ public class NVSlider
             this.normalised = range.normalise(snapped);
             
             this.updateThumbPos();
-            this.updateMessage();
+            this.updateText();
             
             return true;
         }
@@ -308,15 +353,23 @@ public class NVSlider
     private boolean setValueFromMouse(final @NotNull MouseEvent e)
     {
         final int thumb_size = this.getThumbSize();
-        return this.setValueNormalised(
-            (e.localMouseX() - (this.getTrackStart() + (thumb_size / 2.0)))
-            / (double) (this.getTrackLength() - thumb_size)
+        return this.setValueNormalisedInternal(
+            (e.localMouseX() - (this.getTrackStart() + (thumb_size * .5f)))
+            / (float) (this.getTrackLength() - thumb_size)
         );
+    }
+    
+    @Override
+    public void appendCustomNarrations(final @NotNull NarrationMessageBuilder builder)
+    {
+        builder.put(
+            NarrationPart.USAGE,
+            Text.translatable("narration.slider.usage." + (this.isFocused() ? "focused" : "hovered")));
     }
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         this.thumbBounds.setBounds(this
             .getLocalBounds()
@@ -326,7 +379,7 @@ public class NVSlider
     
     //==================================================================================================================
     @Override
-    protected boolean onMouseDown(final @NotNull MouseEvent e)
+    public boolean onMouseDown(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -338,7 +391,7 @@ public class NVSlider
     }
     
     @Override
-    protected boolean onMouseUp(final @NotNull MouseEvent e)
+    public boolean onMouseUp(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -346,13 +399,13 @@ public class NVSlider
         }
         
         ComponentUtil.playClickSound();
-        this.notifyChangeListeners();
+        this.sendChangeNotification();
         
         return true;
     }
     
     @Override
-    protected boolean onMouseDrag(final @NotNull MouseEvent e)
+    public boolean onMouseDrag(final @NotNull MouseEvent e)
     {
         if (!this.isActive())
         {
@@ -364,7 +417,7 @@ public class NVSlider
     }
     
     @Override
-    protected boolean onKeyDown(final @NotNull KeyEvent e)
+    public boolean onKeyDown(final @NotNull KeyEvent e)
     {
         if (!this.isActive())
         {
@@ -383,25 +436,13 @@ public class NVSlider
     }
     
     //==================================================================================================================
-    @Override protected void onMessageChanged() { this.updateMessage(); }
-    
-    //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         final IGuiTemplate template = canvas.getTemplate();
         template.nvSliderDrawBackground(canvas, this);
         template.nvSliderDrawThumb     (canvas, this, new Rectangle(this.thumbBounds));
         template.nvSliderDrawText      (canvas, this, this.text);
-    }
-    
-    //==================================================================================================================
-    @Override
-    protected void appendCustomNarrations(final @NotNull NarrationMessageBuilder builder)
-    {
-        builder.put(
-            NarrationPart.USAGE,
-            Text.translatable("narration.slider.usage." + (this.isFocused() ? "focused" : "hovered")));
     }
     
     //==================================================================================================================
@@ -423,12 +464,10 @@ public class NVSlider
         this.thumbBounds.setX(this.getTrackStart() + (int) (this.normalised * length));
     }
     
-    private void updateMessage(final @Nullable Function<Double, Text> provider)
+    private void updateText()
     {
         this.displayTextProvider
-            .ifSet  (prov -> this.text = prov.apply(this.value))
+            .ifSet  (prov -> this.text = prov.provide(this))
             .ifEmpty(()   -> this.text = Text.empty());
     }
-    
-    private void updateMessage() { this.updateMessage(this.displayTextProvider.get()); }
 }

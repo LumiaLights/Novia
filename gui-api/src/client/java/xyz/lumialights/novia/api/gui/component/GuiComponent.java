@@ -35,7 +35,6 @@
  */
 package xyz.lumialights.novia.api.gui.component;
 
-import com.google.common.collect.Sets;
 import com.mojang.serialization.*;
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -57,6 +56,11 @@ import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.Colour;
 import xyz.lumialights.novia.api.core.util.NoviaCollectors;
 import xyz.lumialights.novia.api.gui.canvas.*;
+import xyz.lumialights.novia.api.gui.component.integration.IInputListener;
+import xyz.lumialights.novia.api.gui.component.integration.INavigable;
+import xyz.lumialights.novia.api.gui.component.integration.IHierarchyListener;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
+import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Point;
 import xyz.lumialights.novia.api.gui.geometry.Positioner;
@@ -95,7 +99,7 @@ import java.util.stream.Stream;
  * for component, it and all its children (that do not explicitly themselves declare any) will use that font/template
  * for rendering; otherwise if it is an inheritor, the font/template applied will be inherited from its closest
  * explicitly declaring parent. If, however, no parent is a font/template declarator, the used fonts and templates will
- * resort to its defaults (namely {@link GuiFont#getDefault()} and {@link IGuiTemplate#DEFAULT}).
+ * resort to its defaults (namely {@link GuiFont#DEFAULT)} and {@link IGuiTemplate#DEFAULT}).
  * <p>
  * For mouse and keyboard events, every component has a set of functions that can be overridden on demand:
  * <table>
@@ -150,7 +154,10 @@ import java.util.stream.Stream;
  * that any of the parents gets the chance of handling the event itself until one returns {@code true}.
  */
 public class GuiComponent
-    implements IPaletteProvider
+    implements
+        IPaletteProvider,
+        INavigable,
+        IInputListener
 {
     //******************************************************************************************************************
     /**
@@ -172,7 +179,8 @@ public class GuiComponent
     public record GuiPropertyDescription<T>(
         @NotNull Identifier         id,
         @NotNull IGuiProperty<T>    property,
-        @NotNull Optional<Codec<T>> codec)
+        @NotNull Optional<Codec<T>> codec
+    )
     {
         //**************************************************************************************************************
         /**
@@ -205,6 +213,13 @@ public class GuiComponent
          */
         public @NotNull Optional<Codec<IGuiProperty<T>>> getCodec() { return this.codec.map(this.property::getCodec); }
     }
+    
+    public record BoundsChangedEventArgs(boolean resized, boolean moved) implements GuiEventArgs {}
+    public record TemplateChangedEventArgs(@Nullable IGuiTemplate newTemplate) implements GuiEventArgs {}
+    public record FontChangedEventArgs(@Nullable GuiFont newFont) implements GuiEventArgs {}
+    public record FocusEventArgs(@NotNull GuiNavigationType navigationType) implements GuiEventArgs {}
+    public record ComponentEventArgs(@NotNull GuiComponent component) implements GuiEventArgs {}
+    public record ColourEventArgs(@NotNull ColourId id) implements GuiEventArgs {}
     
     //------------------------------------------------------------------------------------------------------------------
     enum ComponentFlag
@@ -267,6 +282,67 @@ public class GuiComponent
     }
     
     //******************************************************************************************************************
+    /** Triggered whenever the size of the component changed. */
+    public final GuiEvent.Simple sizeChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever the position (inside the parent) of the component changed. */
+    public final GuiEvent.Simple positionChanged = new GuiEvent.Simple();
+    
+    /**
+     * Triggered whenever the component's visibility flag changed. This will not trigger if any of the parents changed
+     * their visibility (see {@link IHierarchyListener} instead).
+     */
+    public final GuiEvent.Simple visibilityChanged = new GuiEvent.Simple();
+    
+    /**
+     * Triggered whenever the component's activity flag changed. This will not trigger if any of the parents changed
+     * their activity state.
+     */
+    public final GuiEvent.Simple activityChanged = new GuiEvent.Simple();
+    
+    /**
+     * Triggered whenever the associated {@link IGuiTemplate} for this component changed. This will only trigger for
+     * the component that changed its immediate template and not for children that inherit this template.
+     */
+    public final GuiEvent<TemplateChangedEventArgs> templateChanged = new GuiEvent<>();
+    
+    /**
+     * Triggered whenever the associated {@link GuiFont} for this component changed. This will only trigger for
+     * the component that changed its immediate font and not for children that inherit this font.
+     */
+    public final GuiEvent<FontChangedEventArgs> fontChanged = new GuiEvent<>();
+    
+    /** Triggered whenever the component received focus. */
+    public final GuiEvent<FocusEventArgs> focused = new GuiEvent<>();
+    
+    /** Triggered whenever the component lost focus. */
+    public final GuiEvent.Simple blurred = new GuiEvent.Simple();
+    
+    /** Triggered whenever the component message changed. */
+    public final GuiEvent.Simple messageChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever the tooltip changed. */
+    public final GuiEvent.Simple tooltipChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever a child has been added to this component. */
+    public final GuiEvent<ComponentEventArgs> childAdded = new GuiEvent<>();
+    
+    /** Triggered whenever a child has been removed from this component. */
+    public final GuiEvent<ComponentEventArgs> childRemoved = new GuiEvent<>();
+    
+    /** Triggered whenever the parent component changed. */
+    public final GuiEvent.Simple parentChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever the navigation order of this component changed. */
+    public final GuiEvent.Simple navigationOrderChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever the component's pin state changed (either through being pinned or unpinned). */
+    public final GuiEvent.Simple pinStateChanged = new GuiEvent.Simple();
+    
+    /** Triggered whenever one of the component's colours changed. */
+    public final GuiEvent<ColourEventArgs> colourChanged = new GuiEvent<>();
+    
+    //==================================================================================================================
     /**
      * A map for additional component properties that can be used to attach custom user data.
      * <p>
@@ -278,20 +354,20 @@ public class GuiComponent
      * it should be provided as a class field.
      */
     public final Object2ObjectMap<String, Value> properties = new Object2ObjectOpenHashMap<>();
+
+    //------------------------------------------------------------------------------------------------------------------
+    @Nullable GuiComponent  parent   = null;
+    @Nullable IGuiTemplate  template = null;
+    @Nullable GuiFont       font     = null;
+    @Nullable ScreenInterop screen   = null;
     
     //------------------------------------------------------------------------------------------------------------------
-    @Nullable GuiComponent parent   = null;
-    @Nullable IGuiTemplate template = null;
-    @Nullable GuiFont      font     = null;
+    private final List<GuiComponent>      children           = new ArrayList<>();
+    private final Set<IHierarchyListener> hierarchyListeners = new HashSet<>();
+    private final BitSet                  flags              = ComponentFlag.createDefaults();
+    private final Rectangle               bounds             = new Rectangle();
+    private final Palette                 palette            = new Palette(null);
     
-    //------------------------------------------------------------------------------------------------------------------
-    private final List<GuiComponent>      children  = new ArrayList<>();
-    private final BitSet                  flags     = ComponentFlag.createDefaults();
-    private final Set<IComponentListener> listeners = Sets.newIdentityHashSet();
-    private final Rectangle               bounds    = new Rectangle();
-    private final Palette                 palette   = new Palette(null);
-    
-    private ScreenInterop screen       = null;
     private Positioner    positioner   = null;
     private Restrainer    restrainer   = null;
     private Tooltip       tooltip      = null;
@@ -331,10 +407,16 @@ public class GuiComponent
     
     /**
      * Gets the positioner of this component.
-     * @return The positioner of this component or an empty {@link Optional} if there is no positioner
+     * @return The {@link Positioner} of this component or an empty {@link Optional} if there is none set
      */
     public final @NotNull Optional<Positioner> getPositioner() { return Optional.ofNullable(this.positioner); }
-    
+
+    /**
+     * Gets the restrainer of this component.
+     * @return The {@link Restrainer} of this component or an empty {@link Optional} if there is none set
+     */
+    public final @NotNull Optional<Restrainer> getRestrainer() { return Optional.ofNullable(this.restrainer); }
+
     /**
      * Gets the screen bounds of this component where x and y represent the location of the component on the screen.
      * @return The local bounds of this component
@@ -484,7 +566,11 @@ public class GuiComponent
      * @return The Y coordinate
      */
     public final int getScreenY() { return this.screenY; }
-    
+
+    /**
+     * Gets the coordinates of this component in screen coordinates.
+     * @return The screen {@link Point}
+     */
     public final @NotNull Point getScreenPosition() { return new Point(this.screenX, this.screenY); }
     
     /**
@@ -561,12 +647,7 @@ public class GuiComponent
     /** {@return the list of all child components} */
     public final @NotNull List<GuiComponent> getChildren() { return new ArrayList<>(this.children); }
     
-    /**
-     * Gets the {@link IComponentNavigator} for this component's children, or {@code null} if this component's children
-     * should not be navigated to.
-     *
-     * @return The {@link IComponentNavigator}
-     */
+    @Override
     public @Nullable IComponentNavigator getNavigator()
     {
         return (this.hasChildren() ? NaturalNavigator.INSTANCE : null);
@@ -577,7 +658,7 @@ public class GuiComponent
      * for this component.
      * @return The narration message
      */
-    protected @Nullable MutableText getNarrationMessage()
+    public @Nullable MutableText getNarrationMessage()
     {
         return Text.translatable(
             (this.isActive()
@@ -586,12 +667,7 @@ public class GuiComponent
             this.message);
     }
     
-    /**
-     * Gets the focus order of this component inside the parent. To learn more about focus order,
-     * see {@link #setFocusOrder}.
-     * @return The focus order of this component
-     */
-    public final int getNavigationOrder() { return this.focusOrder; }
+    @Override public final int getNavigationOrder() { return this.focusOrder; }
     
     /**
      * Finds the first template that can be applied to this component. This will search all the way up the component
@@ -618,7 +694,7 @@ public class GuiComponent
     
     /**
      * Finds the first gui font that can be applied to this component. This will search all the way up the component
-     * hierarchy until a font could be found, if none was found this will return {@link GuiFont#getDefault()}.
+     * hierarchy until a font could be found, if none was found this will return {@link GuiFont#DEFAULT}.
      * <p>
      * For {@link GuiScreen} objects that have their own explicit font specified, all modal layers of that screen
      * will get the given font as base font.
@@ -635,7 +711,7 @@ public class GuiComponent
     public final @NotNull GuiFont getFont()
     {
         final GuiFont font = this.findParentObject(comp -> comp.font);
-        return (font != null ? new GuiFont(font) : GuiFont.getDefault());
+        return (font != null ? new GuiFont(font) : GuiFont.DEFAULT.get());
     }
     
     @Override public @NotNull Palette getPalette() { return this.palette; }
@@ -873,7 +949,7 @@ public class GuiComponent
     public final boolean isOnScreen()
     {
         final GuiComponent top = this.getTopLevelComponent();
-        return (top.isScreenContainer() && top.screen.isShowing());
+        return (top.isScreenContainer() && Objects.requireNonNull(top.screen).isShowing());
     }
     
     /**
@@ -887,7 +963,7 @@ public class GuiComponent
         {
             if (comp.parent == null)
             {
-                return (comp.isScreenContainer() && comp.screen.isShowing());
+                return (comp.isScreenContainer() && Objects.requireNonNull(comp.screen).isShowing());
             }
         }
         
@@ -1034,14 +1110,13 @@ public class GuiComponent
         return screenPoint.apply(this::containsScreenPoint);
     }
     
-    //------------------------------------------------------------------------------------------------------------------
     /**
      * Can be overridden to determine if a child can be pinned.
      *
      * @param child The child component in question
      * @return {@code true} if the parent allows pinning this child, otherwise {@code false}
      */
-    protected boolean isPinningAllowed(final @NotNull GuiComponent child) { return true; }
+    public boolean isPinningAllowed(final @NotNull GuiComponent child) { return true; }
     
     /**
      * Can be overridden to determine if a child can be added.
@@ -1049,7 +1124,7 @@ public class GuiComponent
      * @param child The component to add
      * @return {@code true} if the parent allows adding this child
      */
-    protected boolean isAddingChildAllowed(final @NotNull GuiComponent child) { return true; }
+    public boolean isAddingChildAllowed(final @NotNull GuiComponent child) { return true; }
     
     /**
      * Can be overridden to determine if a child can be removed.
@@ -1057,7 +1132,7 @@ public class GuiComponent
      * @param child The component to remove
      * @return {@code true} if the parent allows removing this child
      */
-    protected boolean isRemovingChildAllowed(final @NotNull GuiComponent child) { return true; }
+    public boolean isRemovingChildAllowed(final @NotNull GuiComponent child) { return true; }
     
     /**
      * Can be overridden to determine whether children of this component are allowed to use {@link Positioner} to
@@ -1066,7 +1141,7 @@ public class GuiComponent
      * @param child The component to auto-position
      * @return {@code true} if auto-positioning is allowed
      */
-    protected boolean isAutoPositioningAllowed(final @NotNull GuiComponent child) { return true; }
+    public boolean isAutoPositioningAllowed(final @NotNull GuiComponent child) { return true; }
     
     /**
      * Can be overridden to determine whether this component is allowed to get promoted to a modal layer.
@@ -1076,10 +1151,20 @@ public class GuiComponent
      *
      * @return {@code true} if this component can be made a modal, {@code false} otherwise
      */
-    protected boolean isModalPromotionAllowed() { return true; }
+    public boolean isModalPromotionAllowed() { return true; }
     
-    //------------------------------------------------------------------------------------------------------------------
-    boolean isScreenContainer() { return (this.screen != null); }
+    /**
+     * Determines whether this component is a screen container, that is, if this is the root content component of a
+     * screen.
+     * @return {@code true} if this is a screen container
+     */
+    public boolean isScreenContainer() { return (this.screen != null); }
+    
+    /**
+     * Determines whether this component is currently shown as a modal component and not part of another parent.
+     * @return {@code true} if this is a modal component
+     */
+    public boolean isModal() { return (this.screen != null && this.screen.getLayerForComponent(this) != null); }
     
     //==================================================================================================================
     /**
@@ -1267,11 +1352,11 @@ public class GuiComponent
         }
         
         this.onVisibilityChanged();
-        this.listeners.forEach(listener -> listener.componentVisibilityChanged(this));
+        this.visibilityChanged.post(this);
+        this.sendHierarchyVisibilityChangeNotification();
         
         if (this.isOnScreen())
         {
-            this.sendScreenStateChangeNotification();
             GuiScreen.CURRENT_SCREEN.updateHoverState();
         }
     }
@@ -1301,8 +1386,9 @@ public class GuiComponent
             this.blur();
         }
         
-        this.listeners.forEach(listener -> listener.componentActivityChanged(this));
         this.sendActivityChangeNotification();
+        this.children.forEach(GuiComponent::sendActivityChangeNotification);
+        this.activityChanged.post(this);
     }
     
     /**
@@ -1446,7 +1532,9 @@ public class GuiComponent
         if (!Objects.equals(this.message, message))
         {
             this.message = message;
+            
             this.onMessageChanged();
+            this.messageChanged.post(this);
         }
     }
     
@@ -1468,6 +1556,7 @@ public class GuiComponent
             }
             
             this.onTooltipChanged();
+            this.tooltipChanged.post(this);
         }
     }
     
@@ -1479,6 +1568,7 @@ public class GuiComponent
         if (!Objects.equals(old_colour, colour))
         {
             this.onColoursChanged();
+            this.colourChanged.post(this, new ColourEventArgs(id));
         }
         
         return old_colour;
@@ -1487,8 +1577,8 @@ public class GuiComponent
     /**
      * Sets the template of this component to the new one, or clears the template by passing {@code null}.
      * <p>
-     * This will raise event {@link #onTemplateChanged(IGuiTemplate)} for this and all children up to the end of the
-     * hierarchy or when a component provides its own template.
+     * This will raise {@link #templateChanged} for this and invoke {@link #onTemplateChanged(IGuiTemplate)}
+     * for all children up to the end of the hierarchy or when a component provides its own explicit template.
      *
      * @param template The new {@link IGuiTemplate} or {@code null} to clear the template
      */
@@ -1497,15 +1587,17 @@ public class GuiComponent
         if (this.template != template)
         {
             this.template = template;
+            
             this.sendTemplateChangeNotification(template);
+            this.templateChanged.post(this, new TemplateChangedEventArgs(template));
         }
     }
     
     /**
      * Sets the font of this component to the new one, or clears the font by passing {@code null}.
      * <p>
-     * This will raise event {@link #onFontChanged(GuiFont)} for this and all children up to the end of the
-     * hierarchy or when a component provides its own font.
+     * This will raise {@link #fontChanged} for this component and invoke {@link #onFontChanged(GuiFont)} for all
+     * children up to the end of the hierarchy or when a component provides its own explicit font.
      *
      * @param font The new {@link GuiFont} or {@code null} to clear the font
      */
@@ -1514,7 +1606,9 @@ public class GuiComponent
         if (!Objects.equals(this.font, font))
         {
             this.font = font;
+            
             this.sendFontChangeNotification(font);
+            this.fontChanged.post(this, new FontChangedEventArgs(font));
         }
     }
     
@@ -1626,21 +1720,23 @@ public class GuiComponent
                 final int order = this.parent.numPinned--;
                 this.setZIndex(this.parent.getChildCount() - order);
             }
+            
+            this.pinStateChanged.post(this);
         }
     }
     
     /**
-     * Sets the focus order of this component inside the parent.
-     * <p>
-     * If this value is negative, this component will not be discoverable by navigation. If this value is positive, this
-     * will indicate the component's priority, by that means, a component with priority 0 will be navigated to first and
-     * then to other components with a higher order.
-     * <p>
-     * Among components that share the same focus order, navigation follows their natural screen order.
-     *
-     * @param focusOrder The focus order
+     * Sets the navigation order of this component inside the parent (see {@link #getNavigationOrder()}).
+     * @param navigationOrder The navigation order
      */
-    public final void setFocusOrder(final int focusOrder) { this.focusOrder = focusOrder; }
+    public final void setNavigationOrder(final int navigationOrder)
+    {
+        if (this.focusOrder != navigationOrder)
+        {
+            this.focusOrder = navigationOrder;
+            this.navigationOrderChanged.post(this);
+        }
+    }
     
     /**
      * Sets this component's z-index in the parent component.
@@ -1726,19 +1822,17 @@ public class GuiComponent
             
             if (resized)
             {
-                this.sendResizeNotification();
+                this.resized();
+                this.sizeChanged.post(this);
             }
             
             if (moved)
             {
-                this.sendMoveNotification();
+                this.moved();
+                this.positionChanged.post(this);
             }
-            
-            this.listeners.forEach(listener -> listener.componentBoundsChanged(this, resized, moved));
         }
     }
-    
-    final void setScreenContainer(final @Nullable ScreenInterop screen) { this.screen = screen; }
     
     //------------------------------------------------------------------------------------------------------------------
     private void setChildZIndex(final int oldIndex, int newIndex)
@@ -1760,6 +1854,25 @@ public class GuiComponent
         {
             GuiScreen.CURRENT_SCREEN.updateHoverState();
         }
+    }
+    
+    //==================================================================================================================
+    /**
+     * Attaches a hierarchy listener to this component (see {@link IHierarchyListener}).
+     * @param listener The {@link IHierarchyListener} to add
+     */
+    public void addHierarchyListeners(final @NotNull IHierarchyListener listener)
+    {
+        this.hierarchyListeners.add(listener);
+    }
+    
+    /**
+     * Detaches a hierarchy listener from this component, if it exists (see {@link IHierarchyListener}).
+     * @param listener The {@link IHierarchyListener} to remove
+     */
+    public void removeHierarchyListeners(final @NotNull IHierarchyListener listener)
+    {
+        this.hierarchyListeners.remove(listener);
     }
     
     //==================================================================================================================
@@ -1875,8 +1988,7 @@ public class GuiComponent
         this.sendBackward(this.parent.children.size());
     }
     
-    //------------------------------------------------------------------------------------------------------------------
-    protected void appendCustomNarrations(@NotNull NarrationMessageBuilder builder) {}
+    public void appendCustomNarrations(@NotNull NarrationMessageBuilder builder) {}
     
     /**
      * Adds a child component to this component and updates the component hierarchy.
@@ -1896,7 +2008,7 @@ public class GuiComponent
      * @param zIndex The desired z-index of the component
      * @return The added, or the already contained child component
      */
-    protected final <T extends GuiComponent> @NotNull T addChild(final @NotNull T child, int zIndex)
+    public final <T extends GuiComponent> @NotNull T addChild(final @NotNull T child, int zIndex)
     {
         Objects.requireNonNull(child, "child component must not be null");
         
@@ -1940,7 +2052,9 @@ public class GuiComponent
         this.children.add(zIndex, child);
         
         child.parent = this;
-        child.sendScreenStateChangeNotification();
+        child.onParentChanged();
+        child.parentChanged.post(this);
+        child.sendHierarchyChangeNotification();
         
         if (this.isDrawing())
         {
@@ -1957,8 +2071,8 @@ public class GuiComponent
             }
         });
         
-        this.childAdded(child);
-        this.listeners.forEach(listener -> listener.componentChildrenChanged(this));
+        this.onChildAdded(child);
+        this.childAdded.post(this, new ComponentEventArgs(child));
         
         return child;
     }
@@ -1971,7 +2085,7 @@ public class GuiComponent
      * @param children The list of components to add
      * @return The number of children that were added
      */
-    protected final int addAllChildren(final @NotNull Collection<? extends GuiComponent> children)
+    public final int addAllChildren(final @NotNull Collection<? extends GuiComponent> children)
     {
         Objects.requireNonNull(children, "children collection must not be null");
         
@@ -2005,7 +2119,10 @@ public class GuiComponent
                 .comparing(GuiComponent::isPinned)
                 .thenComparing(e -> (e.parent != this)))
             .toList());
-        
+
+        final GuiFont      font     = this.getFont();
+        final IGuiTemplate template = this.getTemplate();
+
         new_list.forEach(child ->
         {
             final GuiComponent c_parent = child.getParent();
@@ -2021,7 +2138,9 @@ public class GuiComponent
             }
             
             child.parent = this;
-            child.sendScreenStateChangeNotification();
+            child.onParentChanged();
+            child.parentChanged.post(this);
+            child.sendHierarchyChangeNotification();
             
             child.getPositioner().ifPresent(positioner ->
             {
@@ -2033,10 +2152,9 @@ public class GuiComponent
                 }
             });
             
-            this.childAdded(child);
+            this.onChildAdded(child);
+            this.childAdded.post(this, new ComponentEventArgs(child));
         });
-        
-        this.listeners.forEach(listener -> listener.componentChildrenChanged(this));
         
         if (this.isDrawing())
         {
@@ -2062,7 +2180,7 @@ public class GuiComponent
      * @param child The new component to add
      * @return The added, or the already contained child component
      */
-    protected final <T extends GuiComponent> @NotNull T addChild(final @NotNull T child)
+    public final <T extends GuiComponent> @NotNull T addChild(final @NotNull T child)
     {
         return this.addChild(child, -1);
     }
@@ -2075,7 +2193,7 @@ public class GuiComponent
      * @param index The index of the child component to remove
      * @return The removed component or {@code null} if there was no component at the given index
      */
-    protected final @Nullable GuiComponent removeChild(final int index)
+    public final @Nullable GuiComponent removeChild(final int index)
     {
         if (index < 0 || index >= this.children.size())
         {
@@ -2091,7 +2209,6 @@ public class GuiComponent
         
         this.children.remove(index);
         this.removeChildInternal(child);
-        this.listeners.forEach(listener -> listener.componentChildrenChanged(this));
         
         if (this.isDrawing())
         {
@@ -2109,7 +2226,7 @@ public class GuiComponent
      * @param child The child to remove
      * @return The removed component or {@code null} if the given component was not a child of this
      */
-    protected final @Nullable GuiComponent removeChild(final @NotNull GuiComponent child)
+    public final @Nullable GuiComponent removeChild(final @NotNull GuiComponent child)
     {
         Objects.requireNonNull(child, "child must not be null");
         return this.removeChild(this.indexOfChild(child));
@@ -2119,7 +2236,7 @@ public class GuiComponent
      * Removes all child components from this component and updates the component hierarchy.
      * @return The number of children that were removed
      */
-    protected final int removeAllChildren()
+    public final int removeAllChildren()
     {
         int removed = 0;
         
@@ -2139,8 +2256,6 @@ public class GuiComponent
         
         if (removed > 0)
         {
-            this.listeners.forEach(listener -> listener.componentChildrenChanged(this));
-        
             if (this.isDrawing())
             {
                 GuiScreen.CURRENT_SCREEN.updateHoverState();
@@ -2165,43 +2280,21 @@ public class GuiComponent
         }
         
         child.parent = null;
-        child.sendScreenStateChangeNotification();
+        child.parentChanged.post(this);
+        child.sendHierarchyChangeNotification();
         
-        this.childRemoved(child);
+        this.onChildRemoved(child);
+        this.childRemoved.post(this, new ComponentEventArgs(child));
     }
     
     //==================================================================================================================
-    void sendResizeNotification()
-    {
-        this.resized();
-        
-        if (this.parent != null)
-        {
-            this.parent.childResized(this);
-        }
-    }
-    
-    void sendMoveNotification()
-    {
-        this.moved();
-        
-        if (this.parent != null)
-        {
-            this.parent.childMoved(this);
-        }
-    }
-    
-    void sendScreenStateChangeNotification()
-    {
-        this.onScreenStateChanged();
-        this.listeners.forEach(listener -> listener.componentScreenStateChanged(this));
-        this.children .forEach(GuiComponent::sendScreenStateChangeNotification);
-    }
-    
     void sendActivityChangeNotification()
     {
-        this.onActivityChanged();
-        this.children.forEach(GuiComponent::sendActivityChangeNotification);
+        if (this.hasActiveFlag())
+        {
+            this.onActivityChanged();
+            this.children.forEach(GuiComponent::sendActivityChangeNotification);
+        }
     }
     
     void sendTemplateChangeNotification(final @Nullable IGuiTemplate template)
@@ -2223,139 +2316,57 @@ public class GuiComponent
             .forEach(child -> child.sendFontChangeNotification(font));
     }
     
-    //==================================================================================================================
-    /**
-     * Called whenever the cursor moved across this component.
-     * <p>
-     * It is worth nothing that during a drag motion, this will not be called for any component; for cases like these,
-     * {@link #onMouseDrag(MouseEvent)} should be overridden instead.
-     *
-     * @param e The mouse event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onMouseMove(@NotNull MouseEvent e) { return false; }
+    void sendHierarchyChangeNotification()
+    {
+        this.onHierarchyChanged();
+        this.hierarchyListeners.forEach(listener -> listener.hierarchyChanged(this));
+        this.children.forEach(GuiComponent::sendHierarchyChangeNotification);
+    }
     
-    /**
-     * Called whenever the cursor enters the bounds of this component.
-     * <p>
-     * This will only be called if no other component is currently being dragged; or after a drag operation completed
-     * if the component below the cursor is different from the component being dragged.
-     * <p>
-     * This event does not bubble up and can only be handled for the target.
-     *
-     * @param e The mouse event
-     */
-    protected void onMouseEnter(@NotNull MouseEvent e) {}
-    
-    /**
-     * Called whenever the cursor exits the bounds of this component.
-     * <p>
-     * This will only be called if no other component is currently being dragged; or after a drag operation completed
-     * if the component below the cursor is different from the component being dragged.
-     * <p>
-     * This event does not bubble up and can only be handled for the target.
-     *
-     * @param e The mouse event
-     */
-    protected void onMouseExit(@NotNull MouseEvent e) {}
-    
-    /**
-     * Called whenever the cursor is over this component with any mouse button pressed
-     * (mouse button is down but not yet released).
-     * <p>
-     * The return value will also determine whether this component gets focus on mouse down and if it can receive
-     * drag events; if it returns {@code false}, it will neither be focused nor start drag motions.
-     *
-     * @param e The mouse event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onMouseDown(@NotNull MouseEvent e) { return false; }
-    
-    /**
-     * Called whenever a mouse button is released.
-     * <p>
-     * This will get sent to the component, whcih started the drag event (started by {@link #onMouseDown(MouseEvent)}),
-     * and not the component the mouse button was actually released upon.
-     * If there is no component, which is currently being dragged (e.g. drag started outside the screen bounds),
-     * no component will receive this event.
-     *
-     * @param e The mouse event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onMouseUp(@NotNull MouseEvent e) { return false; }
-    
-    /**
-     * Called upon scrolling the mouse wheel either vertically or horizontally upon hovering over a component.
-     *
-     * @param e The mouse event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onMouseScroll(@NotNull MouseEvent e) { return false; }
-    
-    /**
-     * Called between the click and release of the mouse button, whenever the mouse is moving.
-     * <p>
-     * This will only be called for the component the mouse initially clicked on, even if the mouse is leaving the
-     * component's bounds.
-     *
-     * @param e The mouse event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onMouseDrag(@NotNull MouseEvent e) { return false; }
-    
-    /**
-     * Called whenever a button on the keyboard was pressed while this component was focused.
-     *
-     * @param e The keyboard event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onKeyDown(@NotNull KeyEvent e) { return false; }
-    
-    /**
-     * Called whenever a button on the keyboard was released while this component was focused.
-     *
-     * @param e The keyboard event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onKeyUp(@NotNull KeyEvent e) { return false; }
-    
-    /**
-     * Called whenever a character key was typed while this component was focused.
-     *
-     * @param e The keyboard event
-     * @return {@code true} if the component handled the event, {@code false} if the parent should handle it
-     */
-    protected boolean onInput(@NotNull KeyEvent e) { return false; }
+    void sendHierarchyVisibilityChangeNotification()
+    {
+        this.onHierarchyVisibilityChanged();
+        this.hierarchyListeners.forEach(listener -> listener.visibilityChanged(this));
+        this.children.forEach(GuiComponent::sendHierarchyVisibilityChangeNotification);
+    }
     
     //==================================================================================================================
     /** Called whenever this component's own visibility flag has changed. */
-    protected void onVisibilityChanged() {}
+    public void onVisibilityChanged() {}
     
     /** Called whenever this component's or any of its parent's activity state has changed. */
-    protected void onActivityChanged() {}
+    public void onActivityChanged() {}
     
     /** Called whenever the message of this component changed. */
-    protected void onMessageChanged() {}
+    public void onMessageChanged() {}
     
     /** Called whenever the component's internal colours or when the component's associated template changes. */
-    protected void onColoursChanged() {}
+    public void onColoursChanged() {}
     
     /**
      * Called whenever the component's associated template changes. This event will propagate all the way down
-     * the child hierarchy for every component, which has no explicitly set template.
+     * the child hierarchy for every component until it encounters an explicit template.
+     * <p>
+     * Do note that this event is not triggered if this component is inheriting its template from a parent and the
+     * template changes through component hierarchy updates, like when it gets a new parent. For these cases overriding
+     * {@link #onHierarchyChanged()} will be necessary.
      * @param template The new {@link IGuiTemplate} that is applied to this component
      */
-    protected void onTemplateChanged(@Nullable IGuiTemplate template) {}
+    public void onTemplateChanged(@Nullable IGuiTemplate template) {}
     
     /**
      * Called whenever the component's associated font changes. This event will propagate all the way down
-     * the child hierarchy for every component, which has no explicitly set font.
+     * the child hierarchy for every component until it encounters an explicit font.
+     * <p>
+     * Do note that this event is not triggered if this component is inheriting its font from a parent and the font
+     * changes through component hierarchy updates, like when it gets a new parent. For these cases overriding
+     * {@link #onHierarchyChanged()} will be necessary.
      * @param font The new {@link GuiFont} that is applied to this component
      */
-    protected void onFontChanged(@Nullable GuiFont font) {}
+    public void onFontChanged(@Nullable GuiFont font) {}
     
     /** Called whenever this component's tooltip has changed. */
-    protected void onTooltipChanged() {}
+    public void onTooltipChanged() {}
     
     /**
      * Called every draw call, useful to update things based on timing.
@@ -2368,13 +2379,13 @@ public class GuiComponent
      * or not. If the component is invisible, has zero bounds or is not inside the draw area of its parents, this
      * will be called regardless.
      */
-    protected void onDeltaTick(@NotNull Point mousePos, float delta) {}
+    public void onDeltaTick(@NotNull Point mousePos, float delta) {}
     
     /**
      * Called whenever this component has either lost or gained focus.
      * @param type The cause of the focus change
      */
-    protected void onFocusChanged(@NotNull GuiNavigationType type) {}
+    public void onFocusChanged(@NotNull GuiNavigationType type) {}
     
     /**
      * Called whenever the focus of this or any of its children (at any depth) migrated in our out of the component.
@@ -2383,34 +2394,41 @@ public class GuiComponent
      * @param target The component, which changed its focus
      * @param type   The type of focus change event
      */
-    protected void onFocusMigrated(@NotNull GuiComponent target, @NotNull GuiNavigationType type) {}
+    public void onFocusMigrated(@NotNull GuiComponent target, @NotNull GuiNavigationType type) {}
     
     /** Called whenever the component has opened as a modal, not if a modal has been opened as a screen. */
-    protected void onModalOpened() {}
+    public void onModalOpened() {}
     
     /** Called whenever the component has closed its modal state. */
-    protected void onModalClosed() {}
+    public void onModalClosed() {}
     
-    /** Called whenever the state of the component on screen changed, such as its visibility or parent hierarchy. */
-    protected void onScreenStateChanged() {}
+    /** Called whenever the immediate parent component changed. */
+    public void onParentChanged() {}
     
-    //==================================================================================================================
-    protected void childAdded(@NotNull GuiComponent child) {}
+    /** Called whenever the parent hierarchy changed. */
+    public void onHierarchyChanged() {}
     
-    protected void childRemoved(@NotNull GuiComponent child) {}
+    /** Called whenever the visibility of a parent changed. */
+    public void onHierarchyVisibilityChanged() {}
     
-    /** Called whenever a child component has resized. */
-    protected void childResized(@NotNull GuiComponent child) {}
+    /**
+     * Called whenever a child component was added.
+     * @param child The child {@link GuiComponent} that was added
+     */
+    public void onChildAdded(@NotNull GuiComponent child) {}
     
-    /** Called whenever a child component moved its position inside this component. */
-    protected void childMoved(@NotNull GuiComponent child) {}
+    /**
+     * Called whenever a child component was removed.
+     * @param child The child {@link GuiComponent} that was removed
+     */
+    public void onChildRemoved(@NotNull GuiComponent child) {}
     
     /**
      * Called whenever the focus of a child component (at any depth) has changed.
      * @param child The child that changed focus
      * @param type  The type of focus change
      */
-    protected void childFocusChanged(@NotNull GuiComponent child, @NotNull GuiNavigationType type) {}
+    public void onChildFocusChanged(@NotNull GuiComponent child, @NotNull GuiNavigationType type) {}
     
     //==================================================================================================================
     /**
@@ -2418,10 +2436,10 @@ public class GuiComponent
      * <p>
      * This method is used to set the bounds of child components.
      */
-    protected void resized() {}
+    public void resized() {}
     
     /** Called whenever the position of this component have changed inside the parent. */
-    protected void moved() {}
+    public void moved() {}
     
     //==================================================================================================================
     /**
@@ -2479,37 +2497,6 @@ public class GuiComponent
     
     //==================================================================================================================
     /**
-     * Adds a component listener to this component, which notifies of specific component changes like visibility
-     * or bounds changes.
-     * <p>
-     * Listeners are compared by identity, meaning no two listeners of the same instance can be contained.
-     * However, two lambdas that are functionally the same can, and if the listener should be removed later on,
-     * it should always be referencable by its instance.
-     *
-     * @param listener The new listener to add
-     * @return {@code true} if the listener was not already added before
-     */
-    public final boolean addComponentListener(final @NotNull IComponentListener listener)
-    {
-        return this.listeners.add(Objects.requireNonNull(listener, "listener must not be null"));
-    }
-    
-    /**
-     * Removes a component listener from this component (see {@link #addComponentListener(IComponentListener)}).
-     * <p>
-     * Listeners are compared by identity, by that means, listeners that were added as a method reference or
-     * lambda cannot be removed unless they are referencable by their instance.
-     *
-     * @param listener The new listener to add
-     * @return {@code true} if the listener existed and was removed
-     */
-    public final boolean removeComponentListener(final @NotNull IComponentListener listener)
-    {
-        return this.listeners.remove(Objects.requireNonNull(listener, "listener must not be null"));
-    }
-    
-    //==================================================================================================================
-    /**
      * Draws the component below its children.
      * <p>
      * Do note that this is only called if the component is visible, has non-zero bounds and is inside the draw area
@@ -2518,7 +2505,7 @@ public class GuiComponent
      *
      * @param canvas The drawing context
      */
-    protected void draw(@NotNull Canvas canvas) {}
+    public void draw(@NotNull Canvas canvas) {}
     
     /**
      * Draws the component above its children (but below its later siblings inside the parent).
@@ -2532,7 +2519,7 @@ public class GuiComponent
      *
      * @param canvas The drawing context
      */
-    protected void drawOnTop(@NotNull Canvas canvas) {}
+    public void drawOnTop(@NotNull Canvas canvas) {}
     
     //==================================================================================================================
     /**
@@ -2649,6 +2636,7 @@ public class GuiComponent
             if (focused != null)
             {
                 focused.onFocusChanged(type);
+                focused.blurred.post(focused);
                 focused.updateFocusPath(focused, type);
             }
         }
@@ -2658,6 +2646,16 @@ public class GuiComponent
         }
         
         this.onFocusChanged(type);
+        
+        if (focus)
+        {
+            this.focused.post(this, new FocusEventArgs(type));
+        }
+        else
+        {
+            this.blurred.post(this);
+        }
+        
         this.updateFocusPath(this, type);
     }
     
@@ -2673,7 +2671,7 @@ public class GuiComponent
         
         if (this.parent != null)
         {
-            this.parent.childFocusChanged(changed, type);
+            this.parent.onChildFocusChanged(changed, type);
             this.parent.updateFocusPath(changed, type);
         }
     }

@@ -48,9 +48,12 @@ import xyz.lumialights.novia.api.gui.canvas.ColourId;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
+import xyz.lumialights.novia.api.gui.font.FontUtil;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
+import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -71,18 +74,41 @@ public class NVLabel
     public interface Template
     {
         //**************************************************************************************************************
-        void nvLabelDrawBackground(@NotNull Canvas canvas, @NotNull NVLabel nvLabel);
-        void nvLabelDrawText(@NotNull Canvas canvas, @NotNull NVLabel nvLabel);
+        /**
+         * Draws the label's background.
+         * @param canvas The {@link Canvas}
+         * @param label  The {@link NVLabel}
+         */
+        void nvLabelDrawBackground(@NotNull Canvas canvas, @NotNull NVLabel label);
+
+        /**
+         * Draws the label's text.
+         * @param canvas The {@link Canvas}
+         * @param label  The {@link NVLabel}
+         * @param text   The text to draw
+         */
+        void nvLabelDrawText(@NotNull Canvas canvas, @NotNull NVLabel label, @NotNull OrderedText text);
     }
-    
+
+    /** Describes how the text inside the label should be trimmed if it is too long to fit. */
     @FunctionalInterface
     public interface TrimFunction
     {
+        /**
+         * Trims the given text.
+         * @param text  The text to trim
+         * @param font  The {@link GuiFont} used to determine the size of the text on screen
+         * @param label The {@link NVLabel} component
+         * @return The trimmed text
+         */
         OrderedText trim(@NotNull Text text, @NotNull GuiFont font, @NotNull NVLabel label);
     }
     
     //******************************************************************************************************************
-    public static final ColourId COLOUR_TEXT          = ColourId.reserve();
+    /** The colour used for the text when the component is active. */
+    public static final ColourId COLOUR_TEXT = ColourId.reserve();
+
+    /** The colour used for the text when the component is inactive. */
     public static final ColourId COLOUR_TEXT_INACTIVE = ColourId.reserve();
     
     //==================================================================================================================
@@ -91,7 +117,7 @@ public class NVLabel
     
     /** See {@link NVLabel#trimFunction}. */
     public static final TrimFunction DEFAULT_TRIM_FUNCTION;
-    
+
     //==================================================================================================================
     /** A {@link TrimFunction} that does no trimming and just converts the {@link Text} to {@link OrderedText}. */
     public static final TrimFunction NO_TRIM_FUNCTION;
@@ -101,11 +127,11 @@ public class NVLabel
     {
         DEFAULT_TRIM_FUNCTION = ((text, font, label) ->
         {
-            final int             width     = (label.getWidth() - font.getWidthFitted(ScreenTexts.ELLIPSIS));
-            final StringVisitable visitable = font.trimToWidth(text, width);
+            final int             max_width = (label.getWidth() - font.getWidthFitted(ScreenTexts.ELLIPSIS));
+            final StringVisitable visitable = FontUtil.trimToWidth(font, text, max_width);
             return Language.getInstance().reorder(StringVisitable.concat(visitable, ScreenTexts.ELLIPSIS));
         });
-        
+
         NO_TRIM_FUNCTION = ((text, font, label) -> text.asOrderedText());
     }
     
@@ -119,8 +145,13 @@ public class NVLabel
      */
     public final GuiProperty.NonNull<TrimFunction> trimFunction;
     
-    //------------------------------------------------------------------------------------------------------------------
-    private Text text;
+    //==================================================================================================================
+    /** Triggered whenever the component's text changed. */
+    public final GuiEvent.Simple textChanged = new GuiEvent.Simple();
+    
+    //==================================================================================================================
+    private Text        text;
+    private OrderedText trimmed;
     
     //******************************************************************************************************************
     /**
@@ -133,17 +164,22 @@ public class NVLabel
         super(message);
         
         this.textAlign    = GuiProperty.nonNull(NVLabel.DEFAULT_ALIGNMENT);
-        this.trimFunction = GuiProperty.nonNull(NVLabel.DEFAULT_TRIM_FUNCTION);
+        this.trimFunction = GuiPropertyBuilder.nonNull(NVLabel.DEFAULT_TRIM_FUNCTION)
+            .withSetter(func -> this.updateText(this.getFont()))
+            .build();
         
         this.setText(text);
     }
     
     /**
-     * Constructs a new label component with the given text and an empty message.
+     * Constructs a new label component with the given text as display text and message.
      * @param text The text to draw on the label and the message of the component
      */
-    public NVLabel(final @NotNull Text text) { this(text, ScreenTexts.EMPTY); }
-    
+    public NVLabel(final @NotNull Text text) { this(text, text); }
+
+    /** Constructs a new empty label component without display text and message. */
+    public NVLabel() { this(ScreenTexts.EMPTY); }
+
     //==================================================================================================================
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
 
@@ -169,17 +205,61 @@ public class NVLabel
     
     //==================================================================================================================
     /**
+     * Gets whether the given Label's text is empty; a label is empty if it contains no characters or only whitespace.
+     * @return {@code true} if the label text is empty
+     */
+    public boolean isEmpty()
+    {
+        return Objects
+            .requireNonNullElseGet(this.text.getLiteralString(), this.text::getString)
+            .trim()
+            .isEmpty();
+    }
+    
+    //==================================================================================================================
+    /**
      * Sets the text that should be drawn on the label
      * @param text The new text
      */
-    public void setText(final @NotNull Text text) { this.text = Objects.requireNonNull(text, "text must not be null"); }
+    public void setText(final @NotNull Text text)
+    {
+        if (!this.text.equals(text))
+        {
+            this.text = Objects.requireNonNull(text, "text must not be null");
+            this.updateText(this.getFont());
+            
+            this.onTextChanged();
+            this.textChanged.post(this);
+        }
+    }
     
     //==================================================================================================================
+    @Override public void resized() { this.updateText(this.getFont()); }
+
+    //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void onFontChanged(final @Nullable GuiFont font)
+    {
+        this.updateText(Objects.requireNonNullElseGet(font, this::getFont));
+    }
+
+    //==================================================================================================================
+    @Override
+    public void draw(final @NotNull Canvas canvas)
     {
         final IGuiTemplate template = canvas.getTemplate();
         template.nvLabelDrawBackground(canvas, this);
-        template.nvLabelDrawText(canvas, this);
+        template.nvLabelDrawText(canvas, this, this.trimmed);
+    }
+
+    //==================================================================================================================
+    public void onTextChanged() {}
+    
+    //==================================================================================================================
+    private void updateText(final @NotNull GuiFont font)
+    {
+        this.trimmed = (font.getWidth(this.text) > this.getWidth()
+            ? this.trimFunction.get().trim(this.text, font, this)
+            : this.text.asOrderedText());
     }
 }

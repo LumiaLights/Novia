@@ -46,6 +46,11 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
+/**
+ * Provides data about the action of a keyboard input event, such as the key code, when available the pressed character,
+ * and the given inputs. This is used for component events in the {@link GuiComponent} class such as for
+ * {@link GuiComponent#onKeyDown(KeyEvent)}.
+ */
 public final class KeyEvent
     extends AbstractInputEvent<KeyEvent>
 {
@@ -64,6 +69,13 @@ public final class KeyEvent
     public final @NotNull Optional<Integer> scanCode;
     
     //******************************************************************************************************************
+    /**
+     * Constructs a new non-character key keyboard event.
+     * @param source    The {@link GuiComponent} that originally triggered the event
+     * @param input     The key code of the key that was pressed (see {@link org.lwjgl.glfw.GLFW}
+     * @param scanCode  The scan code of the key being pressed
+     * @param modifiers The additional modifier flags of the modifier keys that have been pressed in addition
+     */
     public KeyEvent(final @NotNull GuiComponent source, final int input, final int scanCode, final int modifiers)
     {
         super(source);
@@ -72,7 +84,13 @@ public final class KeyEvent
         this.modifiers = modifiers;
         this.scanCode  = Optional.of(scanCode);
     }
-    
+
+    /**
+     * Constructs a new character key keyboard event.
+     * @param source    The {@link GuiComponent} that originally triggered the event
+     * @param character The character code of the key that was pressed
+     * @param modifiers The additional modifier flags of the modifier keys that have been pressed in addition
+     */
     public KeyEvent(final @NotNull GuiComponent source, final char character, final int modifiers)
     {
         super(source);

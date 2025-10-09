@@ -65,11 +65,14 @@ import xyz.lumialights.novia.api.core.serialisation.IVariant.VoidVariant;
 //**********************************************************************************************************************
 /**
  * Represents an immutable limited variant type that can take a set of specified types only.
- * This is mainly used for serialisation purposes like when dealing with JSON or YAML files,
- * where only a limited set of types is provided.
  * <p>
  * Supported types are lists, maps, numbers, booleans and strings. {@code null} is also supported as a distinct
  * type from others, where a Value object that contains {@code null} is considered an “empty” Value object.
+ * <p>
+ * Throughout this library there will be mentions of "this is a &lt;type&gt; qualified Value", which just means that
+ * the API is expecting value objects of only a certain subset of types and might or might not throw an exception if
+ * different type values are given. If no qualification is specified, it is qualified for any of the supported
+ * value types.
  */
 public class Value
 {

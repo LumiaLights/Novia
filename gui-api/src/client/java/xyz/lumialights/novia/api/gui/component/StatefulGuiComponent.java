@@ -35,12 +35,10 @@
  */
 package xyz.lumialights.novia.api.gui.component;
 
-import com.google.common.collect.Sets;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
-
-import java.util.*;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 
 
 
@@ -53,13 +51,15 @@ import java.util.*;
  * @see GuiComponent
  * @see IStatefulComponent
  */
-public abstract class StatefulGuiComponent<Self extends GuiComponent & IStatefulComponent<Self>>
+public abstract class StatefulGuiComponent
     extends GuiComponent
-    implements IStatefulComponent<Self>
+    implements IStatefulComponent
 {
     //******************************************************************************************************************
-    private final Set<ChangeListener<Self>> listeners = Sets.newIdentityHashSet();
+    /** Triggered whenever the state of a stateful component changed. */
+    public final GuiEvent.Simple valueChanged = new GuiEvent.Simple();
     
+    //==================================================================================================================
     private boolean muted = false;
     
     //******************************************************************************************************************
@@ -73,26 +73,14 @@ public abstract class StatefulGuiComponent<Self extends GuiComponent & IStateful
     public StatefulGuiComponent() {}
     
     //==================================================================================================================
+    @Override public @NotNull GuiEvent.Simple getChangeEvent() { return this.valueChanged; }
+    
+    //==================================================================================================================
     /**
      * Gets whether this component's change listeners are muted.
      * @return {@code true} if this component is muted
      */
     public final boolean isMuted() { return this.muted; }
-    
-    //==================================================================================================================
-    @Override
-    public final void addChangeListener(final @NotNull ChangeListener<Self> listener)
-    {
-        Objects.requireNonNull(listener, "listener must not be null");
-        this.listeners.add(listener);
-    }
-    
-    @Override
-    public final void removeChangeListener(final @NotNull ChangeListener<Self> listener)
-    {
-        Objects.requireNonNull(listener, "listener must not be null");
-        this.listeners.remove(listener);
-    }
     
     //==================================================================================================================
     @Override public final void mute()   { this.muted = true; }
@@ -104,14 +92,18 @@ public abstract class StatefulGuiComponent<Self extends GuiComponent & IStateful
      * <p>
      * If this component is currently muted, this doesn't do anything.
      */
-    @SuppressWarnings("unchecked")
-    protected final void notifyChangeListeners()
+    public final void sendChangeNotification()
     {
         if (this.muted)
         {
             return;
         }
         
-        this.listeners.forEach(listener -> listener.onChange((Self) this));
+        this.onValueChanged();
+        this.valueChanged.post(this);
     }
+    
+    //==================================================================================================================
+    /** Called whenever the component is notified of a state change. */
+    public void onValueChanged() {}
 }

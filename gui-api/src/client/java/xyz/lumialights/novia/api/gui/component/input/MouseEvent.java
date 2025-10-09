@@ -47,6 +47,11 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
+/**
+ * Provides data about the action of a mouse input event, such as the left mouse button or the mouse-wheel.
+ * This is used for component events in the {@link GuiComponent} class such as for
+ * {@link GuiComponent#onMouseDown(MouseEvent)}.
+ */
 public final class MouseEvent
     extends AbstractInputEvent<MouseEvent>
 {
@@ -77,6 +82,14 @@ public final class MouseEvent
     private final BitSet buttons = new BitSet();
     
     //******************************************************************************************************************
+    /**
+     * Constructs a new mouse button event.
+     * @param source    The {@link GuiComponent} that originally triggered the event
+     * @param mousePos  The position of the cursor in screen coordinates
+     * @param deltaX    The amount the position has changed from the last move on the x-axis
+     * @param deltaY    The amount the position has changed from the last move on the y-axis
+     * @param button    The code of the mouse button that has been pressed (see {@link GLFW})
+     */
     public MouseEvent(final @NotNull GuiComponent source,
                       final @NotNull Point        mousePos,
                       final          double       deltaX,
@@ -91,7 +104,14 @@ public final class MouseEvent
         
         this.buttons.set(button);
     }
-    
+
+    /**
+     * Constructs a new scroll event.
+     * @param source    The {@link GuiComponent} that originally triggered the event
+     * @param mousePos  The position of the cursor in screen coordinates
+     * @param deltaX    The amount the mouse-wheel has been horizontally scrolled since its last position
+     * @param deltaY    The amount the mouse-wheel has been vertically scrolled since its last position
+     */
     public MouseEvent(final @NotNull GuiComponent source,
                       final @NotNull Point        mousePos,
                       final          double       deltaX,
@@ -130,13 +150,13 @@ public final class MouseEvent
      * Gets the X mouse coordinate relative to the {@link #target()} component.
      * @return The X coordinate
      */
-    public double localMouseX() { return this.target().toRelativeX(this.mousePos.x()); }
+    public int localMouseX() { return this.target().toRelativeX(this.mousePos.x()); }
     
     /**
      * Gets the Y mouse coordinate relative to the {@link #target()} component.
      * @return The Y coordinate
      */
-    public double localMouseY() { return this.target().toRelativeY(this.mousePos.y()); }
+    public int localMouseY() { return this.target().toRelativeY(this.mousePos.y()); }
     
     //==================================================================================================================
     
