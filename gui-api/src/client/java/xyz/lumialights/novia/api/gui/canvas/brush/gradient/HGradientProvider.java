@@ -49,25 +49,25 @@ public record HGradientProvider(@NotNull Gradient gradient, float step)
     public @NotNull VertexPalette getPalette(final float x1, final float y1, final float x2, final float y2)
     {
         final int start_colour = this.gradient.getColour(x1 * this.step);
-        final int end_colour = this.gradient.getColour(x2 * this.step);
+        final int end_colour   = this.gradient.getColour(x2 * this.step);
         return new VertexPalette(start_colour, end_colour, start_colour, end_colour);
     }
-
+    
     //==================================================================================================================
     @Override
     public void accept(final float x1, final float y1, final float x2, final float y2,
-                       final @NotNull VertexRectConsumer consumer)
+                       final @NotNull VertexPalette.VertexConsumer consumer)
     {
         final int start_colour = this.gradient.getColour(x1 * this.step);
-        final int end_colour = this.gradient.getColour(x2 * this.step);
+        final int end_colour   = this.gradient.getColour(x2 * this.step);
         consumer.accept(start_colour, end_colour, start_colour, end_colour);
     }
 
     @Override
-    public void accept(final @NotNull VertexRectConsumer consumer)
+    public void accept(final @NotNull VertexPalette.VertexConsumer consumer)
     {
         final int start = this.gradient.startColour();
-        final int end = this.gradient.endColour();
+        final int end   = this.gradient.endColour();
         consumer.accept(start, end, start, end);
     }
 }

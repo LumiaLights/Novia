@@ -37,6 +37,9 @@ package xyz.lumialights.novia.api.gui.font;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Supplier;
+import com.mojang.datafixers.util.Either;
+import com.mojang.serialization.*;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.*;
 import net.minecraft.text.*;
@@ -44,19 +47,54 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import org.apache.commons.lang3.mutable.MutableFloat;
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.lumialights.novia.api.gui.impl.*;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
 
 
 //**********************************************************************************************************************
+/// The gui font class describes an abstraction layer over Minecraft's [font providers](https://minecraft.wiki/w/Font).
+///
+/// ## Formatting
+/// Every instance of a Novia font provides an extensive context of formatting tools, such as boldness or spacing.
+/// At the gist of it all is the [Format] enum, which provides all flags that can be used to format
+/// a font object. Additionally, the formats come with a [Format#SHADED] flag which, other than how Minecraft
+/// usually renders shadows as part of the draw call, a way to tell a font that it should draw shadows beneath the text
+/// that it is rendered with.
+///
+/// A font also comes with extra spacing options, most notably the tracking factor that adds a uniform spacing between
+/// each of the glyphs in a text.
+///
+/// The Minecraft [Style] class is mostly interconvertible with Novia fonts, except a few members such as mouse events
+/// or colours. However, it is worth noting that a [Style] instance does not contain all formatting options that a
+/// Novia font provides, for things like scale, tracking and shading, Novia provides a [GuiStyle] class which is a child
+/// of [Style] and defines all the missing properties.
+///
+/// ## Metrics & Scaling
+/// Since Minecraft uses fixed font scaling (as can be seen with {@link TextRenderer#fontHeight}), a Novia font allows
+/// text to be rendered in different sizes, for this to work the library gathers and collects metrics about a font.
+///
+/// Those metrics are not necessarily the real font's metrics, but rather [font provider](https://minecraft.wiki/w/Font)
+/// specified metrics that are adjusted to the specific instance they are used in. These justified metrics are
+/// attainable through a font's [#getMetrics()] method. Additionally, fonts have [#getAscent()], [#getDescent()] and
+/// [#getHeight()] which are (other than [#getMetrics()]) the specific font instance's adjusted metrics, such as with
+/// applied font scaling. It is worth noting that for a single Novia font instance, there may be multiple providers that
+/// are used, which creates an automatic font fallback environment in case there are glyphs missing in one of them. For
+/// this reason, the metrics of such a font object are the combined maximums of all providers
+///
+/// To define a font's metrics, Minecraft uses its providers with a set of options that declare how a font is measured
+/// internally. Many providers (such as bitmap and truetype) have a font size attribute that describes what the internal
+/// resolution will be and how they are fitted onto the atlas grid.
 public final class GuiFont
 {
     //******************************************************************************************************************
-    /** Specifies the formatting flags for the font. */
+    /// Specifies the formatting flags for the font.
     public enum Format
     {
         BOLD(Formatting.BOLD),
@@ -64,7 +102,62 @@ public final class GuiFont
         STRIKETHROUGH(Formatting.STRIKETHROUGH),
         UNDERLINED(Formatting.UNDERLINE),
         OBFUSCATED(Formatting.OBFUSCATED),
-        SHADED(null);
+        SHADED(null),
+        ;
+        
+        //**************************************************************************************************************
+        private static final MapCodec<BitSet> MAP_CODEC = new MapCodec<>()
+        {
+            @Override
+            public <T> @NotNull Stream<T> keys(final @NotNull DynamicOps<T> ops)
+            {
+                return Arrays
+                    .stream(Format.values())
+                    .map(format -> ops.createString(format.name().toLowerCase()));
+            }
+            
+            @Override
+            public <T> @NotNull DataResult<BitSet> decode(final @NotNull DynamicOps<T> ops,
+                                                          final @NotNull MapLike<T> input)
+            {
+                final BitSet flags = new BitSet(Format.values().length);
+                
+                for (final var format : Format.values())
+                {
+                    final T value_result = input.get(format.name().toLowerCase());
+                    
+                    if (value_result == null)
+                    {
+                        continue;
+                    }
+                    
+                    final DataResult<Boolean> flag = ops.getBooleanValue(value_result);
+                    
+                    if (flag.isError())
+                    {
+                        return DataResult.error(() -> "not a boolean value");
+                    }
+                    
+                    flags.set(format.ordinal(), flag.getOrThrow());
+                }
+                
+                return DataResult.success(flags);
+            }
+            
+            @Override
+            public <T> @NotNull RecordBuilder<T> encode(final @NotNull BitSet input, final @NotNull DynamicOps<T> ops,
+                                                        final @NotNull RecordBuilder<T> prefix)
+            {
+                final T true_bool = ops.createBoolean(true);
+                
+                Arrays
+                    .stream (Format.values())
+                    .filter (format -> input.get(format.ordinal()))
+                    .forEach(format -> prefix.add(format.name().toLowerCase(), true_bool));
+                
+                return prefix;
+            }
+        };
         
         //**************************************************************************************************************
         public final Formatting minecraftFormat;
@@ -74,56 +167,73 @@ public final class GuiFont
     }
     
     //******************************************************************************************************************
-    /**
-     * The currently set default font, usually <a href="https://minecraft.fandom.com/de/wiki/Mojangles">Mojangles</a>.
-     */
-    public static final Supplier<@NotNull GuiFont> DEFAULT;
+    /// A codec that can be used to serialise font objects.
+    /// ```json
+    /// {
+    ///     "font": "[modid:]<path>",
+    ///     "size": <em | { "unit": <"em"|"px"|"pt">, "size": <value> }>
+    ///     "tracking": <factor>,
+    ///     ["<formatting>": true ...]
+    /// }
+    /// ```
+    public static final Codec<GuiFont> CODEC;
     
-    /** <a href="https://minecraft.wiki/w/GNU_Unifont">Unicode</a> */
-    public static final Supplier<@NotNull GuiFont> UNICODE;
+    //==================================================================================================================
+    /// The currently set default font (see [Mojangles](https://minecraft.fandom.com/de/wiki/Mojangles)).
+    public static final Supplier<@NotNull GuiFont> DEFAULT = GuiFont::getCachedDefault;
     
-    /** <a href="https://minecraft.wiki/w/Standard_Galactic_Alphabet">Standard Galactic Alphabet</a> */
-    public static final Supplier<@NotNull GuiFont> ALT;
+    /// [GNU Unifont](https://minecraft.wiki/w/GNU_Unifont)
+    public static final Supplier<@NotNull GuiFont> UNICODE = GuiFont::getCachedUnicode;
     
-    /** <a href="https://minecraft.wiki/w/Illageralt">Illageralt</a> */
-    public static final Supplier<@NotNull GuiFont> ILLAGERALT;
+    /// [Standard Galactic Alphabet](https://minecraft.wiki/w/Standard_Galactic_Alphabet)
+    public static final Supplier<@NotNull GuiFont> ALT = GuiFont::getCachedAlt;
+    
+    /// [Illageralt](https://minecraft.wiki/w/Illageralt)
+    public static final Supplier<@NotNull GuiFont> ILLAGERALT = GuiFont::getCachedIllageralt;
     
     //------------------------------------------------------------------------------------------------------------------
-    private static final GuiFont CACHED_DEFAULT;
-    private static final GuiFont CACHED_UNICODE;
-    private static final GuiFont CACHED_ALT;
-    private static final GuiFont CACHED_ILLAGERALT;
+    private static GuiFont CACHED_DEFAULT    = null;
+    private static GuiFont CACHED_UNICODE    = null;
+    private static GuiFont CACHED_ALT        = null;
+    private static GuiFont CACHED_ILLAGERALT = null;
     
     //==================================================================================================================
     static
     {
-        CACHED_DEFAULT    = GuiFont.findFont(MinecraftClient.DEFAULT_FONT_ID)     .orElseThrow();
-        CACHED_UNICODE    = GuiFont.findFont(MinecraftClient.UNICODE_FONT_ID)     .orElseThrow();
-        CACHED_ALT        = GuiFont.findFont(MinecraftClient.ALT_TEXT_RENDERER_ID).orElseThrow();
-        CACHED_ILLAGERALT = GuiFont.findFont(Identifier.ofVanilla("illageralt"))  .orElseThrow();
-        DEFAULT           = (() -> new GuiFont(GuiFont.CACHED_DEFAULT));
-        UNICODE           = (() -> new GuiFont(GuiFont.CACHED_UNICODE));
-        ALT               = (() -> new GuiFont(GuiFont.CACHED_ALT));
-        ILLAGERALT        = (() -> new GuiFont(GuiFont.CACHED_ILLAGERALT));
+        CODEC = RecordCodecBuilder.create(instance -> instance
+            .group(
+                Identifier.CODEC
+                    .fieldOf("font")
+                    .forGetter(GuiFont::getId),
+                Format.MAP_CODEC
+                    .forGetter(font -> font.formats),
+                Codec.either(Codec.FLOAT, FontSize.CODEC)
+                    .fieldOf("size")
+                    .forGetter(font -> Either.left(font.fontSize)),
+                Codec.FLOAT
+                    .fieldOf("tracking")
+                    .forGetter(GuiFont::getTrackingFactor))
+            .apply(instance, GuiFont::new));
     }
     
     //******************************************************************************************************************
-    /**
-     * Finds a font from its ID of the font register.
-     * @param fontId The ID of the font
-     * @return An optional {@link GuiFont} or an empty optional if no font was found for that ID
-     */
+    /// Finds a font from its ID of the font register.
+    /// @param fontId The ID of the font
+    /// @return An optional {@link GuiFont} or an empty optional if no font was found for that ID
     public static @NotNull Optional<GuiFont> findFont(final @NotNull Identifier fontId)
     {
         return GuiFont.getFontStorage(fontId).map(GuiFont::new);
     }
     
-    /**
-     * Gets the standard render height of text in Minecraft, this is the default size that font in Minecraft uses to
-     * render as text on screen.
-     * @return {@link TextRenderer#fontHeight}
-     */
-    public static int getRenderHeight() { return MinecraftClient.getInstance().textRenderer.fontHeight; }
+    /// Gets the standard render height of text in Minecraft, this is the default size that font in Minecraft uses to
+    /// render as text on screen. This is like [#getDefaultFontHeight()] but includes extra space for rendering the
+    /// underline.
+    /// @return [TextRenderer#fontHeight]
+    public static int getDefaultRenderHeight() { return 9; }
+    
+    /// Gets the standard font height of text in Minecraft.
+    /// @return [GuiFont#getDefaultRenderHeight()] - 1 (underline height)
+    public static int getDefaultFontHeight() { return 8; }
     
     //------------------------------------------------------------------------------------------------------------------
     @SuppressWarnings("resource")
@@ -134,264 +244,335 @@ public final class GuiFont
         return Optional.ofNullable(!storage.getId().equals(FontManager.MISSING_STORAGE_ID) ? storage : null);
     }
     
+    //------------------------------------------------------------------------------------------------------------------
+    private static @NotNull GuiFont getCachedDefault()
+    {
+        if (GuiFont.CACHED_DEFAULT == null)
+        {
+            GuiFont.CACHED_DEFAULT = GuiFont.findFont(MinecraftClient.DEFAULT_FONT_ID).orElseThrow();
+        }
+        
+        return new GuiFont(GuiFont.CACHED_DEFAULT);
+    }
+    
+    private static @NotNull GuiFont getCachedUnicode()
+    {
+        if (GuiFont.CACHED_UNICODE == null)
+        {
+            GuiFont.CACHED_UNICODE = GuiFont.findFont(MinecraftClient.UNICODE_FONT_ID).orElseThrow();
+        }
+        
+        return new GuiFont(GuiFont.CACHED_UNICODE);
+    }
+    
+    private static @NotNull GuiFont getCachedAlt()
+    {
+        if (GuiFont.CACHED_ALT == null)
+        {
+            GuiFont.CACHED_ALT = GuiFont.findFont(MinecraftClient.ALT_TEXT_RENDERER_ID).orElseThrow();
+        }
+        
+        return new GuiFont(GuiFont.CACHED_ALT);
+    }
+    
+    private static @NotNull GuiFont getCachedIllageralt()
+    {
+        if (GuiFont.CACHED_ILLAGERALT == null)
+        {
+            GuiFont.CACHED_ILLAGERALT = GuiFont.findFont(Identifier.ofVanilla("illageralt")).orElseThrow();
+        }
+        
+        return new GuiFont(GuiFont.CACHED_ILLAGERALT);
+    }
+    
     //******************************************************************************************************************
-    private final BitSet      formats = new BitSet(Format.values().length);
+    private final BitSet      formats;
     private final FontStorage storage;
-    private final float       scaleFactor;
     
-    private float fontScale = 1f;
-    private float tracking  = 0f;
+    private float fontSize = 1f;
+    private float tracking = 0f;
     
     //******************************************************************************************************************
-    /**
-     * Creates a new font from the given font ID, with the given size and formatting. If a font could not be found by
-     * its ID, the default font will be used.
-     * @param fontId   The {@link Identifier} of the font
-     * @param fontScale The size of the font
-     * @param formats  The formatting to use
-     */
-    public GuiFont(final @NotNull Identifier          fontId,
-                   final @NotNull FontSize fontScale,
-                   final @NotNull Format @NotNull ... formats)
+    /// Creates a new font from the given font ID, with the given size and formatting. If a font could not be found by
+    /// its ID, the default font will be used.
+    /// @param fontId   The [Identifier] of the font
+    /// @param fontSize The size of the font
+    /// @param formats  The formatting to use
+    public GuiFont(final @NotNull Identifier              fontId,
+                   final @NotNull FontSize                fontSize,
+                   final @NotNull Format     @NotNull ... formats)
     {
         this(GuiFont.getFontStorage(fontId).orElse(GuiFont.CACHED_DEFAULT.storage));
-        this.fontScale = fontScale.getScaledValue(GuiFont.getRenderHeight());
+        this.fontSize = fontSize.getEmScale();
         this.addFormatting(formats);
     }
     
-    /**
-     * Creates a new font with the default font.
-     * @param fontScale The size of the font
-     * @param formats  The formatting to use
-     */
-    public GuiFont(final @NotNull FontSize fontScale, final @NotNull Format @NotNull ... formats)
+    /// Creates a new font with the default font.
+    /// @param fontSize The size of the font
+    /// @param formats  The formatting to use
+    public GuiFont(final @NotNull FontSize fontSize, final @NotNull Format @NotNull ... formats)
     {
         this(GuiFont.CACHED_DEFAULT.storage);
-        this.fontScale = fontScale.getScaledValue(GuiFont.getRenderHeight());
+        this.fontSize = fontSize.getEmScale();
         this.addFormatting(formats);
     }
     
-    /**
-     * Creates a new font from the given font ID with the default size and no formatting. If a font could not be found
-     * by its ID, the default font will be used.
-     * @param fontId The {@link Identifier} of the font
-     */
+    /// Creates a new font from the given font ID with the default size and no formatting. If a font could not be found
+    /// by its ID, the default font will be used.
+    /// @param fontId The [Identifier] of the font
     public GuiFont(final @NotNull Identifier fontId) { this(GuiFont.findFont(fontId).orElseGet(GuiFont.DEFAULT)); }
     
-    /**
-     * Constructs a new copy of the given font object.
-     * @param other The {@link GuiFont} to copy from
-     */
+    /// Constructs a new copy of the given font object.
+    /// @param other The [GuiFont] to copy from
     public GuiFont(final @NotNull GuiFont other)
     {
         this(other.storage);
         
         this.formats.or(other.formats);
-        this.fontScale = other.fontScale;
-        this.tracking  = other.tracking;
+        this.fontSize = other.fontSize;
+        this.tracking = other.tracking;
     }
     
-    /**
-     * Constructs a new font from the given {@link Style}. If font ID is null or couldn't be found, the default font
-     * will be used.
-     * @param style The {@link Style}
-     */
+    /// Constructs a new font from the given [Style]. If font ID is null or couldn't be found, the default font
+    /// will be used.
+    /// @param style The [Style]
     public GuiFont(final @NotNull Style style)
     {
         this(style.getFont());
         this.setStyle(style);
     }
     
-    /** Constructs a new font with the default font, the default size and no formatting. */
+    /// Constructs a new font with the default font, the default size and no formatting.
     public GuiFont() { this(GuiFont.CACHED_DEFAULT.storage); }
     
     //------------------------------------------------------------------------------------------------------------------
     GuiFont(final @NotNull FontStorage storage)
     {
-        this.storage     = storage;
-        this.scaleFactor = (GuiFont.getRenderHeight() / ((FontStorageAccessor) storage).novia$getMetrics().height());
+        this.storage = storage;
+        this.formats = new BitSet(Format.values().length);
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private GuiFont(final @NotNull Identifier fontId, final @NotNull BitSet formats,
+                    final @NotNull Either<Float, FontSize> scale, final float tracking)
+    {
+        this.storage  = GuiFont.getFontStorage(fontId).orElse(GuiFont.CACHED_DEFAULT.storage);
+        this.formats  = formats;
+        this.fontSize = scale.map(Function.identity(), FontSize::getEmScale);
+        this.tracking = tracking;
     }
     
     //==================================================================================================================
-    /**
-     * Gets the {@link Identifier} of this font.
-     * @return The {@link Identifier}
-     */
+    /// Gets the [Identifier] of this font.
+    /// @return The [Identifier]
     public @NotNull Identifier getId() { return this.storage.getId(); }
     
-    /**
-     * Gets the (possibly) cached glyph for the given code point. If no glyph could be found, it will return
-     * {@link BuiltinEmptyGlyph#MISSING}. (an in-built glyph represented by a white square)
-     * @param codePoint The code point to look up the glyph for
-     * @return The {@link Glyph}
-     */
+    /// Gets the (possibly) cached glyph for the given code point. If no glyph could be found, it will return
+    /// [BuiltinEmptyGlyph#MISSING]. (an in-built glyph represented by a white square)
+    /// @param codePoint The code point to look up the glyph for
+    /// @return The [Glyph]
     public @NotNull Glyph getGlyph(final int codePoint) { return this.storage.getGlyph(codePoint, false); }
     
-    /**
-     * Gets the (possibly) cached glyph for the given code point. If no glyph could be found, it will return
-     * an empty optional.
-     * @param codePoint The code point to look up the glyph for
-     * @return An {@link Optional} containing the {@link Glyph}, or empty if no glyph was found
-     */
+    /// Gets the (possibly) cached glyph for the given code point. If no glyph could be found, it will return
+    /// an empty optional.
+    /// @param codePoint The code point to look up the glyph for
+    /// @return An [Optional] containing the [Glyph], or empty if no glyph was found
     public @NotNull Optional<Glyph> getOptionalGlyph(final int codePoint)
     {
         final Glyph glyph = this.getGlyph(codePoint);
         return Optional.ofNullable(glyph != BuiltinEmptyGlyph.MISSING ? glyph : null);
     }
     
-    /**
-     * Gets the (possibly) cached baked glyph for the given code point. If no glyph could be found, it will return
-     * the baked version of {@link BuiltinEmptyGlyph#MISSING}. (an in-built glyph represented by a white square)
-     * @param codePoint The code point to look up the baked glyph for
-     * @return The {@link BakedGlyph}
-     */
+    /// Gets the (possibly) cached baked glyph for the given code point. If no glyph could be found, it will return
+    /// the baked version of [BuiltinEmptyGlyph#MISSING] (an in-built glyph represented by a white square).
+    /// @param codePoint The code point to look up the baked glyph for
+    /// @return The [BakedGlyph]
     public @NotNull BakedGlyph getBaked(final int codePoint) { return this.storage.getBaked(codePoint); }
     
-    /**
-     * Gets the obfuscated version of a given glyph.
-     * @param glyph The glyph to get an obfuscated baked glyph for
-     * @return The obfuscated {@link BakedGlyph}
-     */
+    /// {@return the bitmask for the formats currently being used by this font}
+    public byte getFormatFlags() { return this.formats.toByteArray()[0]; }
+    
+    /// Gets the obfuscated version of a given glyph.
+    /// @param glyph The glyph to get an obfuscated baked glyph for
+    /// @return The obfuscated [BakedGlyph]
     public @NotNull BakedGlyph getObfuscatedBakedGlyph(final @NotNull Glyph glyph)
     {
         return this.storage.getObfuscatedBakedGlyph(glyph);
     }
     
-    /**
-     * Gets the baked rectangle glyph used to draw the lines for things like underlined or strike-through texts.
-     * @return The rectangle {@link BakedGlyph}
-     */
+    /// Gets the baked rectangle glyph used to draw the lines for things like underlined or strike-through texts.
+    /// @return The rectangle [BakedGlyph]
     public @NotNull BakedGlyph getRectangleBakedGlyph() {return this.storage.getRectangleBakedGlyph();}
     
-    /**
-     * Gets the current scale override applied to the font.
-     * <p>
-     * Do not confuse with {@link #getHeight()}, which is the current font object's underlying estimate of all given
-     * providers.
-     * @param unit The unit to convert to
-     * @return The font size
-     */
-    public float getScale(final @NotNull FontSize.Unit unit)
-    {
-        return (this.fontScale / unit.scaleFunc.apply(MinecraftClient.getInstance().textRenderer.fontHeight));
-    }
+    /// Gets the current size for this font relative to [#getDefaultRenderHeight()].
+    /// @param unit The unit to convert the size to
+    /// @return The font size
+    public float getSize(final @NotNull FontSize.Unit unit) { return unit.fromEm(this.fontSize); }
     
-    /**
-     * Gets the current scale applied to the font upon rendering in em unit (relative to {@link #getRenderHeight()}).
-     * <p>
-     * Do not confuse with {@link #getHeight()}, which is the current font object's underlying estimate of all given
-     * providers.
-     * @return The font size in em
-     */
-    public float getScale() { return this.fontScale; }
+    /// Gets the current size for this font relative to [#getDefaultRenderHeight()] in em unit
+    /// (where 1f means default render height).
+    /// This is different to [#getHeight()] and [#getScale()].
+    /// @return The font size
+    public float getSizeEm() { return this.fontSize; }
     
-    /**
-     * Gets this font's current tracking space, which is the tracking factor times the font's height.
-     * @return The tracking space
-     */
-    public float getTracking() { return (this.tracking * this.fontScale); }
+    /// Gets this font's current tracking space, which is the tracking factor times the font's height.
+    /// @return The tracking space
+    public float getTrackingSpace() { return (this.getHeight() * this.tracking); }
     
-    /**
-     * Gets this font's tracking factor, where 0 means default and anything above is added space
-     * (see {@link #getTrackingFactor(float)}).
-     * @return The tracking factor
-     */
+    /// Gets this font's tracking factor, where 0 means default and anything above is added space
+    /// (see [#getTrackingFactor(float)]).
+    /// @return The tracking factor
     public float getTrackingFactor() { return this.tracking; }
     
-    /**
-     * Gets the scaled height of the font. For fonts with multiple providers, this will be the maximum height
-     * of all providers.
-     * <p>
-     * Do not confuse with {@link #getScale()}, which is the current font object's override for the render scale.
-     * @return The scaled height of the font
-     */
+    /// Gets the scaled height of what size is needed to fully display the entire height of a text glyph including its
+    /// underline.
+    /// @return The scaled height of the font
     public float getHeight()
     {
-        return (((FontStorageAccessor) this.storage).novia$getMetrics().height() * this.scaleFactor * this.fontScale);
+        final FontMetrics metrics = ((FontStorageAccessor) this.storage).novia$getMetrics();
+        return (metrics.height() * this.fontSize + this.fontSize);
     }
     
-    /**
-     * Gets the scaled ascent of the font, this is the distance between the top of the font down to the baseline.
-     * For fonts with multiple providers, this will be the maximum ascent of all providers.
-     * @return The scaled ascent of the font
-     */
+    /// Gets the scaled ascent of the font, this is the distance between the top of the font down to the baseline.
+    /// For fonts with multiple providers, this will be the maximum scaled ascent of all providers.
+    /// @return The scaled ascent of the font
     public float getAscent()
     {
-        return (((FontStorageAccessor) this.storage).novia$getMetrics().ascent() * this.scaleFactor * this.fontScale);
+        final FontMetrics metrics = ((FontStorageAccessor) this.storage).novia$getMetrics();
+        return (metrics.ascent() * this.fontSize);
     }
     
-    /**
-     * Gets the scaled descent of the font, this is the distance between the bottom of the font up to the baseline.
-     * For fonts with multiple providers, this will be the maximum descent of all providers.
-     * @return The scaled descent of the font
-     */
+    /// Gets the scaled descent of the font, this is the distance between the bottom of the font up to the baseline.
+    /// For fonts with multiple providers, this will be the maximum scaled descent of all providers.
+    /// @return The scaled descent of the font
     public float getDescent()
     {
-        return (((FontStorageAccessor) this.storage).novia$getMetrics().descent() * this.scaleFactor * this.fontScale);
+        final FontMetrics metrics = ((FontStorageAccessor) this.storage).novia$getMetrics();
+        return (metrics.descent() * this.fontSize + this.fontSize);
     }
     
-    /**
-     * Gets the unscaled metrics for this font.
-     * <p>
-     * Do note that the returned metrics is an estimate of the largest values of all the providers for the font with
-     * the given ID, if there is a smaller glyph being used for drawing it will still comply with the measurements for
-     * the tallest.
-     * @return The {@link FontMetrics} for this font
-     */
-    public @NotNull FontMetrics getMetrics() { return ((FontStorageAccessor) this.storage).novia$getMetrics(); }
+    /// Gets the width of the code point with the current font (ignoring tracking).
+    /// @param codePoint The code point of the character to measure
+    /// @return The exact width of the character
+    public float getCharWidth(final int codePoint)
+    {
+        final GlyphMetricsExtension glyph = (GlyphMetricsExtension) this.getGlyph(codePoint);
+        return (
+            (glyph.novia$getLogicalAdvance() * this.fontSize)
+            + (this.isBold() ? (glyph.getBoldOffset() * this.fontSize) : 0f)
+        );
+    }
+    
+    /// Gets the width of the code point with the current font, but rounded up so the char fits perfectly.
+    /// @param codePoint The code point of the character to measure
+    /// @return The adjusted width of the character
+    public int getCharWidthFitted(final int codePoint) { return MathHelper.ceil(this.getCharWidth(codePoint)); }
+    
+    /// Gets the width of the text with the current font. Formatting codes will not be consumed and considered part
+    /// of the text, if this is not the desired behaviour use [TextLayout] instead.
+    /// @param text The text to measure
+    /// @return The exact width of the text
+    public float getTextWidth(final @NotNull String text)
+    {
+        final TextLayout.WidthCollectingVisitor visitor = new TextLayout.WidthCollectingVisitor();
+        visitor.visit(this, text);
+        return visitor.getWidth();
+    }
+    
+    /// Gets the width of the text with the current font, but rounded up so all text fits perfectly.
+    /// Formatting codes will not be consumed and considered part of the text, if this is not the desired behaviour
+    /// use [TextLayout] instead.
+    /// @param text The text to measure
+    /// @return The fitted width of the text
+    public int getTextWidthFitted(final @NotNull String text) { return MathHelper.ceil(this.getTextWidth(text)); }
+    
+    /// Gets the string length of the text given this font and the specified width maximum. Formatting codes will not be
+    /// consumed and considered part of the text, if this is not the desired behaviour use [TextLayout] instead.
+    /// @param text     The text to get the length of
+    /// @param maxWidth The maximum width the text should have
+    /// @return The length of the text (UTF code-points will be counted as one)
+    public int getTextLength(final @NotNull String text, final int maxWidth)
+    {
+        final TextLayout.WidthLimitingVisitor visitor = new TextLayout.WidthLimitingVisitor(maxWidth);
+        visitor.visit(this, text);
+        return visitor.getLength();
+    }
     
     //==================================================================================================================
-    /**
-     * Gets this font as {@link GuiStyle} object with all the formatting data converted.
-     * @param ignoreFontId If {@code true}, the font ID will not be applied to the style
-     * @return The new {@link GuiStyle}
-     */
+    public @NotNull String trimToWidth(final @NotNull String text, final int maxWidth)
+    {
+        return text.substring(0, this.getTextLength(text, maxWidth));
+    }
+    
+    public @NotNull String trimToWidthBackwards(final @NotNull String text, final int maxWidth)
+    {
+        final MutableFloat total    = new MutableFloat();
+        final MutableInt   end      = new MutableInt(text.length());
+        final float        tracking = this.getTrackingSpace();
+        
+        IGuiCharacterVisitor
+            .of((i, font2, style, codePoint) ->
+            {
+                final float width = total.addAndGet(this.getCharWidth(codePoint) + tracking);
+    
+                if (width > ((float) maxWidth))
+                {
+                    return false;
+                }
+    
+                end.setValue(i);
+                return true;
+            })
+            .visitBackwards(this, text);
+
+        return text.substring(end.intValue());
+    }
+    
+    //==================================================================================================================
+    /// Gets this font as [GuiStyle] object with all the formatting data converted.
+    /// @param ignoreFontId If `true`, the font ID will not be applied to the style
+    /// @return The new [GuiStyle]
     public @NotNull GuiStyle asStyle(final boolean ignoreFontId)
     {
         return new GuiStyle(null, null, this.isBold(), this.isItalic(), this.isUnderlined(), this.isStrikethrough(),
                             this.isObfuscated(), null, null, null, (ignoreFontId ? null : this.getId()),
-                            this.isShaded(), this.fontScale, this.tracking);
+                            this.isShaded(), this.fontSize, this.tracking, null);
     }
     
-    /**
-     * Gets this font as {@link GuiStyle} object with all the formatting data converted.
-     * @return The new {@link GuiStyle}
-     */
+    /// Gets this font as [GuiStyle] object with all the formatting data converted.
+    /// @return The new [GuiStyle]
     public @NotNull GuiStyle asStyle() { return this.asStyle(false); }
     
     //==================================================================================================================
-    /** {@return whether the font is bold} */
+    /// {@return whether the font is bold}
     public boolean isBold() { return this.formats.get(Format.BOLD.ordinal()); }
     
-    /** {@return whether the font is italic} */
+    /// {@return whether the font is italic}
     public boolean isItalic() { return this.formats.get(Format.ITALIC.ordinal()); }
     
-    /** {@return whether the font is underlined} */
+    /// {@return whether the font is underlined}
     public boolean isUnderlined() { return this.formats.get(Format.UNDERLINED.ordinal()); }
     
-    /** {@return whether the font is strikethrough} */
+    /// {@return whether the font is strikethrough}
     public boolean isStrikethrough() { return this.formats.get(Format.STRIKETHROUGH.ordinal()); }
     
-    /** {@return whether the font is obfuscated} */
+    /// {@return whether the font is obfuscated}
     public boolean isObfuscated() { return this.formats.get(Format.OBFUSCATED.ordinal()); }
     
-    /** {@return whether the text draws a shadow beneath} */
+    /// {@return whether the text draws a shadow beneath}
     public boolean isShaded() { return this.formats.get(Format.SHADED.ordinal()); }
     
-    /** {@return <code>true</code> if no formatting flag was set} */
+    /// {@return `true` if no formatting flag was set}
     public boolean isPlain() { return this.formats.isEmpty(); }
     
-    /** {@return <code>true</code> if no formatting flag was set, and if tracking and font size are at their defaults} */
-    public boolean isDefaultFormatted() { return (this.isPlain() && this.fontScale == 1f && this.tracking == 0f); }
+    /// {@return `true` if no formatting flag was set, and if tracking and font size are at their defaults}
+    public boolean isDefaultFormatted() { return (this.isPlain() && this.fontSize == 1f && this.tracking == 0f); }
     
     //==================================================================================================================
-    /**
-     * Copies the formatting of this font and creates a new font object with the given font ID to use instead. If the
-     * given font ID does not exist, {@link #DEFAULT} will be applied instead.
-     *
-     * @param fontId The {@link Identifier} of the font to use
-     * @return The new {@link GuiStyle}
-     */
+    /// Copies the formatting of this font and creates a new font object with the given font ID to use instead. If the
+    /// given font ID does not exist, [#DEFAULT] will be applied instead.
+    /// @param fontId The [Identifier] of the font to use
+    /// @return The new [GuiStyle]
     public @NotNull GuiFont withFont(final @NotNull Identifier fontId)
     {
         if (fontId.equals(this.getId()))
@@ -401,17 +582,15 @@ public final class GuiFont
         
         final GuiFont font = new GuiFont(fontId);
         font.formats.or(this.formats);
-        font.fontScale = this.fontScale;
-        font.tracking  = this.tracking;
+        font.fontSize = this.fontSize;
+        font.tracking = this.tracking;
         
         return font;
     }
     
-    /**
-     * Copies this font and specified whether it should be bold or not.
-     * @param bold {@code true} if the font should be bold
-     * @return The new font
-     */
+    /// Copies this font and specified whether it should be bold or not.
+    /// @param bold `true` if the font should be bold
+    /// @return The new font
     public @NotNull GuiFont withBold(final boolean bold)
     {
         final GuiFont font = new GuiFont(this);
@@ -419,11 +598,9 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and specified whether it should be italicised or not.
-     * @param italic {@code true} if the font should be italic
-     * @return The new font
-     */
+    /// Copies this font and specified whether it should be italicised or not.
+    /// @param italic `true` if the font should be italic
+    /// @return The new font
     public @NotNull GuiFont withItalicisation(final boolean italic)
     {
         final GuiFont font = new GuiFont(this);
@@ -431,11 +608,9 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and specified whether it should be underlined or not.
-     * @param underlined {@code true} if the font should be underlined
-     * @return The new font
-     */
+    /// Copies this font and specified whether it should be underlined or not.
+    /// @param underlined `true` if the font should be underlined
+    /// @return The new font
     public @NotNull GuiFont withUnderline(final boolean underlined)
     {
         final GuiFont font = new GuiFont(this);
@@ -443,11 +618,9 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and specified whether it should be strikethrough or not.
-     * @param strikethrough {@code true} if the font should be strikethrough
-     * @return The new font
-     */
+    /// Copies this font and specified whether it should be strikethrough or not.
+    /// @param strikethrough `true` if the font should be strikethrough
+    /// @return The new font
     public @NotNull GuiFont withStrikethrough(final boolean strikethrough)
     {
         final GuiFont font = new GuiFont(this);
@@ -455,11 +628,9 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and specified whether it should be obfuscated or not.
-     * @param obfuscated {@code true} if the font should be obfuscated
-     * @return The new font
-     */
+    /// Copies this font and specified whether it should be obfuscated or not.
+    /// @param obfuscated `true` if the font should be obfuscated
+    /// @return The new font
     public @NotNull GuiFont withObfuscation(final boolean obfuscated)
     {
         final GuiFont font = new GuiFont(this);
@@ -467,11 +638,9 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and specified whether it should be shaded or not.
-     * @param shaded {@code true} if the font should be shaded
-     * @return The new font
-     */
+    /// Copies this font and specifies whether it should be shaded or not.
+    /// @param shaded `true` if the font should be shaded
+    /// @return The new font
     public @NotNull GuiFont withShadow(final boolean shaded)
     {
         final GuiFont font = new GuiFont(this);
@@ -479,11 +648,39 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and sets the flags to the given {@code formats}.
-     * @param formats The set of {@link Format} flags to apply to the font
-     * @return The new font
-     */
+    /// Copies this font and sets the returned font's size.
+    /// @param em The size of the font in em unit
+    /// @return The new font
+    public @NotNull GuiFont withSize(final float em)
+    {
+        final GuiFont font = new GuiFont(this);
+        font.setSize(em);
+        return font;
+    }
+    
+    /// Copies this font and sets the returned font's size.
+    /// @param size The [FontSize] size of the font
+    /// @return The new font
+    public @NotNull GuiFont withSize(final @NotNull FontSize size)
+    {
+        final GuiFont font = new GuiFont(this);
+        font.setSize(size);
+        return font;
+    }
+    
+    /// Copies this font and sets the returned font's tracking factor.
+    /// @param tracking The tracking factor
+    /// @return The new font
+    public @NotNull GuiFont withTrackingFactor(final float tracking)
+    {
+        final GuiFont font = new GuiFont(this);
+        font.setTrackingFactor(tracking);
+        return font;
+    }
+    
+    /// Copies this font and sets the flags to the given `formats`.
+    /// @param formats The set of [Format] flags to apply to the font
+    /// @return The new font
     public @NotNull GuiFont withFormatting(final @NotNull Format @NotNull ... formats)
     {
         final GuiFont font = new GuiFont(this);
@@ -491,14 +688,12 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and sets the flags to the given {@code formats}.
-     * <p>
-     * This is similar to {@link #withFormatting(Format...)}, with the difference that any pre-existing flags won't be
-     * cleared and instead appended to.
-     * @param formats The set of {@link Format} flags to apply to the font
-     * @return The new font
-     */
+    /// Copies this font and sets the flags to the given `formats`.
+    ///
+    /// This is similar to [#withFormatting(Format...)], with the difference that any pre-existing flags won't be
+    /// cleared and instead appended to.
+    /// @param formats The set of [Format] flags to apply to the font
+    /// @return The new font
     public @NotNull GuiFont withFormattingPreserved(final @NotNull Format @NotNull ... formats)
     {
         final GuiFont font = new GuiFont(this);
@@ -506,10 +701,8 @@ public final class GuiFont
         return font;
     }
     
-    /**
-     * Copies this font and sets all format flags off.
-     * @return The new plain font
-     */
+    /// Copies this font and sets all format flags off.
+    /// @return The new plain font
     public @NotNull GuiFont withPlain()
     {
         final GuiFont font = new GuiFont(this);
@@ -518,66 +711,48 @@ public final class GuiFont
     }
     
     //==================================================================================================================
-    /**
-     * Sets the font to be bold.
-     * @param bold {@code true} if the font should be bold
-     */
+    /// Sets the font to be bold.
+    /// @param bold `true` if the font should be bold
     public void setBold(final boolean bold) { this.setFormat(Format.BOLD, bold); }
     
-    /**
-     * Sets the font to be italic.
-     * @param italic {@code true} if the font should be italic
-     */
+    /// Sets the font to be italic.
+    /// @param italic `true` if the font should be italic
     public void setItalic(final boolean italic) { this.setFormat(Format.ITALIC, italic); }
     
-    /**
-     * Sets the font to be underlined.
-     * @param underlined {@code true} if the font should be underlined
-     */
+    /// Sets the font to be underlined.
+    /// @param underlined `true` if the font should be underlined
     public void setUnderlined(final boolean underlined) { this.setFormat(Format.UNDERLINED, underlined); }
     
-    /**
-     * Sets the font to be strikethrough.
-     * @param strikethrough {@code true} if the font should be strikethrough
-     */
+    /// Sets the font to be strikethrough.
+    /// @param strikethrough `true` if the font should be strikethrough
     public void setStrikethrough(final boolean strikethrough) { this.setFormat(Format.STRIKETHROUGH, strikethrough); }
     
-    /**
-     * Sets the font to be obfuscated.
-     * @param obfuscated {@code true} if the font should be obfuscated
-     */
+    /// Sets the font to be obfuscated.
+    /// @param obfuscated `true` if the font should be obfuscated
     public void setObfuscated(final boolean obfuscated) { this.setFormat(Format.OBFUSCATED, obfuscated); }
     
-    /**
-     * Sets the font to draw a shadow beneath.
-     * @param shaded {@code true} if the font should be shaded
-     */
+    /// Sets the font to be shaded.
+    /// @param shaded `true` if the font should be shaded
     public void setShaded(final boolean shaded) { this.setFormat(Format.SHADED, shaded); }
     
-    /**
-     * Sets a specific formatting flag for this font.
-     * @param format  The flag to enable/disable
-     * @param enabled {@code true} if the flag should be enabled, otherwise {@code false}
-     */
+    /// Sets a specific [Format] flag for this font.
+    /// @param format  The [Format] flag to enable/disable
+    /// @param enabled `true` if the flag should be enabled, otherwise `false`
     public void setFormat(final @NotNull Format format, final boolean enabled)
     {
         this.formats.set(format.ordinal(), enabled);
     }
     
-    /**
-     * Sets a set of flags to be enabled for this font and flags that are not specified will be disabled.
-     * @param formats The set of flags to enable
-     */
+    /// Sets a set of [Format] flags to be enabled for this font; all flags that are not specified will be disabled.
+    /// @param formats The set of [Format] flags to enable
     public void setFormatting(final @NotNull Format @NotNull ... formats)
     {
         this.clearFormatting();
         this.addFormatting(formats);
     }
     
-    /**
-     * Adds a set of flags that should be enabled for this font.
-     * @param formats The set of flags to enable
-     */
+    /// Adds a set of [Format] flags that should be enabled for this font; additionally to the current format.
+    /// @param formats The set of [Format] flags to enable
     public void addFormatting(final @NotNull Format @NotNull ... formats)
     {
         for (final var format : formats)
@@ -586,74 +761,41 @@ public final class GuiFont
         }
     }
     
-    /**
-     * Gets the width of the string with the current font. Formatting codes will not be consumed and considered part
-     * of the string. If this is not the desired behaviour, use {@link TextLayout} instead.
-     * @param text The text to measure
-     * @return The exact width of the text
-     */
-    public float getStringWidth(final @NotNull String text)
-    {
-        final MutableFloat width = new MutableFloat();
-        TextVisitFactory.visitForwards(text, Style.EMPTY, ((i, style, codePoint) ->
-        {
-            width.add(this.measureGlyph(i, codePoint));
-            return true;
-        }));
-        return width.getValue();
-    }
+    /// Sets the font's scale override. The scale is applied relative to [#getDefaultFontHeight()], by that means, 1em
+    /// is considered 9 pixels so 2em means 18 pixels and so on.
+    /// @param size The size of the font
+    /// @see FontSize
+    public void setSize(final @NotNull FontSize size) { this.fontSize = size.getEmScale(); }
     
-    /**
-     * Gets the width of the string with the current font, but rounded up so all text fits perfectly.
-     * Formatting codes will not be consumed and considered part of the string. If this is not the desired behaviour,
-     * use {@link TextLayout} instead.
-     * @param text The text to measure
-     * @return The fitted width of the text
-     */
-    public int getStringWidthFitted(final @NotNull String text) { return MathHelper.ceil(this.getStringWidth(text)); }
+    /// Sets the font size in em scale. The scale is applied relative to [#getDefaultFontHeight()],
+    /// by that means, 1em is considered 9 pixels so 2em means 18 pixels and so on.
+    /// @param em The size of the font
+    public void setSize(final float em) { this.fontSize = em; }
     
-    /**
-     * Sets the font's scale override. The scale is applied relative to {@link #getRenderHeight()}, by that means, 1em
-     * is considered 9 pixels so 2em means 18 pixels and so on.
-     * @param size The size of the font
-     * @see FontSize
-     */
-    public void setScale(final @NotNull FontSize size)
-    {
-        this.fontScale = size.getScaledValue(MinecraftClient.getInstance().textRenderer.fontHeight);
-    }
+    /// Sets this font's tracking factor.
+    ///
+    /// The tracking factor is additional space that is added between glyphs uniformly. By default, this is 0,
+    /// which means no extra space is added, and anything above will be extra added space (see [#getTrackingSpace()]).
+    ///
+    /// Do not that this is less kerning than font tracking, which applies the spacing uniformly across the characters.
+    /// @param trackingFactor The tracking factor
+    public void setTrackingFactor(final float trackingFactor) { this.tracking = trackingFactor; }
     
-    /**
-     * Sets the font size in em scale. The scale is applied relative to {@link #getRenderHeight()},
-     * by that means, 1em is considered 9 pixels so 2em means 18 pixels and so on.
-     * @param em The size of the font
-     */
-    public void setScale(final float em) { this.fontScale = em; }
-    
-    /**
-     * Sets this font's tracking factor.
-     * <p>
-     * The tracking factor is additional space that is added between glyphs uniformly. By default, this is 0,
-     * which means no extra space is added, and anything above will be extra added space (see {@link #getTracking()}).
-     * <p>
-     * Do not that this is less kerning than font tracking, which applies the spacing uniformly across the characters.
-     *
-     * @param trackingFactor The tracking factor
-     */
-    public void getTrackingFactor(final float trackingFactor) { this.tracking = trackingFactor; }
-    
-    /**
-     * Sets the formatting of this font to the given {@link Style} or {@link GuiStyle}. Font ID will be ignored, use
-     * {@link GuiFont#GuiFont(Style)} instead.
-     * <p>
-     * When applying a style to a font, it is worth noting that styles that do not explicitly set a formatting
-     * attribute, will, for those values, not override the font. By that means, if an attribute of a style is internally
-     * {@code null}, this font will retain its current value for that style attribute, otherwise it will be overridden
-     * regardless of its value.
-     * @param style The {@link Style} to apply
-     */
+    /// Sets the formatting of this font to the given [Style] or [GuiStyle]. Font ID will be ignored, use
+    /// [GuiFont#GuiFont(Style)] instead.
+    ///
+    /// When applying a style to a font, it is worth noting that styles that do not explicitly set a formatting
+    /// attribute, will, for those values, not override the font. By that means, if an attribute of a style is
+    /// internally `null`, this font will retain its current value for that style attribute,
+    /// otherwise it will be overridden regardless of its value.
+    /// @param style The [Style] to apply
     public void setStyle(final @NotNull Style style)
     {
+        if (style.isEmpty())
+        {
+            return;
+        }
+        
         final StyleAccessor accessor = (StyleAccessor) style;
         
         final Boolean bold          = accessor.novia$isBold();
@@ -662,37 +804,22 @@ public final class GuiFont
         final Boolean strikethrough = accessor.novia$isStrikethrough();
         final Boolean obfuscated    = accessor.novia$isObfuscated();
         
-        if (bold != null) {this.setBold(bold);}
-        if (italic != null) {this.setItalic(italic);}
-        if (underline != null) {this.setUnderlined(underline);}
-        if (strikethrough != null) {this.setStrikethrough(strikethrough);}
-        if (obfuscated != null) {this.setObfuscated(obfuscated);}
+        if (bold          != null) this.setBold         (bold);
+        if (italic        != null) this.setItalic       (italic);
+        if (underline     != null) this.setUnderlined   (underline);
+        if (strikethrough != null) this.setStrikethrough(strikethrough);
+        if (obfuscated    != null) this.setObfuscated   (obfuscated);
         
         if (style instanceof GuiStyle g_style)
         {
-            if (g_style.shaded != null) {this.setShaded(g_style.shaded);}
-            if (g_style.size != null) {this.setScale(g_style.size);}
-            if (g_style.kerning != null) {this.getTrackingFactor(g_style.kerning);}
+            if (g_style.shaded   != null) this.setShaded        (g_style.shaded);
+            if (g_style.size     != null) this.setSize          (g_style.size);
+            if (g_style.tracking != null) this.setTrackingFactor(g_style.tracking);
         }
     }
     
-    /** Clears all format flags and makes this a plain font. */
-    public void clearFormatting() {this.formats.clear();}
-    
-    //------------------------------------------------------------------------------------------------------------------
-    float measureGlyph(final int i, final int codePoint)
-    {
-        final Glyph glyph = this.getGlyph(codePoint);
-        final float kerning_offset = ((i > 0 && this.tracking != 0f)
-                                          ? (GuiFont.getRenderHeight() * this.fontScale * this.tracking)
-                                          : 0f);
-        
-        return (
-            (glyph.getAdvance() * this.fontScale)
-            + kerning_offset
-            + (this.isBold() ? (glyph.getBoldOffset() * this.fontScale) : 0f)
-        );
-    }
+    /// Clears all format flags and makes this a plain font.
+    public void clearFormatting() { this.formats.clear(); }
     
     //==================================================================================================================
     @Override
@@ -700,31 +827,31 @@ public final class GuiFont
     {
         return MoreObjects
             .toStringHelper(this)
-            .add("id", this.getId())
-            .add("bold", this.isBold())
-            .add("italic", this.isItalic())
-            .add("underline", this.isUnderlined())
+            .add("id",            this.getId())
+            .add("bold",          this.isBold())
+            .add("italic",        this.isItalic())
+            .add("underline",     this.isUnderlined())
             .add("strikethrough", this.isStrikethrough())
-            .add("obfuscated", this.isObfuscated())
-            .add("shaded", this.isShaded())
-            .add("size", this.getScale())
-            .add("kerning", this.getTracking())
+            .add("obfuscated",    this.isObfuscated())
+            .add("shaded",        this.isShaded())
+            .add("size",          this.getSizeEm())
+            .add("tracking",      this.getTrackingSpace())
             .toString();
     }
     
     @Override
     public boolean equals(final Object obj)
     {
-        if (obj == this) {return true;}
-        if (!(obj instanceof GuiFont other)) {return false;}
+        if (obj == this)                     return true;
+        if (!(obj instanceof GuiFont other)) return false;
+        
         return (
             this.getId().equals(other.getId())
             && this.formats.equals(other.formats)
-            && this.fontScale == other.fontScale
+            && this.fontSize == other.fontSize
             && this.tracking == other.tracking
         );
     }
     
-    @Override
-    public int hashCode() {return Objects.hash(this.getId(), this.formats, this.fontScale, this.tracking);}
+    @Override public int hashCode() { return Objects.hash(this.getId(), this.formats, this.fontSize, this.tracking); }
 }

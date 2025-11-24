@@ -69,6 +69,7 @@ import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Point;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
+import xyz.lumialights.novia.api.gui.impl.GuiRenderStateAccessor;
 import xyz.lumialights.novia.api.gui.util.MouseUtil;
 
 import java.util.*;
@@ -122,38 +123,6 @@ public final class ScreenInterop
 
         return (narration_data != null ? narration_data : narration_data2);
     }
-    
-    //******************************************************************************************************************
-    private static final RenderPipeline.Snippet NOVIA_GUI_SNIPPET = RenderPipeline
-        .builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
-		.withVertexShader("core/gui")
-		.withFragmentShader("core/gui")
-		.withBlend(BlendFunction.TRANSLUCENT)
-		.withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-        .withDepthWrite(false)
-		.buildSnippet();
-
-    private static final RenderPipeline.Snippet NOVIA_POSITION_TEX_COLOR_SNIPPET = RenderPipeline
-        .builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
-		.withVertexShader("core/position_tex_color")
-		.withFragmentShader("core/position_tex_color")
-		.withSampler("Sampler0")
-		.withBlend(BlendFunction.TRANSLUCENT)
-		.withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
-        .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-        .withDepthWrite(false)
-		.buildSnippet();
-
-    private static final RenderPipeline NOVIA_GUI = RenderPipelines.register(RenderPipeline
-        .builder(NOVIA_GUI_SNIPPET)
-        .withLocation(Identifier.of(ApiDefine.API_ID, "pipeline/gui"))
-        .build());
-
-    private static final RenderPipeline NOVIA_GUI_TEXTURED = RenderPipelines.register(RenderPipeline
-        .builder(NOVIA_POSITION_TEX_COLOR_SNIPPET)
-        .withLocation(Identifier.of(ApiDefine.API_ID, "pipeline/gui_textured"))
-        .build());
 
     //******************************************************************************************************************
     private final List<ContentLayer> layers = new ArrayList<>(2);
@@ -519,7 +488,7 @@ public final class ScreenInterop
         }
         
         final Point        mouse_pos = new Point(mouseX, mouseY);
-        final GuiComponent target    = mouse_pos.apply(this::getScreenComponentAt);
+        final GuiComponent target    = mouse_pos.transform(this::getScreenComponentAt);
         
         this.setHovered(target);
         
@@ -688,7 +657,7 @@ public final class ScreenInterop
         
         final GuiNavigation nav = switch (keyCode)
         {
-            case GLFW.GLFW_KEY_TAB   -> new GuiNavigation.Tab(!Screen.hasShiftDown());
+            case GLFW.GLFW_KEY_TAB   -> new GuiNavigation.Tab  (!Screen.hasShiftDown());
             case GLFW.GLFW_KEY_RIGHT -> new GuiNavigation.Arrow(NavigationDirection.RIGHT);
             case GLFW.GLFW_KEY_LEFT  -> new GuiNavigation.Arrow(NavigationDirection.LEFT);
             case GLFW.GLFW_KEY_DOWN  -> new GuiNavigation.Arrow(NavigationDirection.DOWN);
@@ -764,15 +733,11 @@ public final class ScreenInterop
     @Override
     public void render(final @NotNull DrawContext context, final int mouseX, final int mouseY, final float deltaTicks)
     {
-        final Canvas canvas = new Canvas(
-            context,
-            new Point(mouseX, mouseY),
-            ScreenInterop.NOVIA_GUI,
-            ScreenInterop.NOVIA_GUI_TEXTURED,
-            deltaTicks);
-
+        ((GuiRenderStateAccessor) context.state).novia$disableSorting(true);
+        
+        final Canvas canvas = new Canvas(context, new Point(mouseX, mouseY), deltaTicks);
         CanvasAttorney.initFramebuffer(canvas, this.guiScreen);
-
+        
         CanvasAttorney.setLayer(canvas, this.backgroundLayer);
         this.backgroundLayer.render(canvas);
         
@@ -814,14 +779,11 @@ public final class ScreenInterop
     {
         if (!this.isDragging())
         {
-            this.setHovered(mousePos.apply(this::getScreenComponentAt));
+            this.setHovered(mousePos.transform(this::getScreenComponentAt));
         }
     }
     
     public void updateHoverState() { this.updateHoverState(MouseUtil.getScaledMousePos()); }
     
-    public void updateTooltip(final @NotNull GuiComponent component)
-    {
-        this.tooltipLayer.updateTarget(component);
-    }
+    public void updateTooltip(final @NotNull GuiComponent component) { this.tooltipLayer.updateTarget(component); }
 }

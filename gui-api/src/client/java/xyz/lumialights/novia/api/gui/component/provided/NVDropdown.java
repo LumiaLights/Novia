@@ -55,6 +55,7 @@ import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
+import xyz.lumialights.novia.api.gui.geometry.Point;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
 import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
@@ -84,6 +85,13 @@ public class NVDropdown
         implements INVItemModel
     {
         //**************************************************************************************************************
+        public static @NotNull Option forValue(final @NotNull NVDropdown dropdown, final @NotNull Value value)
+        {
+            final String name = value.asString();
+            return dropdown.new Option(name, value, Text.of(name));
+        }
+        
+        //**************************************************************************************************************
         private final String  name;
         private final Value   value;
         private final Text    title;
@@ -107,6 +115,14 @@ public class NVDropdown
         public @NotNull Value getValue() {return this.value;}
         
         public @NotNull Text getTitle()  {return this.title;}
+        
+        //==============================================================================================================
+        @Override
+        public boolean onClick(final @NotNull Point mousePos, final boolean selected)
+        {
+            ComponentUtil.playClickSound();
+            return INVItemModel.super.onClick(mousePos, selected);
+        }
         
         //==============================================================================================================
         @Override
@@ -319,7 +335,6 @@ public class NVDropdown
         
         this.input = this.addChild(new NVTextBox());
         this.input.textPredicate.set(this::hasOption);
-        this.input.placeholder.set(GuiApiLang.GUI_DROPDOWN_PLACEHOLDER);
         this.input.valueChanged.subscribe(this::textChanged);
         
         this.arrowButton = this.addChild(new DropDownButton());

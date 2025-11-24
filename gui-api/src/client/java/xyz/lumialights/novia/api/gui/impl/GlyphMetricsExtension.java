@@ -37,8 +37,7 @@ package xyz.lumialights.novia.api.gui.impl;
 
 import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
-import org.spongepowered.asm.mixin.Unique;
-import xyz.lumialights.novia.api.gui.font.FontMetrics;
+import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 
 
@@ -47,13 +46,23 @@ import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 public interface GlyphMetricsExtension
 {
     //******************************************************************************************************************
-    float novia$getBaseline();
+    float getAdvance();
+    float getBoldOffset();
+    float getShadowOffset();
+    
+    float novia$getAscent();
+    float novia$getHeight();
     float novia$getLeft();
     float novia$getRight();
     float novia$getTop();
     float novia$getBottom();
     
-    default @NotNull Rectangle getBounds()
+    default float novia$getLogicalAdvance() { return (this.getAdvance()      * this.novia$getScaleFactor()); }
+    default float novia$getLogicalAscent()  { return (this.novia$getAscent() * this.novia$getScaleFactor()); }
+    
+    default float novia$getScaleFactor() { return (GuiFont.getDefaultFontHeight() / this.novia$getHeight()); }
+    
+    default @NotNull Rectangle novia$getBounds()
     {
         return new Rectangle(
             MathHelper.floor(this.novia$getLeft()),

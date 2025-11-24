@@ -53,18 +53,18 @@ public record SGradientProvider(@NotNull GradientSolid gradient)
     {
         return new VertexPalette(this.gradient.startColour());
     }
-
+    
     //==================================================================================================================
     @Override
     public void accept(final float x1, final float y1, final float x2, final float y2,
-                       final @NotNull VertexRectConsumer consumer)
+                       final @NotNull VertexPalette.VertexConsumer consumer)
     {
         final int colour = this.gradient.startColour();
         consumer.accept(colour, colour, colour, colour);
     }
 
     @Override
-    public void accept(final @NotNull VertexRectConsumer consumer)
+    public void accept(final @NotNull VertexPalette.VertexConsumer consumer)
     {
         final int colour = this.gradient.startColour();
         consumer.accept(colour, colour, colour, colour);

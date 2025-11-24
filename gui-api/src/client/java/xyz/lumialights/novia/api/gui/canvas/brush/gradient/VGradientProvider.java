@@ -52,11 +52,11 @@ public record VGradientProvider(@NotNull Gradient gradient, float step)
         final int end_colour = this.gradient.getColour(y2 * this.step);
         return new VertexPalette(start_colour, start_colour, end_colour, end_colour);
     }
-
+    
     //==================================================================================================================
     @Override
     public void accept(final float x1, final float y1, final float x2, final float y2,
-                       final @NotNull VertexRectConsumer consumer)
+                       final @NotNull VertexPalette.VertexConsumer consumer)
     {
         final int start_colour = this.gradient.getColour(y1 * this.step);
         final int end_colour = this.gradient.getColour(y2 * this.step);
@@ -64,7 +64,7 @@ public record VGradientProvider(@NotNull Gradient gradient, float step)
     }
 
     @Override
-    public void accept(final @NotNull VertexRectConsumer consumer)
+    public void accept(final @NotNull VertexPalette.VertexConsumer consumer)
     {
         final int start = this.gradient.startColour();
         final int end = this.gradient.endColour();

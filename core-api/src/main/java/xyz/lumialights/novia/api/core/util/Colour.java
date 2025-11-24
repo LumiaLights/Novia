@@ -41,6 +41,8 @@ import com.mojang.serialization.DataResult;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
+import net.minecraft.util.math.ColorHelper;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.annotation.ElementType;
@@ -262,6 +264,8 @@ public record Colour(int colour)
         return new Colour(colour);
     }
     
+    public static @NotNull Colour fromRgb(final int rgb) { return new Colour(0xFF000000 | rgb); }
+    
     //==================================================================================================================
     public static int getAlphaChannel(final int colour) { return (colour >> 24 & 0xff); }
     
@@ -347,27 +351,35 @@ public record Colour(int colour)
         return this.getContrasting(colour1.colour, colour2.colour);
     }
 
-    public @NotNull Colour getInverted()
-    {
-        return new Colour(this.colour ^ 0x00FFFFFF);
-    }
+    public @NotNull Colour getInverted() { return new Colour(this.colour ^ 0x00FFFFFF); }
     
     //==================================================================================================================
-    public int alpha() { return getAlphaChannel(this.colour); }
-    public int red()   { return getRedChannel  (this.colour); }
-    public int green() { return getGreenChannel(this.colour); }
-    public int blue()  { return getBlueChannel (this.colour); }
+    public int alpha() { return Colour.getAlphaChannel(this.colour); }
+    public int red()   { return Colour.getRedChannel  (this.colour); }
+    public int green() { return Colour.getGreenChannel(this.colour); }
+    public int blue()  { return Colour.getBlueChannel (this.colour); }
     
-    public float alphaNormalised() { return (alpha() / 255F); }
-    public float redNormalised()   { return (red()   / 255F); }
-    public float greenNormalised() { return (green() / 255F); }
-    public float blueNormalised()  { return (blue()  / 255F); }
+    public float alphaNormalised() { return (this.alpha() / 255F); }
+    public float redNormalised()   { return (this.red()   / 255F); }
+    public float greenNormalised() { return (this.green() / 255F); }
+    public float blueNormalised()  { return (this.blue()  / 255F); }
     
     //==================================================================================================================
     public @NotNull Colour withAlpha(final int alpha)
     {
         return new Colour((this.colour & 0x00FFFFFF) | (alpha << 24));
     }
+    
+    public @NotNull Colour withAlphaMixed(final int other)
+    {
+        final float base_alpha   = ColorHelper.getAlphaFloat(other);
+        final float target_alpha = this.alpha();
+        return new Colour(base_alpha != 1.0f
+            ? ColorHelper.withAlpha(ColorHelper.channelFromFloat(base_alpha * target_alpha), this.colour)
+            : this.colour);
+    }
+    
+    public @NotNull Colour withAlphaMixed(final @NotNull Colour other) { return this.withAlphaMixed(other.colour); }
     
     public @NotNull Colour withRed(final int red)
     {
@@ -382,6 +394,22 @@ public record Colour(int colour)
     public @NotNull Colour withBlue(final int blue)
     {
         return new Colour((this.colour & 0xFFFFFF00) | (blue & 0xFF));
+    }
+    
+    public @NotNull Colour withOpacity(final float opacity)
+    {
+        return this.withAlpha(MathHelper.floor(opacity * 0xFF));
+    }
+    
+    public @NotNull Colour withOpacityRel(final float opacity)
+    {
+        if (opacity == 1.0f)
+        {
+            return this;
+        }
+
+        final float alpha = ColorHelper.getAlphaFloat(this.colour);
+        return new Colour(ColorHelper.withAlpha(ColorHelper.channelFromFloat(opacity * alpha), this.colour));
     }
     
     //==================================================================================================================

@@ -51,13 +51,14 @@ import java.util.regex.PatternSyntaxException;
 
 
 //**********************************************************************************************************************
+/// Provides a number of useful DataFixerUpper codecs that Minecraft does not.
 public abstract class NoviaCodecs
 {
     //******************************************************************************************************************
-    /** Provides a generic number codec that encodes/decodes any scalar number type. */
+    /// Provides a generic number codec that encodes/decodes any scalar number type.
     public static final PrimitiveCodec<Number> NUMBER;
 
-    /** Provides a codec for parsing/serialising regex pattern objects. */
+    /// Provides a codec for parsing/serialising regex pattern objects.
     public static final Codec<Pattern> PATTERN = Codec.of(
         Codec.STRING.comap(Pattern::pattern),
         Codec.STRING.flatMap(str ->
@@ -106,25 +107,21 @@ public abstract class NoviaCodecs
     }
     
     //******************************************************************************************************************
-    /**
-     * Unit codecs can be used to denote an empty value (in some languages synonymous to {@code null}).
-     * Similar to {@link Codec#unit(Object)}, but does not create a {@link MapCodec}.
-     * @param defaultValue The unit value
-     * @return The new unit codec
-     * @param <T> The codec value type
-     */
+    /// Unit codecs can be used to denote an empty value (in some languages synonymous to `null`). Similar to
+    /// [Codec#unit(Object)], but does not create a [MapCodec].
+    /// @param defaultValue The unit value
+    /// @return The new unit codec
+    /// @param <T> The codec value type
     public static <T> @NotNull Codec<T> unit(final T defaultValue)
     {
         return unit(() -> defaultValue);
     }
     
-    /**
-     * Unit codecs can be used to denote an empty value (in some languages synonymous to {@code null}).
-     * Similar to {@link Codec#unit(Supplier)}, but does not create a {@link MapCodec}.
-     * @param defaultValue The unit value supplier
-     * @return The new unit codec
-     * @param <T> The codec value type
-     */
+    /// Unit codecs can be used to denote an empty value (in some languages synonymous to `null`). Similar to
+    /// [Codec#unit(Supplier)], but does not create a [MapCodec].
+    /// @param defaultValue The unit value supplier
+    /// @return The new unit codec
+    /// @param <T> The codec value type
     public static <T> @NotNull Codec<T> unit(final Supplier<T> defaultValue)
     {
         return new Codec<>()

@@ -37,7 +37,6 @@ package xyz.lumialights.novia.api.gui.font;
 
 import net.minecraft.text.*;
 import net.minecraft.util.Identifier;
-import org.apache.commons.lang3.mutable.MutableObject;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.gui.impl.StyleAccessor;
 
@@ -47,68 +46,60 @@ import java.util.Optional;
 
 
 //**********************************************************************************************************************
-/**
- * A functional interface and compatibility layer on top of {@link CharacterVisitor} objects that considers
- * {@link GuiFont} as part of the visitor callback.
- * <p>
- * To create a character visitor, one can use {@link IGuiCharacterVisitor#of(IGuiCharacterVisitor)} or pass it on as
- * a parameter or to a variable. Once acquired, these visitors act as a sort of indirection to {@link CharacterVisitor}
- * objects, which just means that whenever such is requested,
- * either the {@link IGuiCharacterVisitor#asStyledVisitor(GuiFont)} or
- * {@link IGuiCharacterVisitor#asPlainVisitor(GuiFont)} adapter function can be used to adapt to the Minecraft visitor
- * class.
- * <p>
- * Additionally, this class provides a few visit functions that can be used instead of the usual
- * {@link TextVisitFactory} way. If, however, none of the visit functions provide the functionality needed you can
- * always pair {@link TextVisitFactory} with this class' adapter functions like in this example where we want to start
- * at index 2:
- * <pre>{@code
- *     GuiCharacterVisitor visitor = ((index, font, style, codePoint) ->
- *     {
- *         // do some visitor stuff
- *         return true;
- *     });
- *     TextVisitFactory.visitFormatted(text, 2, Style.Empty, visitor.asStyledVisitor(myFont));
- * }</pre>
- */
+/// A functional interface and compatibility layer on top of [CharacterVisitor] objects that considers
+/// [GuiFont] as part of the visitor callback.
+///
+/// To create a character visitor, one can use [IGuiCharacterVisitor#of(IGuiCharacterVisitor)] or pass it on as
+/// a parameter or to a variable. Once acquired, these visitors act as a sort of indirection to [CharacterVisitor]
+/// objects, which just means that whenever such is requested,
+/// either the [IGuiCharacterVisitor#asStyledVisitor(GuiFont)] or
+/// [IGuiCharacterVisitor#asPlainVisitor(GuiFont)] adapter function can be used to adapt to the Minecraft visitor
+/// class.
+///
+/// Additionally, this class provides a few visit functions that can be used instead of the usual
+/// [TextVisitFactory] way. If, however, none of the visit functions provide the functionality needed you can
+/// always pair [TextVisitFactory] with this class' adapter functions like in this example where we want to start
+/// at index 2:
+/// ```java
+/// GuiCharacterVisitor visitor = ((index, font, style, codePoint) ->
+/// {
+///     // do some visitor stuff
+///     return true;
+/// });
+/// TextVisitFactory.visitFormatted(text, 2, Style.Empty, visitor.asStyledVisitor(myFont));
+/// ```
 @FunctionalInterface
 public interface IGuiCharacterVisitor
 {
     //******************************************************************************************************************
-    /**
-     * Helper function that allows creating a {@link IGuiCharacterVisitor} from an unnamed lambda.
-     * @param visitor The visitor lambda
-     * @return {@code visitor}
-     */
+    /// Helper function that allows creating a [IGuiCharacterVisitor] from an unnamed lambda.
+    /// @param visitor The visitor lambda
+    /// @return `visitor`
     static @NotNull IGuiCharacterVisitor of(final @NotNull IGuiCharacterVisitor visitor)
     {
         return Objects.requireNonNull(visitor, "visitor must not be null");
     }
     
     //******************************************************************************************************************
-    /**
-     * Processes the current character.
-     * <p>
-     * The {@code style} object passed alongside the character's font is the original source of data that overrides
-     * the given font for the character, formatting flags that are non-null will be reflected in the font. For this
-     * reason it is usually best to use it for things like colours or other non-font-encoded data only.
-     * @param index     The index of the character
-     * @param font      The {@link GuiFont} formatting context for the current character
-     * @param style     The {@link Style} context for the current character
-     * @param codePoint The code point of the character
-     * @return {@code true} to continue visiting the following characters, otherwise {@code false}
-     */
+    /// Processes the current character.
+    ///
+    /// The `style` object passed alongside the character's font is the original source of data that overrides
+    /// the given font for the character, formatting flags that are non-null will be reflected in the font. For this
+    /// reason it is usually best to use it for things like colours or other non-font-encoded data only.
+    /// @param index     The index of the character
+    /// @param font      The [GuiFont] formatting context for the current character
+    /// @param style     The [Style] context for the current character
+    /// @param codePoint The code point of the character
+    /// @return `true` to continue visiting the following characters, otherwise `false`
     boolean accept(int index, @NotNull GuiFont font, @NotNull Style style, int codePoint);
     
     //==================================================================================================================
-    /**
-     * Visits the given string with a plain visitor (see {@link #asPlainVisitor(GuiFont)}). Format codes will NOT be
-     * consumed.
-     * @param font  The {@link GuiFont} used for visiting each character
-     * @param style The style overriding the font
-     * @param text  The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given string with a plain visitor (see [#asPlainVisitor(GuiFont)]). Format codes will NOT be
+    /// consumed.
+    /// @param font  The [GuiFont] used for visiting each character
+    /// @param style The style overriding the font
+    /// @param text  The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visit(@NotNull GuiFont font, final @NotNull Style style, final @NotNull String text)
     {
         if (((StyleAccessor) style).novia$isFontSet())
@@ -125,26 +116,22 @@ public interface IGuiCharacterVisitor
         return TextVisitFactory.visitForwards(text, style, this.asPlainVisitor(font));
     }
     
-    /**
-     * Visits the given string with a plain visitor (see {@link #asPlainVisitor(GuiFont)}). Format codes will NOT be
-     * consumed.
-     * @param font The {@link GuiFont} used for visiting each character
-     * @param text The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given string with a plain visitor (see [#asPlainVisitor(GuiFont)]). Format codes will NOT be
+    /// consumed.
+    /// @param font The [GuiFont] used for visiting each character
+    /// @param text The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visit(final @NotNull GuiFont font, final @NotNull String text)
     {
         return TextVisitFactory.visitForwards(text, Style.EMPTY, this.asPlainVisitor(font));
     }
     
-    /**
-     * Visits the given string with a plain visitor backwards (see {@link #asPlainVisitor(GuiFont)}). Format codes will
-     * NOT be consumed.
-     * @param font  The {@link GuiFont} used for visiting each character
-     * @param style The style overriding the font
-     * @param text  The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given string with a plain visitor backwards (see [#asPlainVisitor(GuiFont)]). Format codes will
+    /// NOT be consumed.
+    /// @param font  The [GuiFont] used for visiting each character
+    /// @param style The style overriding the font
+    /// @param text  The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitBackwards(@NotNull GuiFont font, final @NotNull Style style, final @NotNull String text)
     {
         if (((StyleAccessor) style).novia$isFontSet())
@@ -161,27 +148,23 @@ public interface IGuiCharacterVisitor
         return TextVisitFactory.visitBackwards(text, style, this.asPlainVisitor(font));
     }
     
-    /**
-     * Visits the given string with a plain visitor backwards (see {@link #asPlainVisitor(GuiFont)}). Format codes will
-     * NOT be consumed.
-     * @param font The {@link GuiFont} used for visiting each character
-     * @param text The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given string with a plain visitor backwards (see [#asPlainVisitor(GuiFont)]). Format codes will
+    /// NOT be consumed.
+    /// @param font The [GuiFont] used for visiting each character
+    /// @param text The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitBackwards(final @NotNull GuiFont font, final @NotNull String text)
     {
         return TextVisitFactory.visitBackwards(text, Style.EMPTY, this.asPlainVisitor(font));
     }
     
-    /**
-     * Visits the given string with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format codes WILL be
-     * consumed.
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The base {@link Style} to use if no explicit style was applied through format codes
-     *                  (or if it was reset)
-     * @param text      The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given string with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format codes WILL be
+    /// consumed.
+    /// @param baseFont  The base [GuiFont] to use if not overridden by style attributes
+    /// @param baseStyle The base [Style] to use if no explicit style was applied through format codes
+    ///                  (or if it was reset)
+    /// @param text      The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont baseFont,
                                    final @NotNull Style   baseStyle,
                                    final @NotNull String  text)
@@ -189,28 +172,23 @@ public interface IGuiCharacterVisitor
         return TextVisitFactory.visitFormatted(text, baseStyle, this.asStyledVisitor(baseFont));
     }
     
-    /**
-     * Visits the given string with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format codes WILL be
-     * consumed.
-     * This uses a styled visitor (see {@link #asStyledVisitor(GuiFont)}).
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     * @param text     The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given string with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format codes WILL be consumed.
+    /// This uses a styled visitor (see [#asStyledVisitor(GuiFont)]).
+    /// @param baseFont The base [GuiFont] to use if not overridden by style attributes
+    /// @param text     The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont baseFont, final @NotNull String text)
     {
         return this.visitFormatted(baseFont, Style.EMPTY, text);
     }
     
-    /**
-     * Visits the given {@link StringVisitable} with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format
-     * codes WILL be consumed.
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The base {@link Style} to use if no explicit style was applied through format codes
-     *                  (or if it was reset)
-     * @param text      The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given [StringVisitable] with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format
+    /// codes WILL be consumed.
+    /// @param baseFont  The base [GuiFont] to use if not overridden by style attributes
+    /// @param baseStyle The base [Style] to use if no explicit style was applied through format codes
+    ///                  (or if it was reset)
+    /// @param text      The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont         baseFont,
                                    final @NotNull Style           baseStyle,
                                    final @NotNull StringVisitable text)
@@ -218,27 +196,23 @@ public interface IGuiCharacterVisitor
         return TextVisitFactory.visitFormatted(text, baseStyle, this.asStyledVisitor(baseFont));
     }
     
-    /**
-     * Visits the given {@link StringVisitable} with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format
-     * codes WILL be consumed.
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     * @param text     The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given [StringVisitable] with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format
+    /// codes WILL be consumed.
+    /// @param baseFont The base [GuiFont] to use if not overridden by style attributes
+    /// @param text     The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont baseFont, final @NotNull StringVisitable text)
     {
         return this.visitFormatted(baseFont, Style.EMPTY, text);
     }
     
-    /**
-     * Visits the given text with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format codes WILL be
-     * consumed.
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The base {@link Style} to use if no explicit style was applied through format codes
-     *                  (or if it was reset)
-     * @param text      The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given text with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format codes WILL be
+    /// consumed.
+    /// @param baseFont  The base [GuiFont] to use if not overridden by style attributes
+    /// @param baseStyle The base [Style] to use if no explicit style was applied through format codes
+    ///                  (or if it was reset)
+    /// @param text      The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont baseFont,
                                    final @NotNull Style   baseStyle,
                                    final @NotNull Text    text)
@@ -253,27 +227,23 @@ public interface IGuiCharacterVisitor
             .isPresent();
     }
     
-    /**
-     * Visits the given text with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format codes WILL be
-     * consumed.
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     * @param text     The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given text with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format codes WILL be
+    /// consumed.
+    /// @param baseFont The base [GuiFont] to use if not overridden by style attributes
+    /// @param text     The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont baseFont, final @NotNull Text text)
     {
         return this.visitFormatted(baseFont, Style.EMPTY, text);
     }
     
-    /**
-     * Visits the given text with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format codes WILL be
-     * consumed.
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The base {@link Style} to use if no explicit style was applied through format codes
-     *                  (or if it was reset)
-     * @param text      The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given text with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format codes WILL be
+    /// consumed.
+    /// @param baseFont  The base [GuiFont] to use if not overridden by style attributes
+    /// @param baseStyle The base [Style] to use if no explicit style was applied through format codes
+    ///                  (or if it was reset)
+    /// @param text      The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont     baseFont,
                                    final @NotNull Style       baseStyle,
                                    final @NotNull OrderedText text)
@@ -282,68 +252,71 @@ public interface IGuiCharacterVisitor
         return text.accept((i, style, codePoint) -> visitor.accept(i, style.withParent(baseStyle), codePoint));
     }
     
-    /**
-     * Visits the given text with a styled visitor (see {@link #asStyledVisitor(GuiFont)}). Format codes WILL be
-     * consumed.
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     * @param text     The text to visit the characters from
-     * @return {@code true} if the entire text was visited, otherwise {@code false}
-     */
+    /// Visits the given text with a styled visitor (see [#asStyledVisitor(GuiFont)]). Format codes WILL be
+    /// consumed.
+    /// @param baseFont The base [GuiFont] to use if not overridden by style attributes
+    /// @param text     The text to visit the characters from
+    /// @return `true` if the entire text was visited, otherwise `false`
     default boolean visitFormatted(final @NotNull GuiFont baseFont, final @NotNull OrderedText text)
     {
         return text.accept(this.asStyledVisitor(baseFont));
     }
     
     //==================================================================================================================
-    /**
-     * Converts this visitor to a Minecraft {@link CharacterVisitor} which tracks the characters current style and
-     * applies its attributes to the given base font.
-     * <p>
-     * If a character has its own style attributes that are not internally {@code null}, the given base font will be
-     * overridden with these attributes regardless of their value, otherwise the style attribute of the base font will
-     * be used instead.
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     * @return A Minecraft {@link CharacterVisitor}
-     */
+    /// Converts this visitor to a Minecraft [CharacterVisitor] which tracks the characters current style and
+    /// applies its attributes to the given base font.
+    ///
+    /// If a character has its own style attributes that are not internally `null`, the given base font will be
+    /// overridden with these attributes regardless of their value, otherwise the style attribute of the base font will
+    /// be used instead.
+    /// @param baseFont The base [GuiFont] to use if not overridden by style attributes
+    /// @return A Minecraft [CharacterVisitor]
     default @NotNull CharacterVisitor asStyledVisitor(final @NotNull GuiFont baseFont)
     {
-        final MutableObject<GuiFont> font  = new MutableObject<>(new GuiFont(baseFont));
-        final MutableObject<Style>   style = new MutableObject<>(Style.EMPTY);
-        
-        return ((i, style1, codePoint) ->
+        return new CharacterVisitor()
         {
-            // if our cached style is different (this should rarely be the case, depending on how heavy we style),
-            // we want to recreate the gui style
-            if (style1 != style.getValue())
+            //**********************************************************************************************************
+            private GuiFont font      = new GuiFont(baseFont);
+            private Style   lastStyle = Style.EMPTY;
+            
+            //**********************************************************************************************************
+            @Override
+            public boolean accept(final int i, final @NotNull Style style, final int codePoint)
             {
-                // we got some overrides
-                if (!style1.isEmpty())
+                // if our cached style is different (this should rarely be the case, depending on how heavy we style),
+                // we want to recreate the gui style
+                if (!style.equals(this.lastStyle))
                 {
-                    font.setValue(baseFont.withFont(Objects.requireNonNullElse(
-                        ((StyleAccessor) style1).novia$getFontId(),
-                        baseFont.getId())));
-                    font.getValue().setStyle(style1);
-                }
-                else
-                {
-                    font.setValue(new GuiFont(baseFont));
+                    // we got some overrides
+                    if (!style.isEmpty())
+                    {
+                        final GuiFont new_font = baseFont.withFont(Objects.requireNonNullElse(
+                            ((StyleAccessor) style).novia$getFontId(),
+                            baseFont.getId()));
+                        new_font.setStyle(style);
+                        this.font = new_font;
+                    }
+                    
+                    // we go back to our base font
+                    else
+                    {
+                        this.font = new GuiFont(baseFont);
+                    }
+                    
+                    // also make sure to cache the current style for the next iteration
+                    this.lastStyle = style;
                 }
                 
-                // also make sure to cache the current style for the next iteration
-                style.setValue(style1);
+                return IGuiCharacterVisitor.this.accept(i, this.font, style, codePoint);
             }
-            
-            return this.accept(i, font.getValue(), style1, codePoint);
-        });
+        };
     }
     
-    /**
-     * Converts this visitor to a Minecraft {@link CharacterVisitor} which applies the same font style attributes to
-     * all characters, regardless if they have their own style attached (the style parameter will still have the latest
-     * style but the font parameter will be fixed).
-     * @param font The {@link GuiFont} used for visiting each character
-     * @return A Minecraft {@link CharacterVisitor}
-     */
+    /// Converts this visitor to a Minecraft [CharacterVisitor] which applies the same font style attributes to
+    /// all characters, regardless if they have their own style attached (the style parameter will still have the latest
+    /// style but the font parameter will be fixed).
+    /// @param font The [GuiFont] used for visiting each character
+    /// @return A Minecraft [CharacterVisitor]
     default @NotNull CharacterVisitor asPlainVisitor(final @NotNull GuiFont font)
     {
         return ((i, style1, codePoint) -> this.accept(i, font, style1, codePoint));

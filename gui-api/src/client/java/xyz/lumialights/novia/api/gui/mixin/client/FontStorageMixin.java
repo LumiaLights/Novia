@@ -40,11 +40,11 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import xyz.lumialights.novia.api.gui.font.FontMetrics;
+import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.impl.FontMetricsExtension;
 import xyz.lumialights.novia.api.gui.impl.FontStorageAccessor;
 
@@ -69,17 +69,18 @@ public abstract class FontStorageMixin
     @Inject(method = "setActiveFilters", at = @At("TAIL"))
     public void createMetrics(final @NotNull Set<FontFilterType> activeFilters, final @NotNull CallbackInfo ci)
     {
-        float max_ascent  = Integer.MIN_VALUE;
-        float max_descent = Integer.MIN_VALUE;
+        float max_ascent  = -Float.MAX_VALUE;
+        float max_descent = -Float.MAX_VALUE;
         
         for (final var font : this.availableFonts)
         {
             final FontMetrics metrics = ((FontMetricsExtension) font).novia$getMetrics();
-            max_ascent  = Math.max(max_ascent,  metrics.ascent());
-            max_descent = Math.max(max_descent, metrics.descent());
+            max_ascent  = Math.max(max_ascent,  metrics.logicalAscent());
+            max_descent = Math.max(max_descent, metrics.logicalDescent());
         }
         
-        this.metrics = new FontMetrics((max_ascent + max_descent), max_ascent);
+        final float height = (max_ascent + max_descent);
+        this.metrics = new FontMetrics(height, max_ascent, (GuiFont.getDefaultFontHeight() / height));
     }
     
     //==================================================================================================================

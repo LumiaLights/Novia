@@ -37,8 +37,10 @@ package xyz.lumialights.novia.test.mod.gui;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.tooltip.Tooltip;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.Colour;
@@ -50,9 +52,7 @@ import xyz.lumialights.novia.api.gui.canvas.brush.gradient.Gradient;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.GuiScreen;
 import xyz.lumialights.novia.api.gui.component.provided.*;
-import xyz.lumialights.novia.api.gui.font.FontSize;
-import xyz.lumialights.novia.api.gui.font.GlyphBank;
-import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.*;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 
@@ -152,25 +152,42 @@ public class ComponentTestScreen
         
         this.testSlider = this.addChild(new NVSlider());
         this.testSlider.range.set(new NormalisedRange(0, 100, 2));
-        this.testSlider.displayTextProvider.set(val -> Text.literal("Value: " + val));
+        this.testSlider.displayTextProvider.set(val -> Text.literal("Value: " + val.getValueAsDouble()));
         this.testSlider.setTooltip(Tooltip.of(Text.literal("Slider value: 0%")));
-        this.testSlider.addChangeListener(slider ->
+        this.testSlider.valueChanged.subscribe((sender, args) ->
         {
-            final double normalised = slider.range.get().normalise(slider.getValueAsDouble());
-            slider.setTooltip(Tooltip.of(Text.literal("Slider value: " + ((int)(normalised * 100.0) / 100.0) + "%")));
+            final double normalised = this.testSlider.range.get().normalise(this.testSlider.getValueAsDouble());
+            this.testSlider.setTooltip(
+                Tooltip.of(Text.literal("Slider value: " + ((int)(normalised * 100.0) / 100.0) + "%")));
         });
         this.testSlider.setFont(GuiFont.UNICODE.get());
         
         this.testDropdown = this.addChild(new NVDropdown());
-        this.testDropdown.addOption(new Value(323));
-        this.testDropdown.addOption(new Value(true));
-        this.testDropdown.addOption(new Value("this is some string lel"));
-        this.testDropdown.addOption(new Value(Map.of(new Value("key"), new Value("value"))));
-        this.testDropdown.addOption(new Value(List.of(new Value(1), new Value(2), new Value(3))));
-        this.testDropdown.addOption("Map copy", new Value(Map.of(new Value("key"), new Value("value"))));
-        this.testDropdown.addOption("List copy", new Value(List.of(new Value(1), new Value(2), new Value(3))));
-        this.testDropdown.addOption(new Value());
-        this.testDropdown.addOption(new Value(434.0f));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(
+            this.testDropdown,
+            new Value(323)));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(
+            this.testDropdown,
+            new Value(true)));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(
+            this.testDropdown,
+            new Value("this is some string lel")));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(
+            this.testDropdown,
+            new Value(Map.of(new Value("key"), new Value("value")))));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(
+            this.testDropdown,
+            new Value(List.of(new Value(1), new Value(2), new Value(3)))));
+        this.testDropdown.addOption(this.testDropdown.new Option(
+            "Map copy",
+            new Value(Map.of(new Value("key"), new Value("value"))),
+            Text.of("Map copy")));
+        this.testDropdown.addOption(this.testDropdown.new Option(
+            "List copy",
+            new Value(List.of(new Value(1), new Value(2), new Value(3))),
+            Text.of("List copy")));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(this.testDropdown, new Value()));
+        this.testDropdown.addOption(NVDropdown.Option.forValue(this.testDropdown, new Value(434.0f)));
 
         // setting our gui default font to be shadowed
         this.setFont(this.getFont().withShadow(true));
@@ -178,7 +195,7 @@ public class ComponentTestScreen
 
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         final Rectangle bounds = this.getLocalBounds();
         
@@ -199,7 +216,7 @@ public class ComponentTestScreen
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         // lets draw white text
         canvas.setColour(Colour.WHITE);
@@ -211,24 +228,21 @@ public class ComponentTestScreen
         final Rectangle gradient_test_bounds = this.getLocalBounds()
             .setTop(this.testDropdown.getBottom())
             .padTop(10);
-
+        
         // let's make some gradient stuff
         canvas.runWithState(() ->
         {
             canvas.addTransform(AffineTransform.translation(gradient_test_bounds.x(), gradient_test_bounds.y()));
             
             final GuiFont font = canvas.getFont();
-            font.setScale(FontSize.pixels(20));
+            font.setSize(FontSize.pixels(20));
 
             canvas.setGradient(new Gradient(0x77898989, 0xAA323232, Direction.HORIZONTAL));
             canvas.fill();
             
-            final GlyphBank bank = new GlyphBank();
-            bank.addText(
-                font.withFormattingPreserved(GuiFont.Format.BOLD, GuiFont.Format.STRIKETHROUGH),
-                Text
-                    .literal("Hello this is a ")
-                    .copy()
+            final TextLayout layout = new TextLayout(
+                Text.literal("Hello this is a ")
+                    .setStyle(GuiStyle.EMPTY.withStrikethrough(true))
                     .append(Text
                         .literal("horizontal")
                         .setStyle(Style.EMPTY
@@ -236,25 +250,20 @@ public class ComponentTestScreen
                             .withUnderline(true)
                             .withColor(Colour.GOLD.colour())))
                     .append(Text.literal(" test gradient")),
-                10, 10);
-
-            canvas.setColour(Colour.WHITE);
-            canvas.fill(bank.getBoundingBox());
+                font,
+                TextFormat.LAYOUT_OPTIONS);
 
             canvas.setGradient(new Gradient(0xFFFF0000, 0xFF0000FF, Direction.HORIZONTAL));
-            bank.draw(canvas);
-
-            final Rectangle second_area = this.getLocalBounds()
-                .pad(100, 0)
-                .setHeight(50)
-                .translateY(40);
-
-            final GlyphBank bank2 = new GlyphBank();
-            bank2.addTextAligned(
-                font.withFormattingPreserved(GuiFont.Format.ITALIC, GuiFont.Format.UNDERLINED),
-                Text
-                    .literal("Hello this is a ")
-                    .copy()
+            final Rectangle layout_rect = layout.draw(canvas, new Rectangle(10, 10, 0, 0));
+            
+            canvas.setColour(Colour.WHITE);
+            canvas.drawRect(layout_rect);
+            
+            final TextLayout layout2 = new TextLayout(
+                Text.literal("Hello this is a ")
+                    .setStyle(GuiStyle.EMPTY
+                        .withUnderline(true)
+                        .withItalic(true))
                     .append(Text
                         .literal("vertical")
                         .setStyle(Style.EMPTY
@@ -262,19 +271,59 @@ public class ComponentTestScreen
                             .withItalic(false)
                             .withColor(Colour.GOLD.colour())))
                     .append(Text.literal(" test gradient")),
-                second_area,
-                Alignment.BOTTOM_CENTRE);
-
-            canvas.setColour(Colour.WHITE);
-            canvas.fill(bank2.getBoundingBox());
-
+                font,
+                TextFormat.LAYOUT_OPTIONS);
+            
             canvas.setGradient(new Gradient(0xFFFFFF00, 0xFF00FF00, Direction.VERTICAL));
-            bank2.draw(canvas);
-
-            canvas.setColour(Colour.GOLD);
-            canvas.drawRect(second_area);
+            final Rectangle layout2_rect = layout2.draw(canvas, new Rectangle(10, 40, 0, 0));
+            
+            canvas.setColour(Colour.WHITE);
+            canvas.drawRect(layout2_rect);
+            
+            font.setSize(1f);
+            final TextLayout multiline_layout = new TextLayout(
+                Text.empty()
+                    .append(Text
+                        .literal("This text is normal but with a tracking factor of \n0.5, ")
+                        .setStyle(GuiStyle.EMPTY.withTracking(0.5f)))
+                    .append(Text
+                        .literal("hereisalongwordtoolonginfacttofitinalinewithamaximumwidthof300minecraftpixels")
+                        .setStyle(GuiStyle.EMPTY
+                            .withUnderline(true)
+                            .withSize(2f)
+                            .withFont(MinecraftClient.UNICODE_FONT_ID)
+                            .withBackgroundColor(Colour.BLACK.colour())
+                            .withColor(Colour.GOLD)))
+                    .append(Text
+                        .literal(" This text is in the standard galactic alphabet font, so you won't be able to read it, but... yeah. ")
+                        .setStyle(GuiStyle.EMPTY
+                            .withFont(Identifier.ofVanilla("alt"))))
+                    .append(Text
+                        .literal("This text has a font size of 1.5 em, which means one and a half of the default minecraft size, it is also strikethrough and has purple as shadow colour.")
+                        .setStyle(GuiStyle.EMPTY
+                            .withSize(1.5f)
+                            .withStrikethrough(true)
+                            .withShadowColor(Colour.PURPLE)))
+                    .append(Text
+                        .literal(" This text is nothing special, really... it is just... a teensy bit smaller than the default, 0.5 em to be exact, which is half the default.")
+                        .setStyle(GuiStyle.EMPTY
+                            .withSize(0.5f))),
+                font,
+                new TextLayout.LayoutOptions() {{
+                    wordWrap  = TextLayout.WordWrap.BREAK_SPACE;
+                    maxWidth  = 300;
+                    alignment = Alignment.TOP_CENTRE;
+                }});
+            
+            canvas.setColour(Colour.WHITE);
+            final Rectangle multilin_layout_rect = multiline_layout.draw(
+                canvas,
+                new Rectangle(this.getCentreX(), 10, 300, Integer.MAX_VALUE));
+            
+            canvas.setColour(Colour.WHITE);
+            canvas.drawRect(multilin_layout_rect);
         });
-
+        
         canvas.setColour(Colour.GOLD);
         canvas.drawText(
             Text.of("FPS: " + MinecraftClient.getInstance().getCurrentFps()),

@@ -67,7 +67,7 @@ public class DefaultConfigScreenLookAndFeel
         0,
         CLIENT_BORDER_THICKNESS);
     
-    public static final Frame OPTION_LIST_PADDING = CLIENT_PADDING.expanded(10, 0);
+    public static final Frame OPTION_LIST_PADDING = CLIENT_PADDING.withExpansion(10, 0);
     
     public static final Frame EXTRA_PANEL_PADDING = new Frame(
         CLIENT_BORDER_THICKNESS, CLIENT_HEADER_HEIGHT,

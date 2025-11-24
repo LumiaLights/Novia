@@ -41,8 +41,7 @@ import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVLabel;
-import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
-import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 
 
@@ -50,9 +49,11 @@ import xyz.lumialights.novia.api.gui.geometry.Alignment;
 //**********************************************************************************************************************
 public class SchemaLabel
     extends NVLabel
-    implements IStatefulComponent<SchemaLabel>
+    implements IStatefulComponent
 {
     //******************************************************************************************************************
+    private final GuiEvent.Simple na = new GuiEvent.Simple();
+    
     private Value cached = Value.EMPTY;
     
     //******************************************************************************************************************
@@ -63,8 +64,10 @@ public class SchemaLabel
     }
     
     //==================================================================================================================
-    @Override public @NotNull Value getValue() { return this.cached; }
+    @Override public @NotNull Value           getValue()       { return this.cached; }
+    @Override public @NotNull GuiEvent.Simple getChangeEvent() { return this.na; }
     
+    //==================================================================================================================
     @Override
     public void setValue(final @NotNull Value value)
     {
@@ -73,8 +76,6 @@ public class SchemaLabel
     }
     
     //==================================================================================================================
-    @Override public void addChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
-    @Override public void removeChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
     @Override public void mute()   {}
     @Override public void unmute() {}
 }

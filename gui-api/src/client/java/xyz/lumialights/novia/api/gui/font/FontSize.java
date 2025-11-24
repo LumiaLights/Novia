@@ -35,20 +35,28 @@
  */
 package xyz.lumialights.novia.api.gui.font;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
+import net.minecraft.util.StringIdentifiable;
 import org.intellij.lang.annotations.Language;
 import org.intellij.lang.annotations.Pattern;
 import org.jetbrains.annotations.NotNull;
+import xyz.lumialights.novia.api.core.network.codec.NoviaPacketCodecs;
 
 import java.util.*;
 
 
 
 //**********************************************************************************************************************
-/// Provides a conversion structure that calculates EM size (relative to [GuiFont#getRenderHeight()]) based on the
+/// Provides a conversion structure that calculates EM size (relative to [GuiFont#getDefaultRenderHeight()]) based on the
 /// given unit and value.
 ///
-/// Consumers of this class will then internally convert the EM size to [logical pixels].
-///
+/// Consumers of this class will then internally convert the EM size to logical pixels.
 /// @param unit  The unit to use to convert to the EM scale
 /// @param value The value to convert
 public record FontSize(@NotNull FontSize.Unit unit, float value)
@@ -56,18 +64,23 @@ public record FontSize(@NotNull FontSize.Unit unit, float value)
     //******************************************************************************************************************
     /// Represents the conversion algorithm to use.
     public enum Unit
+        implements StringIdentifiable
     {
         //**************************************************************************************************************
         /// Specifies the font's scale in logical pixels.
-        PIXEL("px", (1f / GuiFont.getRenderHeight())),
+        PIXEL("px", (1f / GuiFont.getDefaultRenderHeight())),
         
         /// Specifies the font's scale in "fixed points" (ignoring the screen's resolution),
         /// where 1 logical pixel is 6.75pt.
-        POINT("pt", (1f / (GuiFont.getRenderHeight() * 0.75f))),
+        POINT("pt", (1f / (GuiFont.getDefaultRenderHeight() * 0.75f))),
         
         /// Specifies the font's size in a relative font scale (e.g. 1em: 9 logical pixels, 2em: 18 logical pixels).
         EM("em", 1f),
         ;
+        
+        //**************************************************************************************************************
+        /// Describes the codec for this enum, where the name is the case-insensitive CSS unit literal.
+        public static final Codec<Unit> CODEC = StringIdentifiable.createCodec(Unit::values, String::toLowerCase);
         
         //**************************************************************************************************************
         /// The multiplier used for the scale conversion.
@@ -82,15 +95,61 @@ public record FontSize(@NotNull FontSize.Unit unit, float value)
             this.literal     = Objects.requireNonNull(literal);
             this.scaleFactor = scaleFactor;
         }
+        
+        //==============================================================================================================
+        /// Convert the size value to em scale.
+        /// @param sizeValue The value to convert to the em scale
+        public float toEm(final float sizeValue) { return (this.scaleFactor * sizeValue); }
+        
+        /// Convert the size value from the em scale to this scale.
+        /// @param emValue The value to convert from the em scale
+        public float fromEm(final float emValue) { return (emValue / this.scaleFactor); }
+        
+        //==============================================================================================================
+        @Override public String asString() { return this.literal; }
     }
     
     //******************************************************************************************************************
-    /// The pattern used to parse font size style strings.
+    /// The pattern used to parse CSS-inspired font size style strings.
     /// - Pixels: `<number>px`
     /// - Points: `<number>pt`
     /// - Relative scale: `<number>em`
     @Language("RegExp")
     public static final String FONT_SIZE_PATTERN = "^([+-]?(?:[0-9]*[.])?[0-9]+)(px|pt|em)$";
+    
+    /// The standard Minecraft font size.
+    public static final FontSize STANDARD = new FontSize(Unit.EM, 1f);
+    
+    /// The map codec for this record. It provides the following properties:
+    /// * **unit** The conversion unit (px, pt or em)
+    /// * **size** The size value
+    public static final MapCodec<FontSize> MAP_CODEC = RecordCodecBuilder.mapCodec(instance ->
+        instance
+            .group(
+                Unit.CODEC
+                    .optionalFieldOf("unit", Unit.EM)
+                    .forGetter(FontSize::unit),
+                Codec.FLOAT
+                    .fieldOf("size")
+                    .forGetter(FontSize::value))
+            .apply(instance, FontSize::new));
+    
+    /// The codec for this record.
+    /// ```json
+    /// {
+    ///     "unit": <"em"|"px"|"pt">,
+    ///     "size": <value>
+    /// }
+    /// ```
+    public static final Codec<FontSize> CODEC = FontSize.MAP_CODEC.codec();
+    
+    /// The packet codec for this record.
+    public static final PacketCodec<PacketByteBuf, FontSize> PACKET_CODEC = PacketCodec
+        .tuple(
+            NoviaPacketCodecs.enumeration(Unit.class), FontSize::unit,
+            PacketCodecs.FLOAT,                        FontSize::value,
+            FontSize::new
+        );
     
     //******************************************************************************************************************
     /// Returns a font size object in logical pixels.
@@ -132,5 +191,7 @@ public record FontSize(@NotNull FontSize.Unit unit, float value)
     }
     
     //******************************************************************************************************************
-    public float getScaledValue() { return (this.unit.scaleFunc.get() * this.value); }
+    /// Converts [FontSize#value()] to em scale (via [FontSize#unit()]).
+    /// @return The converted value
+    public float getEmScale() { return this.unit.toEm(this.value); }
 }

@@ -53,15 +53,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3x2f;
 import xyz.lumialights.novia.api.core.util.Colour;
-import xyz.lumialights.novia.api.gui.canvas.brush.IBrush;
-import xyz.lumialights.novia.api.gui.canvas.brush.SolidBrush;
+import xyz.lumialights.novia.api.gui.canvas.brush.Brush;
 import xyz.lumialights.novia.api.gui.component.provided.*;
-import xyz.lumialights.novia.api.gui.font.FontUtil;
-import xyz.lumialights.novia.api.gui.font.GlyphBank;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.TextFormat;
+import xyz.lumialights.novia.api.gui.font.TextLayout;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
-import xyz.lumialights.novia.api.gui.geometry.UvMapping;
 import xyz.lumialights.novia.api.gui.renderer.GuiTooltipRenderer;
 
 import java.util.*;
@@ -120,10 +118,10 @@ public interface IGuiTemplate
      * <p>
      * The default brush is the brush that is used whenever the {@link Canvas} visits the next component to draw.
      *
-     * @return The default {@link IBrush}
+     * @return The default {@link Brush}
      */
     @Contract(pure = true)
-    default @NotNull Supplier<IBrush> getDefaultBrush() { return (() -> new SolidBrush(Colour.WHITE)); }
+    default @NotNull Supplier<Brush> getDefaultBrush() { return (() -> new Brush(Colour.WHITE)); }
     
     //==================================================================================================================
     @Override
@@ -138,21 +136,25 @@ public interface IGuiTemplate
     default void guiTooltipDrawLines(final @NotNull Canvas canvas, final int x, int y,
                                      final @NotNull List<OrderedText> lines)
     {
-        final GuiFont   font = canvas.getFont();
-        final GlyphBank bank = new GlyphBank();
-
+        final GuiFont font   = canvas.getFont();
+        final int     height = MathHelper.ceil(font.getHeight());
+        
         canvas.setColour(canvas.findColour(GuiTooltipRenderer.COLOUR_TEXT));
-        bank.addText(font, lines.getFirst(), x, y);
+        
+        final TextFormat format = new TextFormat();
+        format.append(lines.getFirst(), font);
+        format.draw(canvas, x, y);
 
-        y += (GuiTooltipRenderer.LINE_HEIGHT + 2);
+        y += (height + 2);
         
         for (final var line : lines.subList(1, lines.size()))
         {
-            bank.addText(font, line, x, y);
-            y += GuiTooltipRenderer.LINE_HEIGHT;
+            final TextFormat format1 = new TextFormat();
+            format1.append(line, font);
+            format1.draw(canvas, x, y);
+            
+            y += height;
         }
-
-        bank.draw(canvas);
     }
     
     //==================================================================================================================
@@ -162,19 +164,17 @@ public interface IGuiTemplate
     {
         final int     first_index = box.getFirstCharacterIndex();
         final GuiFont font        = canvas.getFont();
-        final String  text        = FontUtil.trimToWidth(font, box.getText().substring(first_index), bounds.width());
+        final String  text        = font.trimToWidth(box.getText().substring(first_index), bounds.width());
         
         if (!canvas.isActive())
         {
-            final OrderedText ordered = box.renderTextProvider.get().provide(text, first_index);
-            final Colour      colour  = canvas.findColour(NVTextBox.COLOUR_TEXT_UNEDITABLE);
-            
-            this.nvTextboxDrawText(canvas, box, ordered, bounds.x(), bounds.y(), colour);
+            final Colour colour = canvas.findColour(NVTextBox.COLOUR_TEXT_UNEDITABLE);
+            this.nvTextboxDrawText(canvas, box, text, bounds.x(), bounds.y(), colour);
             
             return;
         }
         
-        final Colour  text_colour  = canvas.findColour(!box.readOnly.get()
+        final Colour  text_colour  = canvas.findColour(box.readOnly.get()
             ? NVTextBox.COLOUR_TEXT_UNEDITABLE
             : (box.isTextValid() ? NVTextBox.COLOUR_TEXT_EDITABLE : NVTextBox.COLOUR_TEXT_ERROR));
         final int     text_len     = text.length();
@@ -191,18 +191,15 @@ public interface IGuiTemplate
         
         if (!text.isEmpty())
         {
-            final OrderedText ordered = box.renderTextProvider.get().provide(
-                (is_caret_set ? text.substring(0, caret_pos) : text),
-                first_index);
-            this.nvTextboxDrawText(canvas, box, ordered, running_x, text_y, text_colour);
-            
-            running_x += font.getWidthFitted(ordered);
+            final String string = (is_caret_set ? text.substring(0, caret_pos) : text);
+            this.nvTextboxDrawText(canvas, box, string, running_x, text_y, text_colour);
+            running_x += font.getTextWidthFitted(string);
         }
         
         if (!text.isEmpty() && is_caret_set && caret_pos < text_len)
         {
-            final OrderedText ordered = box.renderTextProvider.get().provide(text.substring(caret_pos), selection_1);
-            this.nvTextboxDrawText(canvas, box, ordered, running_x, text_y, text_colour);
+            final String string = text.substring(caret_pos);
+            this.nvTextboxDrawText(canvas, box, string, running_x, text_y, text_colour);
         }
         
         if (box.isEmpty() && !box.isFocused() && box.placeholder.isSet())
@@ -225,11 +222,11 @@ public interface IGuiTemplate
         
         if (end_caret_pos != caret_pos)
         {
-            final int sel_s = (bounds.x() + font.getWidthFitted(text.substring(0, end_caret_pos)));
+            final int sel_s = (bounds.x() + font.getTextWidthFitted(text.substring(0, end_caret_pos)));
             final int sel_x = (Math.min(Math.min((caret_x + 1), (sel_s - 1)), bounds.width()));
             final int sel_y = (text_y - 1);
             final int sel_w = Math.min((Math.max(sel_s, caret_x) - sel_x), bounds.width());
-            final int sel_h = (GuiFont.getRenderHeight() + 1);
+            final int sel_h = (GuiFont.getDefaultRenderHeight() + 1);
             this.nvTextboxDrawSelection(canvas, box, sel_x, sel_y, sel_w, sel_h);
         }
         
@@ -263,7 +260,7 @@ public interface IGuiTemplate
     
     @Override
     default void nvTextboxDrawText(final @NotNull Canvas canvas, final @NotNull NVTextBox textBox,
-                                   final @NotNull OrderedText text, final int x, final int y,
+                                   final @NotNull String text, final int x, final int y,
                                    final @NotNull Colour textColour)
     {
         canvas.setColour(textColour);
@@ -353,8 +350,9 @@ public interface IGuiTemplate
     @Override
     default void nvSimpleButtonDrawBackground(final @NotNull Canvas canvas, final @NotNull NVSimpleButton button)
     {
-        final Identifier texture = NVSimpleButton.BACKGROUND_TEXTURE.get(canvas.isActive(),
-                                                                         (button.isFocused() || button.isHovered()));
+        final Identifier texture = NVSimpleButton.BACKGROUND_TEXTURE.get(
+            canvas.isActive(),
+            (button.isFocused() || button.isHovered()));
         canvas.drawSprite(texture, 0, 0, button.getWidth(), button.getHeight(), false);
     }
     
@@ -434,7 +432,7 @@ public interface IGuiTemplate
     }
     
     @Override
-    default void nvDropdownDrawMenuOption(final @NotNull Canvas canvas, @NotNull NVDropdown dropdown,
+    default void nvDropdownDrawMenuOption(final @NotNull Canvas canvas, final @NotNull NVDropdown dropdown,
                                           final @NotNull Text title, final int width, final int height, final int index,
                                           final boolean selected, final boolean hovered, final boolean focused)
     {
@@ -454,16 +452,15 @@ public interface IGuiTemplate
         canvas.setClippingRegion(0, 0, draw_width, height);
         
         final GuiFont font       = canvas.getFont();
-        final int     text_width = font.getWidthFitted(title);
+        final int     text_width = TextLayout.getTextWidthFitted(font, title);
         
         if (draw_width < text_width)
         {
-            final int             trim_width = (draw_width - font.getWidthFitted(ScreenTexts.ELLIPSIS));
-            final StringVisitable visitable  = FontUtil.trimToWidth(font, title, trim_width);
-            final OrderedText     text       = Language.getInstance().reorder(StringVisitable.concat(
-                visitable,
+            final int         trim_width = (draw_width - TextLayout.getTextWidthFitted(font, ScreenTexts.ELLIPSIS));
+            final OrderedText ordered    = Language.getInstance().reorder(StringVisitable.concat(
+                TextLayout.trimToWidth(font, title, trim_width),
                 ScreenTexts.ELLIPSIS));
-            canvas.drawTextAligned(text, 0, 0, draw_width, height, dropdown.optionAlignment.get());
+            canvas.drawTextAligned(ordered, 0, 0, draw_width, height, dropdown.optionAlignment.get());
         }
         else
         {
@@ -478,8 +475,12 @@ public interface IGuiTemplate
         final Rectangle  bounds  = button.getLocalBounds();
         final Identifier texture = NVTextBox.TEXTURES.get(canvas.isActive(), dropdown.hasFocus());
         
-        final Rectangle texture_bounds = bounds.withLeftPadding(1);
-        canvas.drawSprite(texture, texture_bounds, UvMapping.mapped(texture_bounds), false);
+        canvas.runWithState(() ->
+        {
+            canvas.setClippingRegion(bounds.withLeftPadding(1));
+            canvas.drawSprite(texture, bounds, false);
+        });
+        
         canvas.setColour(canvas.findColour(canvas.isActive()
             ? NVNumericBox.COLOUR_ARROW
             : NVNumericBox.COLOUR_ARROW_INACTIVE));

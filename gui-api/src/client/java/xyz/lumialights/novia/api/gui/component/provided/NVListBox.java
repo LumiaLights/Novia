@@ -707,7 +707,7 @@ public class NVListBox<T extends INVItemModel>
      * This will only get items that are currently drawn on screen and ignore any item, which has been added or removed
      * prior to a call to {@link #refreshList()}.
      *
-     * @param x The viewport relative coordinate on the x-axis
+     * @param x The viewport relative coordinate on the left-axis
      * @param y The viewport relative coordinate on the y-axis
      * @return The item at the given point within the viewport
      */
@@ -727,7 +727,7 @@ public class NVListBox<T extends INVItemModel>
      * prior to a call to {@link #refreshList()}. However, the returned index will represent the internal item index
      * and not the on-screen index.
      *
-     * @param x The viewport relative coordinate on the x-axis
+     * @param x The viewport relative coordinate on the left-axis
      * @param y The viewport relative coordinate on the y-axis
      * @return The item at the given point within the viewport
      */
@@ -742,7 +742,7 @@ public class NVListBox<T extends INVItemModel>
     @Override
     public @Nullable IComponentNavigator getNavigator()
     {
-        return (this.hasItems() && this.canFocusItems.get() ? this.container.getNavigator() : null);
+        return ((this.hasItems() && this.canFocusItems.get()) ? this.container.getNavigator() : null);
     }
     
     /**

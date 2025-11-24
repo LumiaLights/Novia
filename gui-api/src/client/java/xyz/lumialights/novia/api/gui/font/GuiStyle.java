@@ -49,6 +49,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xyz.lumialights.novia.api.core.util.Colour;
 import xyz.lumialights.novia.api.gui.impl.StyleAccessor;
 
 import java.util.Arrays;
@@ -65,7 +66,7 @@ public class GuiStyle
 {
     //******************************************************************************************************************
     public static final GuiStyle EMPTY = new GuiStyle(null, null, null, null, null, null, null, null, null, null, null,
-                                                      null, null, null);
+                                                      null, null, null, null);
 
     //==================================================================================================================
     public static final MapCodec<GuiStyle> MAP_CODEC;
@@ -77,7 +78,7 @@ public class GuiStyle
         MAP_CODEC = RecordCodecBuilder.mapCodec((instance) -> instance
             .group(
                 TextColor.CODEC
-                    .optionalFieldOf("color")
+                    .optionalFieldOf("colour")
                     .forGetter((style) -> Optional.ofNullable(style.getColor())),
                 net.minecraft.util.dynamic.Codecs.ARGB
                     .optionalFieldOf("shadow_color")
@@ -116,8 +117,11 @@ public class GuiStyle
                     .optionalFieldOf("size")
                     .forGetter((style) -> Optional.ofNullable(style.getSize())),
                 Codec.FLOAT
-                    .optionalFieldOf("kerning")
-                    .forGetter((style) -> Optional.ofNullable(style.getKerning())))
+                    .optionalFieldOf("tracking")
+                    .forGetter((style) -> Optional.ofNullable(style.getTracking())),
+                TextColor.CODEC
+                    .optionalFieldOf("background_color")
+                    .forGetter((style) -> Optional.ofNullable(style.getBackgroundColor())))
             .apply(instance, GuiStyle::of));
         CODEC        = MAP_CODEC.codec();
         PACKET_CODEC = PacketCodecs.unlimitedRegistryCodec(CODEC);
@@ -147,30 +151,33 @@ public class GuiStyle
                                         final @NotNull Optional<Identifier> font,
                                         final @NotNull Optional<Boolean>    shaded,
                                         final @NotNull Optional<Float>      size,
-                                        final @NotNull Optional<Float>      kerning)
+                                        final @NotNull Optional<Float>      tracking,
+                                        final @NotNull Optional<TextColor>  backgroundColor)
     {
         final GuiStyle style = new GuiStyle(
-            color        .orElse(null),
-            shadowColor  .orElse(null),
-            bold         .orElse(null),
-            italic       .orElse(null),
-            underlined   .orElse(null),
-            strikethrough.orElse(null),
-            obfuscated   .orElse(null),
-            clickEvent   .orElse(null),
-            hoverEvent   .orElse(null),
-            insertion    .orElse(null),
-            font         .orElse(null),
-            shaded       .orElse(null),
-            size         .orElse(null),
-            kerning      .orElse(null));
+            color          .orElse(null),
+            shadowColor    .orElse(null),
+            bold           .orElse(null),
+            italic         .orElse(null),
+            underlined     .orElse(null),
+            strikethrough  .orElse(null),
+            obfuscated     .orElse(null),
+            clickEvent     .orElse(null),
+            hoverEvent     .orElse(null),
+            insertion      .orElse(null),
+            font           .orElse(null),
+            shaded         .orElse(null),
+            size           .orElse(null),
+            tracking       .orElse(null),
+            backgroundColor.orElse(null));
         return (style.equals(GuiStyle.EMPTY) ? GuiStyle.EMPTY : style);
     }
 
     //******************************************************************************************************************
-    final @Nullable Boolean shaded;
-    final @Nullable Float   size;
-    final @Nullable Float   kerning;
+    final @Nullable Boolean   shaded;
+    final @Nullable Float     size;
+    final @Nullable Float     tracking;
+    final @Nullable TextColor backgroundColor;
 
     //******************************************************************************************************************
     public GuiStyle(final @Nullable TextColor  color,
@@ -186,25 +193,28 @@ public class GuiStyle
                     final @Nullable Identifier font,
                     final @Nullable Boolean    shaded,
                     final @Nullable Float      size,
-                    final @Nullable Float      kerning)
+                    final @Nullable Float      tracking,
+                    final @Nullable TextColor  backgroundColor)
     {
         super(color, shadowColor, bold, italic, underlined, strikethrough, obfuscated, clickEvent, hoverEvent,
               insertion, font);
 
-        this.shaded  = shaded;
-        this.size    = size;
-        this.kerning = kerning;
+        this.shaded          = shaded;
+        this.size            = size;
+        this.tracking        = tracking;
+        this.backgroundColor = backgroundColor;
     }
 
     public GuiStyle(final @NotNull Style style, final @Nullable Boolean shaded, final @Nullable Float size,
-                    final @Nullable Float kerning)
+                    final @Nullable Float tracking, final @Nullable TextColor backgroundColor)
     {
-        this((StyleAccessor) style, style, shaded, size, kerning);
+        this((StyleAccessor) style, style, shaded, size, tracking, backgroundColor);
     }
 
     //------------------------------------------------------------------------------------------------------------------
     private GuiStyle(final @NotNull StyleAccessor styleAcc, final @NotNull Style style, final @Nullable Boolean shaded,
-                     final @Nullable Float size, final @Nullable Float kerning)
+                     final @Nullable Float size, final @Nullable Float tracking,
+                     final @Nullable TextColor backgroundColor)
     {
         super(
             style   .getColor(),
@@ -219,24 +229,22 @@ public class GuiStyle
             style   .getInsertion(),
             styleAcc.novia$getFontId()
         );
-        this.shaded  = shaded;
-        this.size    = size;
-        this.kerning = kerning;
+        
+        this.shaded          = shaded;
+        this.size            = size;
+        this.tracking        = tracking;
+        this.backgroundColor = backgroundColor;
     }
 
     //==================================================================================================================
-    /**
-     * Gets the size scale.
-     * @return The size
-     */
+    /// {@return the font size}
     public @Nullable Float getSize() { return this.size; }
 
-    /**
-     * Gets the kerning factor.
-     * @return The kerning factor
-     */
-    public @Nullable Float getKerning() { return this.kerning; }
-
+    /// {@return the tracking factor}
+    public @Nullable Float getTracking() { return this.tracking; }
+    
+    public @Nullable TextColor getBackgroundColor() { return this.backgroundColor; }
+    
     //==================================================================================================================
     public boolean isShaded() { return (this.shaded == Boolean.TRUE); }
     
@@ -245,7 +253,7 @@ public class GuiStyle
     //==================================================================================================================
     public @NotNull GuiStyle withColor(final @Nullable TextColor color)
     {
-        return new GuiStyle(super.withColor(color), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withColor(color), this.shaded, this.size, this.tracking, this.backgroundColor);
     }
 
     public @NotNull GuiStyle withColor(final @Nullable Formatting color)
@@ -254,55 +262,72 @@ public class GuiStyle
     }
 
     public @NotNull GuiStyle withColor(final int rgbColor) { return this.withColor(TextColor.fromRgb(rgbColor)); }
-
+    
+    public @NotNull GuiStyle withColor(final @Nullable Colour color)
+    {
+        return this.withColor(color != null ? TextColor.fromRgb(color.colour()) : null);
+    }
+    
     public @NotNull GuiStyle withShadowColor(final int shadowColor)
     {
-        return new GuiStyle(super.withShadowColor(shadowColor), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withShadowColor(shadowColor), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
+    }
+    
+    public @NotNull GuiStyle withShadowColor(final @NotNull Colour colour)
+    {
+        return this.withShadowColor(colour.colour());
     }
 
     public @NotNull GuiStyle withBold(final @Nullable Boolean bold)
     {
-        return new GuiStyle(super.withBold(bold), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withBold(bold), this.shaded, this.size, this.tracking, this.backgroundColor);
     }
 
     public @NotNull GuiStyle withItalic(final @Nullable Boolean italic)
     {
-        return new GuiStyle(super.withItalic(italic), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withItalic(italic), this.shaded, this.size, this.tracking, this.backgroundColor);
     }
 
     public @NotNull GuiStyle withUnderline(final @Nullable Boolean underline)
     {
-        return new GuiStyle(super.withUnderline(underline), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withUnderline(underline), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withStrikethrough(final @Nullable Boolean strikethrough)
     {
-        return new GuiStyle(super.withStrikethrough(strikethrough), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withStrikethrough(strikethrough), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withObfuscated(final @Nullable Boolean obfuscated)
     {
-        return new GuiStyle(super.withObfuscated(obfuscated), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withObfuscated(obfuscated), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withClickEvent(final @Nullable ClickEvent clickEvent)
     {
-        return new GuiStyle(super.withClickEvent(clickEvent), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withClickEvent(clickEvent), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withHoverEvent(final @Nullable HoverEvent hoverEvent)
     {
-        return new GuiStyle(super.withHoverEvent(hoverEvent), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withHoverEvent(hoverEvent), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withInsertion(final @Nullable String insertion)
     {
-        return new GuiStyle(super.withInsertion(insertion), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withInsertion(insertion), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withFont(final @Nullable Identifier font)
     {
-        return new GuiStyle(super.withFont(font), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withFont(font), this.shaded, this.size, this.tracking, this.backgroundColor);
     }
 
     public @NotNull GuiStyle withShadow(final @Nullable Boolean shadow)
@@ -314,7 +339,7 @@ public class GuiStyle
                              style_acc.novia$isItalic(), style_acc.novia$isUnderlined(),
                              style_acc.novia$isStrikethrough(), style_acc.novia$isObfuscated(), this.getClickEvent(),
                              this.getHoverEvent(), this.getInsertion(), this.getFont(), shadow, this.size,
-                             this.kerning),
+                             this.tracking, this.backgroundColor),
                 this.shaded, shadow)
             : this);
     }
@@ -328,41 +353,73 @@ public class GuiStyle
                              style_acc.novia$isItalic(), style_acc.novia$isUnderlined(),
                              style_acc.novia$isStrikethrough(), style_acc.novia$isObfuscated(), this.getClickEvent(),
                              this.getHoverEvent(), this.getInsertion(), this.getFont(), this.shaded, size,
-                             this.kerning),
+                             this.tracking, this.backgroundColor),
                 this.size, size)
             : this);
     }
 
-    public @NotNull GuiStyle withKerning(final @Nullable Float kerning)
+    public @NotNull GuiStyle withTracking(final @Nullable Float tracking)
     {
         final StyleAccessor style_acc = (StyleAccessor) this;
-        return (!Objects.equals(this.kerning, kerning)
+        return (!Objects.equals(this.tracking, tracking)
+            ? GuiStyle.with(
+            new GuiStyle(this.getColor(), this.getShadowColor(), style_acc.novia$isBold(),
+                         style_acc.novia$isItalic(), style_acc.novia$isUnderlined(),
+                         style_acc.novia$isStrikethrough(), style_acc.novia$isObfuscated(), this.getClickEvent(),
+                         this.getHoverEvent(), this.getInsertion(), this.getFont(), this.shaded, this.size,
+                         tracking, this.backgroundColor),
+            this.tracking, tracking)
+            : this);
+    }
+    
+    public @NotNull GuiStyle withBackgroundColor(final @Nullable TextColor backgroundColor)
+    {
+        final StyleAccessor style_acc = (StyleAccessor) this;
+        return (!Objects.equals(this.backgroundColor, backgroundColor)
             ? GuiStyle.with(
                 new GuiStyle(this.getColor(), this.getShadowColor(), style_acc.novia$isBold(),
                              style_acc.novia$isItalic(), style_acc.novia$isUnderlined(),
                              style_acc.novia$isStrikethrough(), style_acc.novia$isObfuscated(), this.getClickEvent(),
                              this.getHoverEvent(), this.getInsertion(), this.getFont(), this.shaded, this.size,
-                             kerning),
-                this.kerning, kerning)
+                             this.tracking, backgroundColor),
+                this.backgroundColor, backgroundColor)
             : this);
+    }
+    
+    public @NotNull GuiStyle withBackgroundColor(final @Nullable Formatting color)
+    {
+        return this.withBackgroundColor(color != null ? TextColor.fromFormatting(color) : null);
+    }
+
+    public @NotNull GuiStyle withBackgroundColor(final int rgbColor)
+    {
+        return this.withBackgroundColor(TextColor.fromRgb(rgbColor));
+    }
+    
+    public @NotNull GuiStyle withBackgroundColor(final @Nullable Colour color)
+    {
+        return this.withBackgroundColor(color != null ? TextColor.fromRgb(color.colour()) : null);
     }
 
     public @NotNull GuiStyle withFormatting(final @NotNull Formatting formatting)
     {
         if (formatting == Formatting.RESET) return GuiStyle.EMPTY;
-        return new GuiStyle(super.withFormatting(formatting), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withFormatting(formatting), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withExclusiveFormatting(final @NotNull Formatting formatting)
     {
         if (formatting == Formatting.RESET) return GuiStyle.EMPTY;
-        return new GuiStyle(super.withExclusiveFormatting(formatting), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withExclusiveFormatting(formatting), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withFormatting(final @NotNull Formatting @NotNull ...formattings)
     {
         if (Arrays.stream(formattings).anyMatch(e -> e == Formatting.RESET)) return GuiStyle.EMPTY;
-        return new GuiStyle(super.withFormatting(formattings), this.shaded, this.size, this.kerning);
+        return new GuiStyle(super.withFormatting(formattings), this.shaded, this.size, this.tracking,
+                            this.backgroundColor);
     }
 
     public @NotNull GuiStyle withParent(final @NotNull GuiStyle parent)
@@ -390,7 +447,8 @@ public class GuiStyle
                 this.getOrParent(StyleAccessor::novia$getFontId,       accessor, parent_accessor),
                 this.getOrParent(GuiStyle     ::isShaded,              this,     parent),
                 this.getOrParent(GuiStyle     ::getSize,               this,     parent),
-                this.getOrParent(GuiStyle     ::getKerning,            this,     parent))
+                this.getOrParent(GuiStyle     ::getTracking,           this,     parent),
+                this.getOrParent(GuiStyle     ::getBackgroundColor,    this,     parent))
             : this);
     }
 
@@ -399,24 +457,27 @@ public class GuiStyle
     {
         if (this == GuiStyle.EMPTY)
         {
-            return new GuiStyle(parent, null, null, null);
+            return new GuiStyle(parent, null, null, null, null);
         }
 
-        final Boolean shadow;
-        final Float   size;
-        final Float   kerning;
+        final Boolean   shadow;
+        final Float     size;
+        final Float     tracking;
+        final TextColor backgroundColor;
         
         if (parent instanceof GuiStyle g_style)
         {
-            shadow  = this.getOrParent(GuiStyle::isShaded,   this, g_style);
-            size    = this.getOrParent(GuiStyle::getSize,    this, g_style);
-            kerning = this.getOrParent(GuiStyle::getKerning, this, g_style);
+            shadow          = this.getOrParent(GuiStyle::isShaded,           this, g_style);
+            size            = this.getOrParent(GuiStyle::getSize,            this, g_style);
+            tracking        = this.getOrParent(GuiStyle::getTracking,        this, g_style);
+            backgroundColor = this.getOrParent(GuiStyle::getBackgroundColor, this, g_style);
         }
         else
         {
-            shadow  = this.shaded;
-            size    = this.size;
-            kerning = this.kerning;
+            shadow          = this.shaded;
+            size            = this.size;
+            tracking        = this.tracking;
+            backgroundColor = this.backgroundColor;
         }
         
         final StyleAccessor accessor        = (StyleAccessor) this;
@@ -437,7 +498,8 @@ public class GuiStyle
                 this.getOrParent(StyleAccessor::novia$getFontId,       accessor, parent_accessor),
                 shadow,
                 size,
-                kerning)
+                tracking,
+                backgroundColor)
             : this);
     }
     
@@ -458,9 +520,10 @@ public class GuiStyle
 
         return (
             string.substring(0, (string.length() - 1))
-            + appender.apply("shaded",  this.shaded)
-            + appender.apply("size",    this.size)
-            + appender.apply("kerning", this.kerning)
+                + appender.apply("shaded",           this.shaded)
+                + appender.apply("size",             this.size)
+                + appender.apply("tracking",         this.tracking)
+                + appender.apply("backgroundColor", this.backgroundColor)
             + "}"
         );
     }
@@ -472,12 +535,16 @@ public class GuiStyle
 
         return (
             super.equals(o)
-            && Objects.equals(this.shaded,  other.shaded)
-            && Objects.equals(this.size,    other.size)
-            && Objects.equals(this.kerning, other.kerning)
+            && Objects.equals(this.shaded,          other.shaded)
+            && Objects.equals(this.size,            other.size)
+            && Objects.equals(this.tracking,        other.tracking)
+            && Objects.equals(this.backgroundColor, other.backgroundColor)
         );
     }
 
-    @Override public int hashCode() { return Objects.hash(super.hashCode(), this.shaded, this.size, this.kerning); }
-
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(super.hashCode(), this.shaded, this.size, this.tracking, this.backgroundColor);
+    }
 }

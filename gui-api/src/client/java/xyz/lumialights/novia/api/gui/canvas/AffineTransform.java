@@ -54,7 +54,7 @@ public final class AffineTransform
     //******************************************************************************************************************
     /**
      * Creates a new transform with the given translation.
-     * @param x The x offset
+     * @param x The left offset
      * @param y The y offset
      * @return The new {@link AffineTransform}
      */
@@ -65,7 +65,7 @@ public final class AffineTransform
 
     /**
      * Creates a new transform with the given scaling.
-     * @param x The scale on the x-axis
+     * @param x The scale on the left-axis
      * @param y The scale on the y-axis
      * @return The new {@link AffineTransform}
      */
@@ -76,7 +76,7 @@ public final class AffineTransform
 
     /**
      * Creates a new transform with the given scaling.
-     * @param xy The scale on the x and y-axis
+     * @param xy The scale on the left and y-axis
      * @return The new {@link AffineTransform}
      */
     public static @NotNull AffineTransform scaling(final float xy) { return (new AffineTransform()).scale(xy); }
@@ -213,12 +213,12 @@ public final class AffineTransform
      */
     public @NotNull Rectangle applyToRect(final @NotNull Rectangle rect)
     {
-        return rect.apply(this::applyToRect);
+        return rect.transform(this::applyToRect);
     }
 
     /**
      * Applies the transform to the given area.
-     * @param x      The x coordinate of the area to transform
+     * @param x      The left coordinate of the area to transform
      * @param y      The y coordinate of the area to transform
      * @param width  The width of the area to transform
      * @param height The height of the area to transform
@@ -229,11 +229,11 @@ public final class AffineTransform
         final Vector2f vec_tl = this.matrix.transformPosition(x, y, new Vector2f());
         final Vector2f vec_br = this.matrix.transformPosition((x + width), (y + height), new Vector2f());
 
-        return new Rectangle(
+        return Rectangle.fromPoints(
             MathHelper.floor(vec_tl.x),
             MathHelper.floor(vec_tl.y),
-            MathHelper.floor(vec_br.x - vec_tl.x),
-            MathHelper.floor(vec_br.y - vec_tl.y));
+            MathHelper.floor(vec_br.x),
+            MathHelper.floor(vec_br.y));
     }
 
     /**
@@ -253,12 +253,12 @@ public final class AffineTransform
      */
     public @NotNull Rectangle applyToVertices(final @NotNull Rectangle rect)
     {
-        return rect.apply(this::applyToVertices);
+        return rect.transform(this::applyToVertices);
     }
 
     /**
      * Applies the transform to all vertices of the given area.
-     * @param x      The x coordinate of the area to transform
+     * @param x      The left coordinate of the area to transform
      * @param y      The y coordinate of the area to transform
      * @param width  The width of the area to transform
      * @param height The height of the area to transform
@@ -279,17 +279,17 @@ public final class AffineTransform
 		final float min_y = Math.min(Math.min(vec_tl.y(), vec_bl.y()), Math.min(vec_tr.y(), vec_br.y()));
 		final float max_y = Math.max(Math.max(vec_tl.y(), vec_bl.y()), Math.max(vec_tr.y(), vec_br.y()));
 
-		return new Rectangle(
+        return Rectangle.fromPoints(
             MathHelper.floor(min_x),
             MathHelper.floor(min_y),
-            MathHelper.ceil(max_x - min_x),
-            MathHelper.ceil(max_y - min_y));
+            MathHelper.ceil(max_x),
+            MathHelper.ceil(max_y));
     }
 
     //==================================================================================================================
     /**
      * Translates the transform the given offset.
-     * @param offsetX The offset on the x-axis
+     * @param offsetX The offset on the left-axis
      * @param offsetY The offset on the y-axis
      * @return {@code this}
      */
@@ -313,7 +313,7 @@ public final class AffineTransform
     /**
      * Rotates the transform the given angle around the given coordinates.
      * @param angleRadians The angle of the rotation in radians
-     * @param pivotX       The x coordinate to rotate around
+     * @param pivotX       The left coordinate to rotate around
      * @param pivotY       The y coordinate to rotate around
      * @return {@code this}
      */
@@ -325,7 +325,7 @@ public final class AffineTransform
 
     /**
      * Scales the transform the given amount.
-     * @param x The scale on the x-axis
+     * @param x The scale on the left-axis
      * @param y The scale on the y-axis
      * @return {@code this}
      */
@@ -337,7 +337,7 @@ public final class AffineTransform
 
     /**
      * Scales the transform the given amount.
-     * @param xy The scale on the x and y-axis
+     * @param xy The scale on the left and y-axis
      * @return {@code this}
      */
     public @NotNull AffineTransform scale(final float xy)

@@ -87,11 +87,7 @@ public class DefaultGuiTemplate
             
             // NVNumericBox
             NVNumericBox.COLOUR_ARROW,                     fg_active,
-            NVNumericBox.COLOUR_ARROW_INACTIVE,            fg_inactive,
-            
-            // NVLabelButton
-            NVLabelButton.COLOUR_TEXT,                     fg_active,
-            NVLabelButton.COLOUR_TEXT_INACTIVE,            fg_inactive
+            NVNumericBox.COLOUR_ARROW_INACTIVE,            fg_inactive
         ));
         colours.putAll(Map.of(
             // NVTextBox

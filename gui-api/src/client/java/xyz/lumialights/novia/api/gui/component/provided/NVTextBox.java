@@ -57,14 +57,13 @@ import xyz.lumialights.novia.api.core.util.RefUtils;
 import xyz.lumialights.novia.api.gui.GuiApiId;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.ColourId;
-import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.component.*;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.input.MouseEvent;
 import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
-import xyz.lumialights.novia.api.gui.font.FontUtil;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.IGuiCharacterVisitor;
 import xyz.lumialights.novia.api.gui.geometry.Frame;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
@@ -77,143 +76,202 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A text box implementation modelled after Minecraft's {@link TextFieldWidget}, adjusted to the Novia GUI system.
- * <p>
- * A text box is a component, which can be used to type text into a rectangular area, you can copy and paste text into
- * this area and use it to display strings.
- * <p>
- * This is a stateful GUI component, the value it contains represents the text inside the text box,
- * it can be converted between string qualified {@link Value} objects.
- */
+/// A text box implementation modelled after Minecraft's [TextFieldWidget].
+///
+/// ## Behaviour
+/// A text box is a component which can be used to type text into a rectangular area. This text is internally stored
+/// and can be edited by keyboard input.
+///
+/// ## Mouse & Keyboard
+/// Clicking the text box will focus the component and mark it ready for keyboard input, text can also be selected
+/// by holding the left mouse-button down and dragging over the text that should be selected.
+///
+/// Keys that represent a character key (e.g. "H", "$", "4") will be entered as text into the text box, other keys
+/// that have a special function are listed in this table:
+/// <table>
+///     <tr style="white-space:nowrap"><th>Shortcut</th><th>Action</th></tr>
+///     <tr><td>Left Arrow</td><td>Moves the caret one to the left.</td></tr>
+///     <tr><td>Right Arrow</td><td>Moves the caret one to the right.</td></tr>
+///     <tr><td>Home</td><td>Moves the caret to the beginning of the entire content.</td></tr>
+///     <tr><td>End</td><td>Moves the caret past the end of the entire content.</td></tr>
+///     <tr>
+///         <td>Backspace</td>
+///         <td>
+///             If there is no selected text, the character right before the caret will be deleted, otherwise the
+///             selection will be erased.
+///         </td>
+///     </tr>
+///     <tr>
+///         <td>Backspace</td>
+///         <td>
+///             If there is no selected text, the character right after the caret will be deleted, otherwise the
+///             selection will be erased.
+///         </td>
+///     </tr>
+///     <tr>
+///         <td>Ctrl + A</td>
+///         <td>
+///             If no text is currently selected, will select all contents of the text box, otherwise deselects the
+///             current selection.
+///         </td>
+///     </tr>
+///     <tr><td>Ctrl + C</td><td>Copies the selected text to the clipboard.</td></tr>
+///     <tr>
+///         <td>Ctrl + V</td>
+///         <td>
+///             Pastes contents from the clipboard to the insertion point, if no text is selected it will be inserted
+///             at the current caret position, otherwise the selected portion will be replaced.
+///         </td>
+///     </tr>
+///     <tr>
+///         <td>Ctrl + X</td>
+///         <td>Copies the selected text contents to the clipboard and removes it from the text box.</td>
+///     </tr>
+/// </table>
+///
+/// When navigating the text with the arrow keys and the Ctrl modifier is being pressed, the caret will move in word
+/// boundaries ("left" to the start of a word, "right" to the end) and if the Shift modifier is being held, all
+/// characters between the current and the target caret position will be selected.
+///
+/// ## Stateful
+/// This is a stateful GUI component, the value it contains represents the text inside the text box. It can be converted
+/// between string qualified [Value] objects.
 public class NVTextBox
     extends StatefulGuiComponent
 {
     //******************************************************************************************************************
-    /**
-     * An interface that defines how the text-box's text {@link String} is converted to {@link OrderedText} for
-     * rendering.
-     */
-    @FunctionalInterface
-    public interface RenderTextProvider
-    {
-        /**
-         * Converts the string to {@link OrderedText}.
-         *
-         * @param text       The text string to convert
-         * @param startIndex The index of the character to start the text with
-         * @return The converted {@link OrderedText}
-         */
-        @NotNull OrderedText provide(@NotNull String text, int startIndex);
-    }
-    
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the text content.
-         * @param canvas              The {@link Canvas}
-         * @param textBox             The {@link NVTextBox}
-         * @param bounds              The bounds of the content (see {@link NVTextBox#getBorderSize()})
-         * @param lastSwitchFocusTime The time since the last focus change
-         */
+        /// Draws the text content.
+        /// @param canvas              The [Canvas]
+        /// @param textBox             The [NVTextBox]
+        /// @param bounds              The bounds of the content (see [NVTextBox#getBorderSize()])
+        /// @param lastSwitchFocusTime The time since the last focus change
         void nvTextboxDrawContent(@NotNull Canvas canvas, @NotNull NVTextBox textBox, @NotNull Rectangle bounds,
                                   long lastSwitchFocusTime);
         
-        /**
-         * Draws the text box background.
-         * @param canvas  The {@link Canvas}
-         * @param textBox The {@link NVTextBox}
-         */
+        /// Draws the text box background.
+        /// @param canvas  The [Canvas]
+        /// @param textBox The [NVTextBox]
         void nvTextboxDrawBackground(@NotNull Canvas canvas, @NotNull NVTextBox textBox);
         
-       /**
-        * Draws the text box text.
-        * @param canvas     The {@link Canvas}
-        * @param textBox    The {@link NVTextBox}
-        * @param text       The processed text contents of the text box
-        * @param x          The x coordinate of the text start position
-        * @param y          The y coordinate of the text start position
-        * @param textColour The recommended colour to use to draw the text with
-        */
-        void nvTextboxDrawText(@NotNull Canvas canvas, @NotNull NVTextBox textBox, @NotNull OrderedText text,
+        /// Draws the text box text.
+        /// @param canvas     The [Canvas]
+        /// @param textBox    The [NVTextBox]
+        /// @param text       The processed text contents of the text box
+        /// @param x          The left coordinate of the text start position
+        /// @param y          The y coordinate of the text start position
+        /// @param textColour The recommended colour to use to draw the text with
+        void nvTextboxDrawText(@NotNull Canvas canvas, @NotNull NVTextBox textBox, @NotNull String text,
                                int x, int y, @NotNull Colour textColour);
         
-        /**
-         * Draws the text box suggestion text.
-         * @param canvas  The {@link Canvas}
-         * @param textBox The {@link NVTextBox}
-         * @param x       The x coordinate of the text start position
-         * @param y       The y coordinate of the text start position
-         */
+        /// Draws the text box suggestion text.
+        /// @param canvas  The [Canvas]
+        /// @param textBox The [NVTextBox]
+        /// @param x       The left coordinate of the text start position
+        /// @param y       The y coordinate of the text start position
         void nvTextboxDrawSuggestion(@NotNull Canvas canvas, @NotNull NVTextBox textBox, int x, int y);
         
-        /**
-         * Draws the text box placeholder text.
-         * @param canvas  The {@link Canvas}
-         * @param textBox The {@link NVTextBox}
-         * @param x       The x coordinate of the text start position
-         * @param y       The y coordinate of the text start position
-         */
+        /// Draws the text box placeholder text.
+        /// @param canvas  The [Canvas]
+        /// @param textBox The [NVTextBox]
+        /// @param x       The left coordinate of the text start position
+        /// @param y       The y coordinate of the text start position
         void nvTextboxDrawPlaceholder(@NotNull Canvas canvas, @NotNull NVTextBox textBox, int x, int y);
         
-        /**
-         * Draws the text box selection highlight.
-         * @param canvas  The {@link Canvas}
-         * @param textBox The {@link NVTextBox}
-         * @param x       The x coordinate of highlight
-         * @param y       The y coordinate of highlight
-         * @param width   The width of the highlight
-         * @param height  The height of the highlight
-         */
+        /// Draws the text box selection highlight.
+        /// @param canvas  The [Canvas]
+        /// @param textBox The [NVTextBox]
+        /// @param x       The left coordinate of highlight
+        /// @param y       The y coordinate of highlight
+        /// @param width   The width of the highlight
+        /// @param height  The height of the highlight
         void nvTextboxDrawSelection(@NotNull Canvas canvas, @NotNull NVTextBox textBox, int x, int y, int width,
                                     int height);
     }
     
-    /**
-     * @param text      The text of the clipboard action
-     * @param range     The character range of the clipboard action
-     * @param modifying {@code true} if this clipboard action was a modifying action (true for cutting or pasting)
-     */
+    /// @param text      The text of the clipboard action
+    /// @param range     The character range of the clipboard action
+    /// @param modifying `true` if this clipboard action was a modifying action (true for cutting or pasting)
     public record ClipboardEventArgs(@NotNull String text, @NotNull Range<Integer> range, boolean modifying)
         implements GuiEventArgs
     {}
     
+    //------------------------------------------------------------------------------------------------------------------
+    private static class PositionVisitor
+        implements IGuiCharacterVisitor
+    {
+        //**************************************************************************************************************
+        private final int   start;
+        private final float tracking;
+        
+        private float pos;
+        private int   index = -1;
+        
+        //**************************************************************************************************************
+        public PositionVisitor(final @NotNull GuiFont font, final int x, final int start)
+        {
+            this.tracking = font.getTrackingSpace();
+            this.start    = start;
+            this.pos      = x;
+        }
+        
+        //==============================================================================================================
+        public int getIndex() { return (this.start + this.index); }
+        
+        //==============================================================================================================
+        @Override
+        public boolean accept(final int i, final @NotNull GuiFont font, final @NotNull Style style, final int codePoint)
+        {
+            if (i < this.start)
+            {
+                return true;
+            }
+            
+            this.pos -= (this.tracking + font.getCharWidth(codePoint));
+            
+            if (this.pos <= 0f)
+            {
+                this.index = i;
+                return false;
+            }
+            
+            return true;
+        }
+    }
+    
     //******************************************************************************************************************
-    /** The colour of the text when the text box is editable and no predicate error occurred. */
+    /// The colour of the text when the text box is editable and no predicate error occurred.
     public static final ColourId COLOUR_TEXT_EDITABLE = ColourId.reserve();
     
-    /** The colour of the text when the text box is uneditable. */
+    /// The colour of the text when the text box is uneditable.
     public static final ColourId COLOUR_TEXT_UNEDITABLE = ColourId.reserve();
     
-    /** The colour of the text when the text box contains text that did not satisfy the predicate. */
+    /// The colour of the text when the text box contains text that did not satisfy the predicate.
     public static final ColourId COLOUR_TEXT_ERROR = ColourId.reserve();
     
-    /** The colour of the text box suggestion text. */
+    /// The colour of the text box suggestion text.
     public static final ColourId COLOUR_TEXT_SUGGESTION = ColourId.reserve();
     
-    /** The colour of the text box placeholder when the text box is empty.*/
+    /// The colour of the text box placeholder when the text box is empty.
     public static final ColourId COLOUR_TEXT_PLACEHOLDER = ColourId.reserve();
     
     //==================================================================================================================
-    /** See {@link NVTextBox#renderTextProvider}. */
-    public static final RenderTextProvider DEFAULT_PROVIDER = ((string, ignored) ->
-        OrderedText.styledForwardsVisitedString(string, Style.EMPTY));
-    
-    /** See {@link NVTextBox#textPredicate}. */
+    /// See [NVTextBox#textPredicate].
     public static final Predicate<String> DEFAULT_PREDICATE = Objects::nonNull;
     
-    /** See {@link NVTextBox#maxLength}. */
+    /// See [NVTextBox#maxLength].
     public static final int DEFAULT_MAX_LENGTH = 1024;
     
-    /** See {@link NVTextBox#predicateStopsInput}. */
+    /// See [NVTextBox#predicateStopsInput].
     public static final boolean DEFAULT_PREDICATE_STOPS_INPUT = false;
     
-    /** See {@link NVTextBox#readOnly}. */
+    /// See [NVTextBox#readOnly].
     public static final boolean DEFAULT_READ_ONLY = false;
     
     //==================================================================================================================
-    /** The textures used for the text box background. */
+    /// The textures used for the text box background.
     public static final ButtonTextures TEXTURES = new ButtonTextures(
         Identifier.ofVanilla("widget/text_field"),
         Identifier.ofVanilla("widget/text_field_highlighted"));
@@ -221,55 +279,43 @@ public class NVTextBox
     public static final Frame DEFAULT_BORDER_FRAME = new Frame(4);
     
     //******************************************************************************************************************
-    /**
-     * Describes the string conversion provider.
-     * @see RenderTextProvider
-     */
-    public final GuiProperty.NonNull<RenderTextProvider> renderTextProvider;
-    
-    /**
-     * Describes the pre-set predicate for the text that's being inputted.
-     * <p>
-     * Whenever the text inside the text-box changes, this will first check whether it is valid, and if it is not
-     * set the text box to its “invalid” state.
-     * @see #COLOUR_TEXT_ERROR
-     */
+    /// Describes the pre-set predicate for the text that's being inputted.
+    ///
+    /// Whenever the text inside the text-box changes, this will first check whether it is valid, and if it is not
+    /// set the text box to its “invalid” state.
+    /// @see #COLOUR_TEXT_ERROR
     public final GuiProperty.NonNull<Predicate<String>> textPredicate;
     
-    /**
-     * Describes the maximum length of the text content inside this text-box.
-     * The maximum length must not be less than 0.
-     * <p>
-     * When changing the max length and the original text is longer than the new limit, the text will be trimmed and
-     * updated accordingly.
-     */
+    /// Describes the maximum length of the text content inside this text-box.
+    /// The maximum length must not be less than 0.
+    ///
+    /// When changing the max length and the original text is longer than the new limit, the text will be trimmed and
+    /// updated accordingly.
     public final GuiProperty.NonNull<Integer> maxLength;
     
-    /**
-     * Describes whether any given input that is invalid according to {@link #textPredicate}, should be prevented
-     * from being inputted to the text-box.
-     * <p>
-     * This concerns both input devices and text modifying methods.
-     */
+    /// Describes whether any given input that is invalid according to [#textPredicate], should be prevented
+    /// from being inputted to the text-box.
+    ///
+    /// This concerns both input devices and text modifying methods.
     public final GuiProperty.NonNull<Boolean> predicateStopsInput;
     
-    /** Describes the suggestive text that should be rendered at the end of the text inside the text-box. */
+    /// Describes the suggestive text that should be rendered at the end of the text inside the text-box.
     public final GuiProperty<String> suggestion;
     
-    /** Describes the text that should be rendered as a placeholder if the text-box is currently holding no text. */
+    /// Describes the text that should be rendered as a placeholder if the text-box is currently holding no text.
     public final GuiProperty<Text> placeholder;
     
-    /** Describes whether the text box should be read-only, which means that text can not be edited. */
+    /// Describes whether the text box should be read-only, which means that text can not be edited.
     public final GuiProperty<Boolean> readOnly;
     
     //==================================================================================================================
-    /** Triggered whenever the selected text in the box changed. */
+    /// Triggered whenever the selected text in the box changed.
     public final GuiEvent.Simple selectionChanged = new GuiEvent.Simple();
     
-    /** Triggered whenever a given text portion has been copied/cut from the text box. */
+    /// Triggered whenever a given text portion has been copied/cut from the text box.
     public final GuiEvent<ClipboardEventArgs> textCopied = new GuiEvent<>();
     
-    /** Triggered whenever text has been pasted into the text box. */
+    /// Triggered whenever text has been pasted into the text box.
     public final GuiEvent<ClipboardEventArgs> textPasted = new GuiEvent<>();
     
     //==================================================================================================================
@@ -279,21 +325,19 @@ public class NVTextBox
     private int     firstCharacterIndex = 0;
     private int     selectionStart      = 0;
     private int     selectionEnd        = 0;
+    private int     dragMode            = 0;
     private Frame   borderSize          = NVTextBox.DEFAULT_BORDER_FRAME;
     private String  text;
     private boolean erroneous;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new text box with the text.
-     * @param text    The content of the text box
-     * @param message The component message
-     */
+    /// Constructs a new text box with the text.
+    /// @param text    The content of the text box
+    /// @param message The component message
     public NVTextBox(final @NotNull String text, final @NotNull Text message)
     {
         super(message);
         
-        this.renderTextProvider  = GuiProperty.nonNull(NVTextBox.DEFAULT_PROVIDER);
         this.predicateStopsInput = GuiProperty.nonNull(NVTextBox.DEFAULT_PREDICATE_STOPS_INPUT);
         this.suggestion          = GuiProperty.nullable(null);
         this.placeholder         = GuiProperty.nullable(null);
@@ -316,43 +360,32 @@ public class NVTextBox
         this.updatePredicate();
     }
     
-    /**
-     * Constructs a new text box with the given text.
-     * @param text The content of the text box
-     */
+    /// Constructs a new text box with the given text.
+    /// @param text The content of the text box
     public NVTextBox(final @NotNull String text) { this(text, ScreenTexts.EMPTY); }
     
-    /** Constructs a new empty text box. */
+    /// Constructs a new empty text box.
     public NVTextBox() { this("", ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the text currently in this text box.
-     * <p>
-     * This returns the text in the text-box as-is, meaning, if a predicate was set,
-     * and the text in the box did not match, this will return the erroneous text.
-     *
-     * @return The text currently in the text box
-     */
+    /// Gets the text currently in this text box.
+    ///
+    /// This returns the text in the text-box as-is, meaning, if a predicate was set,
+    /// and the text in the box did not match, this will return the erroneous text.
+    /// @return The text currently in the text box
     public @NotNull String getText() { return this.text; }
     
-    /**
-     * Gets the current cursor position in the text box.
-     * @return The cursor position
-     */
+    /// Gets the current cursor position in the text box.
+    /// @return The cursor position
     public int getCursorPos() { return this.selectionStart; }
     
-    /**
-     * Gets the end index of the current selection. If no text is selected, this will always be the same as
-     * {@link #getCursorPos()}.
-     * @return The selection end index
-     */
+    /// Gets the end index of the current selection. If no text is selected, this will always be the same as
+    /// [#getCursorPos()].
+    /// @return The selection end index
     public int getSelectionEnd() { return this.selectionEnd; }
     
-    /**
-     * Gets the selected portion of the text in the box.
-     * @return The selected string
-     */
+    /// Gets the selected portion of the text in the box.
+    /// @return The selected string
     public @NotNull String getSelectedText()
     {
         return this.text.substring(
@@ -360,43 +393,20 @@ public class NVTextBox
             Math.max(this.selectionStart, this.selectionEnd));
     }
     
-    /**
-     * Gets the index of the first character to the next word starting from the current cursor position in the text.
-     * <p>
-     * If moving forward and no new word could be found, this will return the length of the text.
-     *
-     * @param wordOffset The number of words to skip, negative to skip backwards; if this is zero, this will return the
-     *                   current cursor position
-     * @return The index of the first character to the next word
-     */
+    /// Gets the index of the first character to the next word starting from the current cursor position in the text.
+    /// If moving forward and no new word could be found, this will return the length of the text.
+    /// @param wordOffset The number of words to skip, negative to skip backwards; if this is zero, this will return
+    ///                   the current cursor position
+    /// @return The index of the first character to the next word
     public int getWordSkipPosition(final int wordOffset)
     {
         return this.getWordSkipPosition(wordOffset, this.getCursorPos());
     }
     
-    /**
-     * Gets the local x position of the character at the given index, or the position of the first character if the
-     * index is bigger than the length of the text.
-     * <p>
-     * If this component has no explicitly set font, it will use the associated {@link IGuiTemplate}'s font.
-     *
-     * @param index The index of the character (negative values are not allowed)
-     * @return The x position of the character at the given index
-     */
-    public int getCharacterX(final int index)
-    {
-        return ((index > this.text.length()) ? 0 : this.getFont().getWidthFitted(this.text.substring(0, index)));
-    }
-    
-    /**
-     * Gets the text currently contained in this text box.
-     * <p>
-     * If the text does not match the given predicate (see {@link #textPredicate}),
-     * this will throw an {@link UndefinedComponentStateException}.
-     *
-     * @return The new text {@link Value}
-     * @throws UndefinedComponentStateException If the text does not match the predicate
-     */
+    /// Gets the text currently contained in this text box. If the text does not match the given predicate
+    /// (see [#textPredicate]), this will throw an [UndefinedComponentStateException].
+    /// @return The new text [Value]
+    /// @throws UndefinedComponentStateException If the text does not match the predicate
     @Override
     public @NotNull Value getValue()
     {
@@ -410,10 +420,8 @@ public class NVTextBox
     
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
     
-    /**
-     * Gets the range of the characters currently in the given selection.
-     * @return The selection {@link Range}
-     */
+    /// Gets the range of the characters currently in the given selection.
+    /// @return The selection [Range]
     public @NotNull Range<Integer> getSelectionRange()
     {
         return new Range<>(
@@ -421,26 +429,28 @@ public class NVTextBox
             Math.max(this.selectionStart, this.selectionEnd));
     }
     
-    /**
-     * Gets the index of the first visible character in the text-box.
-     * @return The first character index
-     */
+    /// Gets the index of the first visible character in the text-box.
+    /// @return The first character index
     public int getFirstCharacterIndex() { return this.firstCharacterIndex; }
     
-    /**
-     * Gets the size of the border, which defines the distance from the text to the component's edges.
-     * @return The border {@link Frame}
-     */
+    /// Gets the size of the border, which defines the distance from the text to the component's edges.
+    /// @return The border [Frame]
     public @NotNull Frame getBorderSize() { return this.borderSize; }
     
-    //------------------------------------------------------------------------------------------------------------------
+    /// Gets the codepoint at the given coordinate `relX` relative to the text box's origin.
+    /// @return The codepoint at the given coordinate or `\0` if the position was out of bounds
+    public int getCodePointAtPos(final int relX)
+    {
+        final int index = this.getCodepointIndexAtPos(relX);
+        return (index > -1 ? this.text.codePointAt(index) : '\0');
+    }
+    
     @Override
     public @NotNull MutableText getNarrationMessage()
     {
         return Text.translatable("gui.narrate.editBox", this.getMessage(), this.text);
     }
     
-    //------------------------------------------------------------------------------------------------------------------
     @Override
     public @NotNull Stream<GuiPropertyDescription<?>> getGuiProperties()
     {
@@ -463,10 +473,7 @@ public class NVTextBox
                 TextCodecs.CODEC),
             new GuiPropertyDescription<>(
                 GuiApiId.GuiProperty.TEXT_BOX_TEXT_PREDICATE,
-                this.textPredicate),
-            new GuiPropertyDescription<>(
-                GuiApiId.GuiProperty.TEXT_BOX_TEXT_PROVIDER,
-                this.renderTextProvider)
+                this.textPredicate)
         );
     }
     
@@ -514,42 +521,48 @@ public class NVTextBox
         return pos;
     }
     
+    private int getCodepointIndexAtPos(final int x)
+    {
+        if (!this.textBounds.containsX(x))
+        {
+            return -1;
+        }
+        
+        final PositionVisitor visitor = new PositionVisitor(this.getFont(), this.textBounds.toRelativeX(x),
+                                                            this.firstCharacterIndex);
+        visitor.visit(this.getFont(), this.text);
+        
+        final int index = visitor.getIndex();
+        return (index == -1 ? (this.text.length() - 1) : index);
+    }
+    
     private int getCursorPosWithOffset(final int offset)
     {
         return Util.moveCursor(this.text, this.selectionStart, offset);
     }
     
     //==================================================================================================================
-    /**
-     * Gets whether the current text in the box did satisfy the predicate.
-     * @return {@code true} if the text is valid
-     */
+    /// Gets whether the current text in the box did satisfy the predicate.
+    /// @return `true` if the text is valid
     public boolean isTextValid() { return !this.erroneous; }
     
-    /**
-     * Checks if the given text is valid according to the set {@link #textPredicate}.
-     * @param text The text to check
-     * @return {@code true} if the text is valid, otherwise {@code false}
-     */
+    /// Checks if the given text is valid according to the set [#textPredicate].
+    /// @param text The text to check
+    /// @return `true` if the text is valid, otherwise `false`
     public boolean verifyTextValid(final @NotNull String text)
     {
         return this.textPredicate.get().test(Objects.requireNonNull(text, "text must not be null"));
     }
     
     //==================================================================================================================
-    /**
-     * Gets whether the text in the box is empty.
-     * @return {@code true} if the text is empty
-     */
+    /// Gets whether the text in the box is empty.
+    /// @return `true` if the text is empty
     public boolean isEmpty() { return this.text.isEmpty(); }
     
     //==================================================================================================================
-    /**
-     * Sets the position of the text box cursor.
-     *
-     * @param position The character index of where the cursor should be
-     * @param select   Whether the text box should expand the selection from the previous to the new position
-     */
+    /// Sets the position of the text box cursor.
+    /// @param position The character index of where the cursor should be
+    /// @param select   Whether the text box should expand the selection from the previous to the new position
     public void setCursor(final int position, final boolean select)
     {
         final int old_start = this.selectionStart;
@@ -568,53 +581,38 @@ public class NVTextBox
         }
     }
     
-    /**
-     * Sets the cursor back all the way to the start of the text.
-     * @param select Whether the text box should expand the selection from the previous to the new position
-     */
+    /// Sets the cursor back all the way to the start of the text.
+    /// @param select Whether the text box should expand the selection from the previous to the new position
     public void setCursorToStart(final boolean select) { this.setCursor(0, select); }
     
-    /**
-     * Sets the cursor back all the way to the end of the text.
-     * @param select Whether the text box should expand the selection from the previous to the new position
-     */
+    /// Sets the cursor back all the way to the end of the text.
+    /// @param select Whether the text box should expand the selection from the previous to the new position
     public void setCursorToEnd(final boolean select) { this.setCursor(this.text.length(), select); }
     
-    /**
-     * Sets the selection start position to the given character in the text.
-     * <p>
-     * If the position goes beyond the beginning or end of the text, it will clamp to either side.
-     *
-     * @param position The character index
-     */
+    /// Sets the selection start position to the given character in the text. If the position goes beyond the
+    /// beginning or end of the text, it will clamp to either side.
+    /// @param position The character index
     public void setSelectionStart(final int position)
     {
         this.selectionStart = MathHelper.clamp(position, 0, this.text.length());
         this.updateFirstCharacterIndex(this.selectionStart);
     }
     
-    /**
-     * Sets the selection end position to the given character in the text.
-     * <p>
-     * If the position goes beyond the beginning or end of the text, it will clamp to either side.
-     *
-     * @param index The character index
-     */
+    /// Sets the selection end position to the given character in the text. If the position goes beyond the beginning
+    /// or end of the text, it will clamp to either side.
+    /// @param index The character index
     public void setSelectionEnd(final int index)
     {
         this.selectionEnd = MathHelper.clamp(index, 0, this.text.length());
         this.updateFirstCharacterIndex(this.selectionEnd);
     }
 
-    /**
-     * Sets the current text in the text box to the new string.
-     * <p>
-     * Any selections will be cleared, and the cursor will be placed at the end of the new text.
-     * <p>
-     * If the new text is not the same and valid, according to the predicate (if one is set),
-     * listeners will be notified about the change.
-     * @param text The new text
-     */
+    /// Sets the current text in the text box to the new string.
+    ///
+    /// Any selections will be cleared, and the cursor will be
+    /// placed at the end of the new text. If the new text is not the same and valid, according to the predicate
+    /// (if one is set), listeners will be notified about the change.
+    /// @param text The new text
     public void setText(@NotNull String text)
     {
         Objects.requireNonNull(text, "text must not be null");
@@ -643,10 +641,8 @@ public class NVTextBox
         this.sendChangeNotification();
     }
     
-    /**
-     * Sets the textual content from the given {@link Value} object, if it is a string, otherwise does nothing.
-     * @param value The new {@link Value}
-     */
+    /// Sets the textual content from the given [Value] object, if it is a string, otherwise does nothing.
+    /// @param value The new [Value]
     @Override
     public void setValue(@NotNull final Value value)
     {
@@ -658,6 +654,8 @@ public class NVTextBox
         this.setText(value.getString());
     }
     
+    /// Sets the border size around the text area, to which the text will be clipped away from the component bounds.
+    /// @param borderSize The border [Frame]
     public void setBorderSize(final @NotNull Frame borderSize)
     {
         if (!this.borderSize.equals(borderSize))
@@ -668,13 +666,9 @@ public class NVTextBox
     }
     
     //==================================================================================================================
-    /**
-     * Writes the given text at the current cursor position.
-     * <p>
-     * If there is currently a text selection, the text in the selection will be replaced with the given text.
-     *
-     * @param text The text to insert
-     */
+    /// Writes the given text at the current cursor position. If there is currently a text selection,
+    /// the text in the selection will be replaced with the given text.
+    /// @param text The text to insert
     public void write(final String text)
     {
         final int sel_start = Math.min(this.selectionStart, this.selectionEnd);
@@ -715,14 +709,10 @@ public class NVTextBox
     }
     
     //==================================================================================================================
-    /**
-     * Erases the given number of words from the text box.
-     * <p>
-     * If there is currently a text selection, the text in the selection will be erased
-     *
-     * @param wordOffset The number of words to erase, negative to erase backwards; if this is zero, this will return
-     *                   the current cursor position
-     */
+    /// Erases the given number of words from the text box. If there is currently a text selection,
+    /// the text in the selection will be erased
+    /// @param wordOffset The number of words to erase, negative to erase backwards; if this is zero, this will return
+    ///                   the current cursor position
     public void eraseWords(final int wordOffset)
     {
         if (!this.text.isEmpty())
@@ -738,22 +728,16 @@ public class NVTextBox
         }
     }
     
-    /**
-     * Erases a number of characters starting from the cursor.
-     * @param characterOffset The character offset from the cursor, negative numbers erase backwards
-     */
+    /// Erases a number of characters starting from the cursor.
+    /// @param characterOffset The character offset from the cursor, negative numbers erase backwards
     public void eraseCharacters(final int characterOffset)
     {
         this.eraseCharactersTo(this.getCursorPosWithOffset(characterOffset));
     }
 
-    /**
-     * Erases all characters from the given character index to the current position of the cursor.
-     * <p>
-     * If there is currently a text selection, the text in the selection will be erased instead.
-     *
-     * @param position The position of the character to start the erasure at
-     */
+    /// Erases all characters from the given character index to the current position of the cursor. If there is
+    /// currently a text selection, the text in the selection will be erased instead.
+    /// @param position The position of the character to start the erasure at
     public void eraseCharactersTo(final int position)
     {
         if (!this.text.isEmpty())
@@ -787,11 +771,9 @@ public class NVTextBox
         }
     }
     
-    /**
-     * Moves the cursor by the given offset.
-     * @param offset The offset in characters to move the cursor, negative numbers move backwards
-     * @param select Whether the text box should expand the selection from the previous to the new position
-     */
+    /// Moves the cursor by the given offset.
+    /// @param offset The offset in characters to move the cursor, negative numbers move backwards
+    /// @param select Whether the text box should expand the selection from the previous to the new position
     public void moveCursor(final int offset, final boolean select)
     {
         this.setCursor(this.getCursorPosWithOffset(offset), select);
@@ -819,16 +801,60 @@ public class NVTextBox
             return false;
         }
         
-        final GuiFont font       = this.getFont();
-        final String  string     = FontUtil.trimToWidth(font, this.text.substring(this.firstCharacterIndex),
-                                                        this.textBounds.width());
-        final int     text_width = (
-            (MathHelper.floor(e.mousePos.x()) - this.getScreenX())
-            - (int) ((this.getWidth() - this.textBounds.width()) * 0.5)
-        );
-
-        final int trim_len = FontUtil.trimToWidth(font, string, text_width).length();
-        this.setCursor((trim_len + this.firstCharacterIndex), Screen.hasShiftDown());
+        final int index = this.getCodepointIndexAtPos(e.localMouseX());
+        
+        final int start = Math.min(this.selectionStart, this.selectionEnd);
+        final int end   = Math.max(this.selectionStart, this.selectionEnd);
+        
+        if (index >= start && index < end)
+        {
+            this.dragMode = 2;
+        }
+        else if (index > -1)
+        {
+            this.setCursor(index, Screen.hasShiftDown());
+            this.dragMode = 1;
+        }
+        
+        return true;
+    }
+    
+    @Override
+    public boolean onMouseUp(final @NotNull MouseEvent e)
+    {
+        final int mode = this.dragMode;
+        this.dragMode = 0;
+        
+        if (!this.isActive())
+        {
+            return false;
+        }
+        
+        if (mode == 2 && !this.readOnly.get())
+        {
+            final int index = this.getCodepointIndexAtPos(e.localMouseX());
+            
+            if (index > -1)
+            {
+                final String text = this.getSelectedText();
+                this.write("");
+                
+                this.setCursor(index, false);
+                this.write(text);
+            }
+        }
+        
+        return true;
+    }
+    
+    @Override
+    public boolean onMouseDrag(final @NotNull MouseEvent e)
+    {
+        if (this.dragMode == 1)
+        {
+            final int index = this.getCodepointIndexAtPos(e.localMouseX());
+            this.setSelectionEnd(Math.max(this.firstCharacterIndex, index));
+        }
         
         return true;
     }
@@ -845,7 +871,7 @@ public class NVTextBox
         {
             case GLFW.GLFW_KEY_BACKSPACE ->
             {
-                if (this.readOnly.get())
+                if (!this.readOnly.get())
                 {
                     this.erase(-1);
                 }
@@ -853,7 +879,7 @@ public class NVTextBox
             
             case GLFW.GLFW_KEY_DELETE ->
             {
-                if (this.readOnly.get())
+                if (!this.readOnly.get())
                 {
                     this.erase(1);
                 }
@@ -912,7 +938,7 @@ public class NVTextBox
                 }
                 else if (Screen.isPaste(e.input))
                 {
-                    if (this.readOnly.get())
+                    if (!this.readOnly.get())
                     {
                         final String text = MinecraftClient.getInstance().keyboard.getClipboard();
                         this.write(text);
@@ -934,7 +960,7 @@ public class NVTextBox
                     
                     final Range<Integer> range = this.getSelectionRange();
                     
-                    if (this.readOnly.get())
+                    if (!this.readOnly.get())
                     {
                         this.write("");
                         
@@ -965,7 +991,7 @@ public class NVTextBox
         
         if (StringHelper.isValidChar(chr))
         {
-            if (this.readOnly.get())
+            if (!this.readOnly.get())
             {
                 this.write(Character.toString(chr));
             }
@@ -987,16 +1013,22 @@ public class NVTextBox
     }
     
     //==================================================================================================================
-    /** Called whenever the selected text in the text box changes. */
+    /// Called whenever the selected text in the text box changes.
     protected void onSelectionChanged() {}
     
-    /** Called whenever text was copied from the text box. */
+    /// Called whenever text was copied from the text box.
+    /// @param text The copied text fragment
+    /// @param range The character range of the copied text
     protected void onTextCopied(@NotNull String text, @NotNull Range<Integer> range) {}
     
-    /** Called whenever text was cut from the text box. */
+    /// Called whenever text was cut from the text box.
+    /// @param text The cut text fragment
+    /// @param range The character range of the copied text
     private void onTextCut(@NotNull String text, @NotNull Range<Integer> range) {}
     
-    /** Called whenever text was pasted to the text box. */
+    /// Called whenever text was pasted to the text box.
+    /// @param text The pasted text fragment
+    /// @param range The character range of the pasted text
     protected void onTextPasted(@NotNull String text, @NotNull Range<Integer> range) {}
     
     //==================================================================================================================
@@ -1047,15 +1079,12 @@ public class NVTextBox
         this.firstCharacterIndex = Math.min(this.firstCharacterIndex, this.text.length());
         
         final GuiFont font   = this.getFont();
-        final String  text   = FontUtil.trimToWidth(font, this.text.substring(this.firstCharacterIndex),
-                                                    this.textBounds.width());
+        final String  text   = font.trimToWidth(this.text.substring(this.firstCharacterIndex), this.textBounds.width());
         final int     length = (text.length() + this.firstCharacterIndex);
         
         if (cursor == this.firstCharacterIndex)
         {
-            this.firstCharacterIndex -= FontUtil
-                .trimToWidthBackwards(font, this.text, this.textBounds.width())
-                .length();
+            this.firstCharacterIndex -= font.trimToWidthBackwards(this.text, this.textBounds.width()).length();
         }
         
         if (cursor > length)
@@ -1064,9 +1093,9 @@ public class NVTextBox
             
             if (cursor >= this.text.length())
             {
-                final float cursor_size = font.getWidth("_");
+                final float cursor_size = font.getCharWidth('_');
                 
-                if ((font.getWidth(text) + cursor_size) > this.textBounds.width())
+                if ((font.getTextWidth(text) + cursor_size) > this.textBounds.width())
                 {
                     ++this.firstCharacterIndex;
                 }

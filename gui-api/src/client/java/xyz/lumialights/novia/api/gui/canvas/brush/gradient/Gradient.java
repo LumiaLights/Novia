@@ -38,7 +38,8 @@ package xyz.lumialights.novia.api.gui.canvas.brush.gradient;
 import net.minecraft.util.math.ColorHelper;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.core.util.Colour;
-import xyz.lumialights.novia.api.gui.canvas.brush.IBrush;
+import xyz.lumialights.novia.api.gui.canvas.brush.VertexPalette;
+import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 
 import java.util.Objects;
 
@@ -101,8 +102,8 @@ public class Gradient
     public @NotNull Gradient withOpacity(final float opacity)
     {
         return this.withColours(
-            IBrush.forOpacity(this.startColour, opacity),
-            IBrush.forOpacity(this.endColour,   opacity));
+            new Colour(this.startColour).withOpacityRel(opacity),
+            new Colour(this.endColour)  .withOpacityRel(opacity));
     }
 
     //==================================================================================================================
@@ -114,13 +115,107 @@ public class Gradient
     //==================================================================================================================
     public int getColour(float delta)
     {
-        delta = Math.clamp(delta, 0.0f, 1.0f);
+        delta = Math.clamp(delta, 0f, 1f);
 
-        if (this.skew != 1.0 && delta > 0.0f)
+        if (this.skew != 1f && delta > 0f)
         {
             delta = (float) Math.exp(Math.log(delta) / this.skew);
         }
 
         return ColorHelper.lerp(delta, this.startColour, this.endColour);
+    }
+    
+    public @NotNull VertexPalette getPalette()
+    {
+        return switch (this.direction)
+        {
+            case VERTICAL   -> new VertexPalette(this.startColour, this.startColour, this.endColour, this.endColour);
+            case HORIZONTAL -> new VertexPalette(this.startColour, this.endColour, this.startColour, this.endColour);
+        };
+    }
+    
+    //==================================================================================================================
+    public @NotNull Gradient partition(final int x,
+                                       final int y,
+                                       final int width,
+                                       final int height,
+                                       final int deltaXStart,
+                                       final int deltaXEnd,
+                                       final int deltaYStart,
+                                       final int deltaYEnd)
+    {
+        return switch (this.direction)
+        {
+            case HORIZONTAL -> this.partition(x, (x + width),  deltaXStart, deltaXEnd);
+            case VERTICAL   -> this.partition(y, (y + height), deltaYStart, deltaYEnd);
+        };
+    }
+    
+    public @NotNull Gradient partition(final @NotNull Rectangle area,
+                                       final          int       deltaXStart,
+                                       final          int       deltaXEnd,
+                                       final          int       deltaYStart,
+                                       final          int       deltaYEnd)
+    {
+        return area.transform((x, y, w, h) ->
+            this.partition(x, y, w, h, deltaXStart, deltaXEnd, deltaYStart, deltaYEnd));
+    }
+    
+    public @NotNull Gradient partition(final @NotNull Rectangle area, final @NotNull Rectangle subArea)
+    {
+        return area.transform((x, y, w, h) ->
+            this.partition(x, y, w, h, subArea.x(), subArea.getRight(), subArea.y(), subArea.getBottom()));
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
+    public @NotNull Gradient partition(final int axisStart, final int axisEnd, final int deltaStart, final int deltaEnd)
+    {
+        if (deltaStart > deltaEnd)
+        {
+            throw new IllegalArgumentException("start delta must not be greater than end delta");
+        }
+        
+        if (deltaStart >= axisEnd || deltaStart < axisStart)
+        {
+            throw new IllegalArgumentException("start delta must be inside the given area");
+        }
+        
+        if (deltaEnd >= axisEnd)
+        {
+            throw new IllegalArgumentException("end delta must be inside the given area");
+        }
+        
+        final int start = this.getColour((float) deltaStart / axisEnd);
+        final int end   = this.getColour((float) deltaEnd   / axisEnd);
+        
+        return this.withColours(start, end);
+    }
+    
+    //==================================================================================================================
+    @Override
+    public String toString()
+    {
+        return "Gradient{startColour=%d, endColour=%d, skew=%f, direction=%s}"
+            .formatted(this.startColour, this.endColour, this.skew, this.direction);
+    }
+    
+    @Override
+    public boolean equals(final Object obj)
+    {
+        if (this == obj)                      return true;
+        if (!(obj instanceof Gradient other)) return false;
+        
+        return (
+               this.startColour == other.startColour
+            && this.endColour   == other.endColour
+            && this.skew        == other.skew
+            && this.direction   == other.direction
+        );
+    }
+    
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(this.startColour, this.endColour, this.skew, this.direction);
     }
 }

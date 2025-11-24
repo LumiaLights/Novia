@@ -56,7 +56,7 @@ public interface Positioner
     
     default @NotNull Rectangle getBounds(final @NotNull Rectangle parentBounds)
     {
-        return parentBounds.apply(this::getBounds);
+        return parentBounds.transform(this::getBounds);
     }
     
     default @NotNull Rectangle getBounds(final @NotNull ScreenRect parentScreenRect)

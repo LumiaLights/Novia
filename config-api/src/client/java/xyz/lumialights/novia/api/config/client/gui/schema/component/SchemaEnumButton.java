@@ -39,6 +39,7 @@ import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.Pair;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 
 import java.util.*;
 import java.util.stream.IntStream;
@@ -50,21 +51,16 @@ public class SchemaEnumButton
     extends SchemaButton
 {
     //******************************************************************************************************************
+    public GuiEvent.Simple valueChanged = new GuiEvent.Simple();
+    
+    //==================================================================================================================
     private final List<Pair<Text, Value>> values;
     
     private int currentIndex = 0;
     
     //******************************************************************************************************************
-    private static void updateState(final @NotNull SchemaEnumButton button)
-    {
-        button.setIndex((button.currentIndex + 1) % button.values.size());
-    }
-    
-    //******************************************************************************************************************
     public SchemaEnumButton(final @NotNull List<Pair<Text, Value>> values)
     {
-        super(btt -> SchemaEnumButton.updateState((SchemaEnumButton) btt));
-        
         Objects.requireNonNull(values, "value list must not be null");
         
         if (values.isEmpty())
@@ -74,10 +70,13 @@ public class SchemaEnumButton
         
         this.values = values;
         this.updateMessage();
+        
+        this.clicked.subscribe((sender, e) -> this.updateState());
     }
     
     //==================================================================================================================
-    @Override public @NotNull Value getValue() { return this.values.get(this.currentIndex).second(); }
+    @Override public @NotNull Value           getValue()       { return this.values.get(this.currentIndex).second(); }
+    @Override public @NotNull GuiEvent.Simple getChangeEvent() { return this.valueChanged; }
     
     //==================================================================================================================
     @Override
@@ -106,4 +105,5 @@ public class SchemaEnumButton
     
     //==================================================================================================================
     private void updateMessage() { this.setText(this.values.get(this.currentIndex).first()); }
+    private void updateState()   { this.setIndex((this.currentIndex + 1) % this.values.size()); }
 }

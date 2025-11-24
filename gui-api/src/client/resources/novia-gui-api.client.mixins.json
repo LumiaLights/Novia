@@ -7,7 +7,9 @@
         "BakedGlyphMixin", "FontManagerMixin", "GuiRenderStateMixin", "MatrixStackEntryMixin", "MinecraftClientMixin",
         "RotatingCubeMapRendererMixin", "StyleMixin", "ScreenMixin", "FontStorageMixin",
         "FontMixin", "FontMixin$BitmapFontMixin", "FontMixin$TrueTypeFontMixin", "FontMixin$UnihexFontMixin",
-        "GlyphMixin", "GlyphMixin$BitmapGlyphMixin", "GlyphMixin$TrueTypeGlyphMixin", "GlyphMixin$UnihexGlyphMixin"
+        "FontMixin$SpaceFontMixin", "FontMixin$BlankFontMixin",
+        "GlyphMixin", "GlyphMixin$BitmapGlyphMixin", "GlyphMixin$TrueTypeGlyphMixin", "GlyphMixin$UnihexGlyphMixin",
+        "GlyphMixin$EmptyGlyphMixin", "GlyphMixin$BuiltinEmptyGlyphMixin"
     ],
     "injectors": {
         "defaultRequire": 1

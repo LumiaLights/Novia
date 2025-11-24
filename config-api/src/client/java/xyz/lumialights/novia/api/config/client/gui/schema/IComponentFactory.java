@@ -44,7 +44,7 @@ import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 
 //**********************************************************************************************************************
 @FunctionalInterface
-public interface IComponentFactory<C extends GuiComponent & IStatefulComponent<?>>
+public interface IComponentFactory<C extends GuiComponent & IStatefulComponent>
 {
     //******************************************************************************************************************
     @NotNull C create(@NotNull final ConfigScreen screen);

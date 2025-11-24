@@ -38,10 +38,12 @@ package xyz.lumialights.novia.api.config.client.gui.schema.component;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.config.PropertyId;
+import xyz.lumialights.novia.api.config.client.ConfigApiLangClient;
 import xyz.lumialights.novia.api.config.client.gui.ConfigScreen;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 
 import java.util.*;
 
@@ -52,35 +54,40 @@ public class SchemaEditButton
     extends SchemaButton
 {
     //******************************************************************************************************************
-    private final PropertyId            id;
-    private final IStatefulComponent<?> component;
-    private final ConfigScreen          screen;
+    public GuiEvent.Simple propertyChanged = new GuiEvent.Simple();
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private final PropertyId         id;
+    private final IStatefulComponent component;
+    private final ConfigScreen       screen;
     
     //******************************************************************************************************************
-    private static void openScreen(final @NotNull NVSimpleButton button)
+    public SchemaEditButton(final @NotNull PropertyId         propertyId,
+                            final @NotNull IStatefulComponent component,
+                            final @NotNull ConfigScreen       screen)
     {
-        final SchemaEditButton button2 = (SchemaEditButton) button;
-        button2.screen.showEditScreen(
-            button2.id,
-            Text.literal(Objects.requireNonNull(button2.id.pointer().getName())),
-            button2.component);
-    }
-    
-    //******************************************************************************************************************
-    public SchemaEditButton(final @NotNull PropertyId            propertyId,
-                            final @NotNull IStatefulComponent<?> component,
-                            final @NotNull ConfigScreen          screen)
-    {
-        super(SchemaEditButton::openScreen);
+        super(ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT);
         
         this.id        = propertyId;
         this.component = component;
         this.screen    = screen;
+        
+        this.clicked.subscribe((sender, e) -> this.openScreen());
     }
     
     //==================================================================================================================
-    @Override public @NotNull Value getValue() { return this.component.getValue(); }
+    @Override public @NotNull Value           getValue()       { return this.component.getValue(); }
+    @Override public @NotNull GuiEvent.Simple getChangeEvent() { return this.propertyChanged; }
     
     //==================================================================================================================
     @Override public void setValue(final @NotNull Value value) { this.component.setValue(value); }
+    
+    //==================================================================================================================
+    private void openScreen()
+    {
+        this.screen.showEditScreen(
+            this.id,
+            Text.literal(Objects.requireNonNull(this.id.pointer().getName())),
+            this.component);
+    }
 }

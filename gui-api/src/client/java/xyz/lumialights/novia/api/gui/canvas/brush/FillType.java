@@ -33,43 +33,23 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
  */
-package xyz.lumialights.novia.test;
+package xyz.lumialights.novia.api.gui.canvas.brush;
 
-import net.minecraft.Bootstrap;
-import net.minecraft.SharedConstants;
-import net.minecraft.registry.Registries;
-import net.minecraft.text.Style;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import xyz.lumialights.novia.api.gui.font.GuiFont;
-import xyz.lumialights.novia.api.gui.font.TextFormat;
-
-import java.util.List;
+import xyz.lumialights.novia.api.gui.canvas.brush.gradient.Gradient;
 
 
 
 //**********************************************************************************************************************
-public class TextFormatTest
+/// Describes how the brush behaves with a given shape renderer.
+public enum FillType
 {
-    //******************************************************************************************************************
-    @BeforeAll
-    public static void prepare()
-    {
-        SharedConstants.createGameVersion();
-        Bootstrap.initialize();
-        Registries.bootstrap();
-    }
+    /// The shape renderer will just use a single solid colour to fill the shape.
+    SOLID,
     
-    @Test
-    public void parseString()
-    {
-        final GuiFont font = GuiFont.DEFAULT.get();
-        
-        final TextFormat string_plain = new TextFormat();
-        string_plain.append("Hello this is a test string without any formatting", font);
-        
-        Assertions.assertEquals("Hello this is a test string", string_plain.toString());
-        Assertions.assertEquals(List.of(new TextFormat.Node(font, null, null, 0, 26)), string_plain.getNodes());
-    }
+    /// The shape renderer will use a [Gradient] to fill the shape.
+    GRADIENT,
+    
+    /// The shape renderer will use a texture to fill the shape.
+    TEXTURED,
+    ;
 }

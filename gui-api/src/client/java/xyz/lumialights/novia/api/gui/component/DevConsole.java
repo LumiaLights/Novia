@@ -46,7 +46,7 @@ public final class DevConsole
 {
     //******************************************************************************************************************
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         canvas.fill(this.getLocalBounds().withRight(30));
     }

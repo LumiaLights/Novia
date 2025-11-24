@@ -35,41 +35,47 @@
  */
 package xyz.lumialights.novia.api.gui.canvas;
 
+import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.render.state.*;
-import net.minecraft.client.gui.render.state.special.SpecialGuiElementRenderState;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.*;
 import net.minecraft.text.*;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
-import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix3x2f;
+import org.joml.Matrix4f;
 import xyz.lumialights.novia.api.core.util.Colour;
+import xyz.lumialights.novia.api.gui.ApiDefine;
+import xyz.lumialights.novia.api.gui.canvas.brush.Brush;
 import xyz.lumialights.novia.api.gui.canvas.brush.gradient.Gradient;
-import xyz.lumialights.novia.api.gui.canvas.brush.IBrush;
-import xyz.lumialights.novia.api.gui.canvas.brush.GradientBrush;
-import xyz.lumialights.novia.api.gui.canvas.brush.SolidBrush;
+import xyz.lumialights.novia.api.gui.canvas.renderer.IShapedRender;
+import xyz.lumialights.novia.api.gui.canvas.renderer.ShapedRectangleRender;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.GuiComponentAttorney;
 import xyz.lumialights.novia.api.gui.component.GuiScreen;
 import xyz.lumialights.novia.api.gui.component.ScreenLayer;
-import xyz.lumialights.novia.api.gui.font.GlyphBank;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.TextFormat;
+import xyz.lumialights.novia.api.gui.font.TextLayout;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.geometry.Point;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.geometry.UvMapping;
 import xyz.lumialights.novia.api.gui.impl.GuiRenderStateAccessor;
 import xyz.lumialights.novia.api.gui.impl.RotatingCubeMapRendererExtension;
+import xyz.lumialights.novia.api.gui.util.DrawUtil;
 
 import java.util.*;
 import java.util.function.Function;
@@ -77,7 +83,6 @@ import java.util.function.Function;
 
 
 //**********************************************************************************************************************
-
 /**
  * The canvas represents a higher level wrapper around {@link DrawContext} that abstracts away some lower level
  * Minecraft drawing details.
@@ -85,7 +90,7 @@ import java.util.function.Function;
  * For each component that gets passed an instance of this class, an internal “component frame” gets pushed onto the
  * frame buffer (not to be confused with video frame buffers), which represent the current portion on the screen the
  * component is drawing to on the screen. Each frame provides data about the component's current render pass, such as
- * its opacity, activity, location, style and its associated {@link IBrush} that is used to define how each of the
+ * its opacity, activity, location, style and its associated {@link Brush} that is used to define how each of the
  * provided drawing calls are rendered.
  * <p>
  * Another useful concept of canvases is stateful operations. Each component's render pass manages an internal
@@ -103,14 +108,14 @@ public final class Canvas
         //**************************************************************************************************************
         public final AffineTransform transform;
 
-        public IBrush    brush;
+        public Brush     brush;
         public GuiFont   font;
         public Rectangle clipRect;
         public float     opacity;
 
         //**************************************************************************************************************
         public State(final @NotNull Rectangle       clipRect,
-                     final @NotNull IBrush          brush,
+                     final @NotNull Brush           brush,
                      final @NotNull GuiFont         font,
                      final @NotNull AffineTransform transform,
                      final          float           opacity)
@@ -126,7 +131,7 @@ public final class Canvas
         {
             this(
                 new Rectangle(other.clipRect),
-                other.brush.copy(),
+                new Brush(other.brush),
                 new GuiFont(other.font),
                 new AffineTransform(other.transform),
                 other.opacity);
@@ -189,11 +194,52 @@ public final class Canvas
     }
 
     //******************************************************************************************************************
-    private static final Identifier INWORLD_MENU_BACKGROUND_TEXTURE;
+    public static final RenderPipeline.Snippet NOVIA_GUI_SNIPPET;
 
+    public static final RenderPipeline.Snippet NOVIA_POSITION_TEX_COLOR_SNIPPET;
+
+    public static final RenderPipeline NOVIA_GUI;
+
+    public static final RenderPipeline NOVIA_GUI_TEXTURED;
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private static final Identifier INWORLD_MENU_BACKGROUND_TEXTURE;
+    
     //==================================================================================================================
     static
     {
+        NOVIA_GUI_SNIPPET = RenderPipeline
+            .builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            .withVertexShader("core/gui")
+            .withFragmentShader("core/gui")
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            .withDepthWrite(false)
+            .buildSnippet();
+        
+        NOVIA_POSITION_TEX_COLOR_SNIPPET = RenderPipeline
+            .builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
+            .withVertexShader("core/position_tex_color")
+            .withFragmentShader("core/position_tex_color")
+            .withSampler("Sampler0")
+            .withSampler("Sampler1")
+            .withBlend(BlendFunction.TRANSLUCENT)
+            .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS)
+            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+            .withDepthWrite(false)
+            .buildSnippet();
+        
+        NOVIA_GUI = RenderPipelines.register(RenderPipeline
+            .builder(NOVIA_GUI_SNIPPET)
+            .withLocation(Identifier.of(ApiDefine.API_ID, "pipeline/gui"))
+            .build());
+        
+        NOVIA_GUI_TEXTURED = RenderPipelines.register(RenderPipeline
+            .builder(NOVIA_POSITION_TEX_COLOR_SNIPPET)
+            .withLocation(Identifier.of(ApiDefine.API_ID, "pipeline/gui_textured"))
+            .build());
+        
         INWORLD_MENU_BACKGROUND_TEXTURE = Identifier.ofVanilla("textures/gui/inworld_menu_background.png");
     }
 
@@ -208,12 +254,6 @@ public final class Canvas
 
     /** The tick delta between each render pass. */
     public final float deltaTime;
-
-    /** The render pipeline used for drawing all non-textured shapes. */
-    public final RenderPipeline renderPipeline;
-
-    /** The render pipeline used for drawing all textured shapes. */
-    public final RenderPipeline renderPipelineTextured;
 
     //------------------------------------------------------------------------------------------------------------------
     // only used internally for debugging purposes, this is not exposed to the outside otherwise
@@ -230,20 +270,12 @@ public final class Canvas
     private Frame frame = null;
 
     //******************************************************************************************************************
-    public Canvas(final @NotNull DrawContext    context,
-                  final @NotNull Point          mousePos,
-                  final @NotNull RenderPipeline renderPipeline,
-                  final @NotNull RenderPipeline renderPipelineTextured,
-                  final          float          deltaTime)
+    public Canvas(final @NotNull DrawContext context, final @NotNull Point mousePos, final float deltaTime)
     {
-        this.internalContext        = context;
-        this.renderState            = Objects.requireNonNull(context,                "context must not be null").state;
-        this.mousePos               = Objects.requireNonNull(mousePos,               "mouse pos must not be null");
-        this.renderPipeline         = Objects.requireNonNull(renderPipeline,         "pipeline must not be null");
-        this.renderPipelineTextured = Objects.requireNonNull(renderPipelineTextured, "pipeline must not be null");
-        this.deltaTime              = deltaTime;
-
-        ((GuiRenderStateAccessor) this.renderState).novia$disableSorting(true);
+        this.internalContext = context;
+        this.renderState     = Objects.requireNonNull(context,  "context must not be null").state;
+        this.mousePos        = Objects.requireNonNull(mousePos, "mouse pos must not be null");
+        this.deltaTime       = deltaTime;
     }
 
     //==================================================================================================================
@@ -260,9 +292,9 @@ public final class Canvas
      * Gets the current brush.
      * <p>
      * The brush returned is not a copy but the state's own brush, any changes to it will apply to the current state.
-     * @return The {@link IBrush}
+     * @return The {@link Brush}
      */
-    public @NotNull IBrush getBrush() { return this.state.brush; }
+    public @NotNull Brush getBrush() { return this.state.brush; }
 
     /**
      * Gets the current font.
@@ -365,7 +397,7 @@ public final class Canvas
     //==================================================================================================================
     /**
      * Gets whether the current clip region contains the given absolute coordinates.
-     * @param screenX The absolute x coordinate
+     * @param screenX The absolute left coordinate
      * @param screenY The absolute y coordinate
      * @return {@code true} if the given points lies within the current clipping region
      */
@@ -381,12 +413,12 @@ public final class Canvas
      */
     public boolean clipRegionContains(final @NotNull Point screenPoint)
     {
-        return screenPoint.apply(this::clipRegionContains);
+        return screenPoint.transform(this::clipRegionContains);
     }
 
     /**
      * Gets whether the current clip region intersects with the specified area.
-     * @param screenX The absolute x coordinate of the area
+     * @param screenX The absolute left coordinate of the area
      * @param screenY The absolute y coordinate of the area
      * @param width   The width of the area
      * @param height  The height of the area
@@ -404,12 +436,12 @@ public final class Canvas
      */
     public boolean clipRegionIntersects(final @NotNull Rectangle screenRect)
     {
-        return screenRect.apply(this::clipRegionIntersects);
+        return screenRect.transform(this::clipRegionIntersects);
     }
 
     /**
      * Gets whether the current frame's area (the visible component area) contains the given absolute coordinates.
-     * @param screenX The absolute x coordinate
+     * @param screenX The absolute left coordinate
      * @param screenY The absolute y coordinate
      * @return {@code true} if the given points lies within the frame area
      */
@@ -425,12 +457,12 @@ public final class Canvas
      */
     public boolean frameContains(final @NotNull Point screenPoint)
     {
-        return screenPoint.apply(this::frameContains);
+        return screenPoint.transform(this::frameContains);
     }
 
     /**
      * Gets whether the current frame's area (the visible component area) intersects with the specified area.
-     * @param screenX The absolute x coordinate of the area
+     * @param screenX The absolute left coordinate of the area
      * @param screenY The absolute y coordinate of the area
      * @param width   The width of the area
      * @param height  The height of the area
@@ -448,7 +480,7 @@ public final class Canvas
      */
     public boolean frameIntersects(final @NotNull Rectangle screenRect)
     {
-        return screenRect.apply(this::frameIntersects);
+        return screenRect.transform(this::frameIntersects);
     }
 
     //==================================================================================================================
@@ -458,19 +490,7 @@ public final class Canvas
      * This operation is stateful (see {@link Canvas}).
      * @param colour The new colour
      */
-    public void setColour(final int colour)
-    {
-        final IBrush brush = this.getBrush();
-
-        if (brush instanceof SolidBrush s_brush)
-        {
-            s_brush.setColour(colour);
-        }
-        else
-        {
-            this.state.brush = new SolidBrush(colour);
-        }
-    }
+    public void setColour(final int colour) { this.state.brush.setColour(colour); }
 
     /**
      * Sets the brush to a solid colour fill.
@@ -486,27 +506,17 @@ public final class Canvas
      * This operation is stateful (see {@link Canvas}).
      * @param gradient The {@link Gradient}
      */
-    public void setGradient(final @NotNull Gradient gradient)
-    {
-        final IBrush brush = this.getBrush();
-
-        if (brush instanceof GradientBrush g_brush)
-        {
-            g_brush.setGradient(gradient);
-        }
-        else
-        {
-            this.state.brush = new GradientBrush(gradient);
-        }
-    }
-
+    public void setGradient(final @NotNull Gradient gradient) { this.state.brush.setGradient(gradient); }
+    
+    public void setTexture(final @NotNull GpuTextureView texture) { this.state.brush.setTexture(texture); }
+    
     /**
      * Replaces the current brush with the given brush.
      * <p>
      * This operation is stateful (see {@link Canvas}).
-     * @param brush The new {@link IBrush}
+     * @param brush The new {@link Brush}
      */
-    public void setBrush(final @NotNull IBrush brush) { this.state.brush = brush.copy(); }
+    public void setBrush(final @NotNull Brush brush) { this.state.brush = new Brush(brush); }
 
     /**
      * Sets the opacity for the canvas. The opacity will be multiplied by the current frame's opacity, by that means,
@@ -542,7 +552,7 @@ public final class Canvas
      * clipping region cannot go outside the frame's bounds.
      * <p>
      * This operation is stateful (see {@link Canvas}).
-     * @param x      The start x coordinate of the clipping region
+     * @param x      The start left coordinate of the clipping region
      * @param y      The start y coordinate of the clipping region
      * @param width  The width of the clipping region
      * @param height The height of the clipping region
@@ -578,77 +588,156 @@ public final class Canvas
     //==================================================================================================================
     /**
      * Adds a custom render state object to the renderer.
-     * @param state The {@link SimpleGuiElementRenderState}
+     * @param renderState The {@link ICanvasState}
      */
-    public void draw(final @NotNull SimpleGuiElementRenderState state)
+    @SuppressWarnings("resource")
+    public void draw(final @NotNull ICanvasState renderState)
     {
-        ((GuiRenderStateAccessor) this.renderState).novia$addState(state);
+        if (this.getClippingRegion().isEmpty())
+        {
+            return;
+        }
+        
+        final AffineTransform transform   = this.state.transform;
+        final ScreenRect      clip_bounds = this.state.clipRect.toScreenRect();
+        final Rectangle       bounds      = Objects.requireNonNullElseGet(
+            renderState.bounds(),
+            this.frame::clientRect);
+        
+        final ScreenRect rect;
+        {
+            final Rectangle temp_bounds = transform.applyToVertices(bounds).intersect(clip_bounds);
+            
+            if (temp_bounds.isEmpty())
+            {
+                return;
+            }
+            
+            rect = temp_bounds.toScreenRect();
+        }
+        
+        final TextureSetup   texture  = Objects.requireNonNullElseGet(renderState.texture(), TextureSetup::empty);
+        final RenderPipeline pipeline = Objects.requireNonNullElseGet(
+            renderState.pipeline(),
+            (() -> ((texture.texure0() != null || texture.texure1() != null)
+                ? Canvas.NOVIA_GUI_TEXTURED
+                : Canvas.NOVIA_GUI)));
+        
+        final Matrix4f              matrix   = (new Matrix4f()).mul(transform.getMatrix());
+        final ICanvasState.Renderer renderer = renderState.renderer();
+        
+        ((GuiRenderStateAccessor) this.renderState).novia$addState(new SimpleGuiElementRenderState()
+        {
+            //**********************************************************************************************************
+            @Override
+            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
+            {
+                renderer.render(vertices, matrix.translate(0f, 0f, depth));
+            }
+            
+            @Override public RenderPipeline      pipeline()     { return pipeline; }
+            @Override public TextureSetup        textureSetup() { return texture; }
+            @Override public @NotNull ScreenRect scissorArea()  { return clip_bounds; }
+            @Override public @NotNull ScreenRect bounds()       { return rect; }
+        });
+    }
+    
+    public void drawShaped(final @NotNull IShapedRender renderer, final @NotNull Rectangle bounds)
+    {
+        this.drawShaped(renderer, bounds, null, null);
+    }
+    
+    public void drawShaped(final @NotNull  IShapedRender  renderer,
+                           final @NotNull  Rectangle      bounds,
+                           final @Nullable GpuTextureView texture)
+    {
+        this.drawShaped(renderer, bounds, null, texture);
+    }
+    
+    public void drawShaped(final @NotNull  IShapedRender  renderer,
+                           final @NotNull  Rectangle      bounds,
+                           final @Nullable RenderPipeline pipeline,
+                           final @Nullable GpuTextureView texture)
+    {
+        final TextureSetup setup = TextureSetup.of(texture, this.getBrush().getTexture());
+        this.getBrush().apply(renderer, this.getOpacity());
+        this.draw(new ICanvasState.Renderable(renderer, setup, pipeline, bounds));
+    }
+    
+    public void draw(final @NotNull SimpleGuiElementRenderState renderState)
+    {
+        if (this.getClippingRegion().isEmpty() || renderState.scissorArea() == null || renderState.bounds() == null)
+        {
+            return;
+        }
+        
+        ((GuiRenderStateAccessor) this.renderState).novia$addState(renderState);
     }
 
-    //------------------------------------------------------------------------------------------------------------------
-    private void draw(final @NotNull TextGuiElementRenderState    state) { this.renderState.addText          (state); }
-    private void draw(final @NotNull ItemGuiElementRenderState    state) { this.renderState.addItem          (state); }
-    private void draw(final @NotNull SpecialGuiElementRenderState state) { this.renderState.addSpecialElement(state); }
+    public void drawItem(final @NotNull ItemGuiElementRenderState state) { this.renderState.addItem(state); }
 
     //==================================================================================================================
     /**
      * Draws a horizontal line.
-     * @param x      The left x position of the line
+     * @param x      The left position of the line
      * @param y      The top y position of the line
      * @param length The length of the line (width)
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
-    public void drawHorizontalLine(final int x, final int y, final int length) { this.fill(x, y, (x + length), 1); }
+    public void drawHorizontalLine(final int x, final int y, final int length)
+    {
+        this.fill(x, y, length, 1);
+    }
 
     /**
      * Draws a horizontal line.
      * @param pos    The top-left start position of the line
      * @param length The length of the line (width)
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
     public void drawHorizontalLine(final @NotNull Point pos, final int length)
     {
-        pos.accept((x, y) -> this.fill(x, y, (x + length), 1));
+        pos.accept((x, y) -> this.drawHorizontalLine(x, y, length));
     }
 
     /**
      * Draws a vertical line.
-     * @param x      The left x position of the line
+     * @param x      The left position of the line
      * @param y      The top y position of the line
      * @param length The length of the line (height)
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
-    public void drawVerticalLine(final int x, final int y, final int length) { this.fill(x, y, 1, (y + length)); }
+    public void drawVerticalLine(final int x, final int y, final int length) { this.fill(x, y, 1, length); }
 
     /**
      * Draws a vertical line.
      * @param pos    The top-left start position of the line
      * @param length The length of the line (width)
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
     public void drawVerticalLine(final @NotNull Point pos, final int length)
     {
-        pos.accept((x, y) -> this.fill(x, y, 1, (y + length)));
+        pos.accept((x, y) -> this.drawVerticalLine(x, y, length));
     }
 
     //==================================================================================================================
     /**
      * Draws a transparent black texture on top, giving the sensation of making everything behind it darker.
-     * @param x      The x position of the darkened area
+     * @param x      The left position of the darkened area
      * @param y      The y position of the darkened area
      * @param width  The width of the darkened area
      * @param height The height of the darkened area
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
     public void drawDarkening(final int x, final int y, final int width, final int height)
     {
@@ -661,22 +750,22 @@ public final class Canvas
     /**
      * Draws a transparent black texture on top, giving the sensation of making everything behind it darker.
      * @param rect The area to darken
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
     public void drawDarkening(final @NotNull Rectangle rect) { rect.accept(this::drawDarkening); }
 
     /**
      * Draws the iconic Minecraft main menu panorama in the specified area.
-     * @param x      The x position of the panorama
+     * @param x      The left position of the panorama
      * @param y      The y position of the panorama
      * @param width  The width of the panorama
      * @param height The height of the panorama
      * @param rotate Whether the panorama should rotate
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
     public void drawPanorama(final int x, final int y, final int width, final int height, final boolean rotate)
     {
@@ -689,9 +778,9 @@ public final class Canvas
      * Draws the iconic Minecraft main menu panorama in the specified area.
      * @param rect   The area to draw the panorama in
      * @param rotate Whether the panorama should rotate
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
     public void drawPanorama(final @NotNull Rectangle rect, final boolean rotate)
     {
@@ -701,155 +790,120 @@ public final class Canvas
     //==================================================================================================================
     /**
      * Fills a rectangle with the currently set brush.
-     * @param x      The x position of the rectangle
-     * @param y      The y position of the rectangle
-     * @param width  The width of the rectangle
-     * @param height The height of the rectangle
-     * @see Canvas#setBrush(IBrush)
+     * @param rect The area to fill
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
-    public void fill(final int x, final int y, final int width, final int height)
+    public void fill(final @NotNull Rectangle rect)
     {
-        final IBrush     brush       = this.getBrush().copy();
-        final Matrix3x2f matrix      = new Matrix3x2f(this.state.transform.getMatrix());
-        final ScreenRect clip_bounds = this.state.clipRect.toScreenRect();
-        final float      opacity     = this.getOpacity();
-
-        final ScreenRect bounds;
-        {
-            final Rectangle temp_bounds = this.state.transform
-                .applyToVertices(x, y, width, height)
-                .intersect(clip_bounds);
-            bounds = (!temp_bounds.isEmpty() ? temp_bounds.toScreenRect() : null);
-        }
-
-        this.draw(new SimpleGuiElementRenderState()
-        {
-            @Override
-            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
-            {
-                brush.rectangle(vertices, matrix, x, y, (x + width), (y + height), depth, opacity);
-            }
-
-            @Override public @NotNull  RenderPipeline pipeline()     { return Canvas.this.renderPipeline; }
-            @Override public @NotNull  TextureSetup   textureSetup() { return brush.getTextureSetup(); }
-            @Override public @NotNull  ScreenRect     scissorArea()  { return clip_bounds; }
-            @Override public @Nullable ScreenRect     bounds()       { return bounds; }
-        });
+        this.drawShaped(new ShapedRectangleRender.Fill(rect), rect);
     }
 
     /**
      * Fills a rectangle with the currently set brush.
-     * @param rect The area to fill
-     * @see Canvas#setBrush(IBrush)
-     * @see Canvas#getBrush()
-     * @see IBrush
-     */
-    public void fill(final @NotNull Rectangle rect) { rect.accept(this::fill); }
-
-    /** Fills the entire's component area with the currently set brush (not ignoring clipping region). */
-    public void fill()
-    {
-        final Rectangle clip_rect   = this.state.clipRect;
-        final Rectangle client_rect = this.frame.clientRect;
-        this.fill(clip_rect.toRelativeX(client_rect.x()), clip_rect.toRelativeY(client_rect.y()), clip_rect.width(),
-                  clip_rect.height());
-    }
-
-    /**
-     * Draws a rectangular outline.
-     * @param x      The x position of the rectangle
+     * @param x      The left position of the rectangle
      * @param y      The y position of the rectangle
      * @param width  The width of the rectangle
      * @param height The height of the rectangle
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
-    public void drawRect(final int x, final int y, final int width, final int height)
+    public void fill(final int x, final int y, final int width, final int height)
     {
-        final IBrush     brush       = this.getBrush().copy();
-        final Matrix3x2f matrix      = new Matrix3x2f(this.getTransform().getMatrix());
-        final ScreenRect clip_bounds = this.getClippingRegion().toScreenRect();
-        final float      opacity     = this.getOpacity();
-
-        final ScreenRect bounds;
-        {
-            final Rectangle temp_bounds = this.state.transform
-                .applyToVertices(x, y, width, height)
-                .intersect(clip_bounds);
-            bounds = (!temp_bounds.isEmpty() ? temp_bounds.toScreenRect() : null);
-        }
-
-        this.draw(new SimpleGuiElementRenderState()
-        {
-            @Override
-            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
-            {
-                brush.border(vertices, matrix, x, y, (x + width), (y + height), depth, opacity);
-            }
-
-            @Override public @NotNull  RenderPipeline pipeline()     { return Canvas.this.renderPipeline; }
-            @Override public @NotNull  TextureSetup   textureSetup() { return brush.getTextureSetup(); }
-            @Override public @NotNull  ScreenRect     scissorArea()  { return clip_bounds; }
-            @Override public @Nullable ScreenRect     bounds()       { return bounds; }
-        });
+        this.fill(new Rectangle(x, y, width, height));
     }
+    
+    /** Fills the entire's component area with the currently set brush. */
+    public void fill() { this.fill(this.state.clipRect); }
 
     /**
      * Draws a rectangular outline.
      * @param rect The area to draw a border around
-     * @see Canvas#setBrush(IBrush)
+     * @see Canvas#setBrush(Brush)
      * @see Canvas#getBrush()
-     * @see IBrush
+     * @see Brush
      */
-    public void drawRect(final @NotNull Rectangle rect) { rect.accept(this::drawRect); }
+    public void drawRect(final @NotNull Rectangle rect)
+    {
+        this.drawShaped(new ShapedRectangleRender.Border(rect, 1f), rect);
+    }
+    
+    /**
+     * Draws a rectangular outline.
+     * @param x      The left position of the rectangle
+     * @param y      The y position of the rectangle
+     * @param width  The width of the rectangle
+     * @param height The height of the rectangle
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
+     */
+    public void drawRect(final int x, final int y, final int width, final int height)
+    {
+        this.drawRect(new Rectangle(x, y, width, height));
+    }
+    
+    /** Draws a border around the entire component's area with the currently set brush. */
+    public void drawRect() { this.drawRect(this.state.clipRect); }
 
     //==================================================================================================================
     /**
      * Draws the given text on screen with the current {@link GuiFont}.
      * @param text The string to draw
-     * @param x    The draw coordinate on the x-axis
+     * @param x    The draw coordinate on the left-axis
      * @param y    The draw coordinate on the y-axis
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawText(final @NotNull String text, final int x, final int y)
     {
-        final GlyphBank bank = new GlyphBank();
-        bank.addText(this.getFont(), text, x, y);
-        bank.draw(this);
+        final TextFormat format = new TextFormat();
+        format.append(text, this.getFont());
+        format.draw(this, x, y);
     }
 
     /**
      * Draws the given text on screen with the current {@link GuiFont}.
      * @param text The {@link Text} component to draw
-     * @param x    The draw coordinate on the x-axis
+     * @param x    The draw coordinate on the left-axis
      * @param y    The draw coordinate on the y-axis
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawText(final @NotNull Text text, final int x, final int y)
     {
-        final GlyphBank bank = new GlyphBank();
-        bank.addText(this.getFont(), text, x, y);
-        bank.draw(this);
+        final TextFormat format = new TextFormat();
+        format.append(text, this.getFont());
+        format.draw(this, x, y);
     }
 
     /**
      * Draws the given text on screen with the current {@link GuiFont}.
      * @param text The {@link OrderedText} to draw
-     * @param x    The top-left coordinate on the x-axis
+     * @param x    The top-left coordinate on the left-axis
      * @param y    The top-left coordinate on the y-axis
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawText(final @NotNull OrderedText text, final int x, final int y)
     {
-        final GlyphBank bank = new GlyphBank();
-        bank.addText(this.getFont(), text, x, y);
-        bank.draw(this);
+        final TextFormat format = new TextFormat();
+        format.append(text, this.getFont());
+        format.draw(this, x, y);
     }
 
     /**
      * Draws the given text on screen with the current {@link GuiFont}.
      * @param text  The string to draw
      * @param point The top-left point
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawText(final @NotNull String text, final @NotNull Point point)
     {
@@ -860,6 +914,9 @@ public final class Canvas
      * Draws the given text on screen with the current {@link GuiFont}.
      * @param text  The {@link Text} component to draw
      * @param point The top-left point
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawText(final @NotNull Text text, final @NotNull Point point)
     {
@@ -870,6 +927,9 @@ public final class Canvas
      * Draws the given text on screen with the current {@link GuiFont}.
      * @param text  The {@link OrderedText} to draw
      * @param point The top-left point
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawText(final @NotNull OrderedText text, final @NotNull Point point)
     {
@@ -880,11 +940,14 @@ public final class Canvas
     /**
      * Draws the given text on screen with the current {@link GuiFont} and aligned to the given region.
      * @param text      The text to draw
-     * @param x         The x coordinate of the alignment area
+     * @param x         The left coordinate of the alignment area
      * @param y         The y coordinate of the alignment area
      * @param width     The width the alignment area
      * @param height    The height of the alignment area
      * @param alignment The {@link Alignment} to use to align the text
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawTextAligned(final @NotNull String    text,
                                 final          int       x,
@@ -893,19 +956,27 @@ public final class Canvas
                                 final          int       height,
                                 final @NotNull Alignment alignment)
     {
-        final GlyphBank bank = new GlyphBank();
-        bank.addTextAligned(this.getFont(), text, x, y, width, height, alignment);
-        bank.draw(this);
+        final GuiFont font        = this.getFont();
+        final float   text_width  = TextLayout.getTextWidth(font, text);
+        final float   text_height = font.getHeight();
+        
+        final TextFormat format = new TextFormat();
+        format.append(text, font);
+        alignment.align(x, y, width, height, text_width, text_height).getPosition().accept((tx, ty) ->
+            format.draw(this, tx, ty));
     }
 
     /**
      * Draws the given text on screen with the current {@link GuiFont} and aligned to the given region.
      * @param text      The text to draw
-     * @param x         The x coordinate of the alignment area
+     * @param x         The left coordinate of the alignment area
      * @param y         The y coordinate of the alignment area
      * @param width     The width the alignment area
      * @param height    The height of the alignment area
      * @param alignment The {@link Alignment} to use to align the text
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawTextAligned(final @NotNull Text      text,
                                 final          int       x,
@@ -914,19 +985,27 @@ public final class Canvas
                                 final          int       height,
                                 final @NotNull Alignment alignment)
     {
-        final GlyphBank bank = new GlyphBank();
-        bank.addTextAligned(this.getFont(), text, x, y, width, height, alignment);
-        bank.draw(this);
+        final GuiFont font        = this.getFont();
+        final float   text_width  = TextLayout.getTextWidth(font, text);
+        final float   text_height = font.getHeight();
+        
+        final TextFormat format = new TextFormat();
+        format.append(text, font);
+        alignment.align(x, y, width, height, text_width, text_height).getPosition().accept((tx, ty) ->
+            format.draw(this, tx, ty));
     }
 
     /**
      * Draws the given text on screen with the current {@link GuiFont} and aligned to the given region.
      * @param text      The text to draw
-     * @param x         The x coordinate of the alignment area
+     * @param x         The left coordinate of the alignment area
      * @param y         The y coordinate of the alignment area
      * @param width     The width the alignment area
      * @param height    The height of the alignment area
      * @param alignment The {@link Alignment} to use to align the text
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawTextAligned(final @NotNull OrderedText text,
                                 final          int         x,
@@ -935,9 +1014,14 @@ public final class Canvas
                                 final          int         height,
                                 final @NotNull Alignment   alignment)
     {
-        final GlyphBank bank = new GlyphBank();
-        bank.addTextAligned(this.getFont(), text, x, y, width, height, alignment);
-        bank.draw(this);
+        final GuiFont font        = this.getFont();
+        final float   text_width  = TextLayout.getTextWidth(font, text);
+        final float   text_height = font.getHeight();
+        
+        final TextFormat format = new TextFormat();
+        format.append(text, font);
+        alignment.align(x, y, width, height, text_width, text_height).getPosition().accept((tx, ty) ->
+            format.draw(this, tx, ty));
     }
 
     /**
@@ -945,6 +1029,9 @@ public final class Canvas
      * @param text      The text to draw
      * @param area      The {@link Rectangle} to align the text with
      * @param alignment The {@link Alignment} to use to align the text
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawTextAligned(final @NotNull String    text,
                                 final @NotNull Rectangle area,
@@ -958,6 +1045,9 @@ public final class Canvas
      * @param text      The text to draw
      * @param area      The {@link Rectangle} to align the text with
      * @param alignment The {@link Alignment} to use to align the text
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawTextAligned(final @NotNull Text      text,
                                 final @NotNull Rectangle area,
@@ -971,6 +1061,9 @@ public final class Canvas
      * @param text      The text to draw
      * @param area      The {@link Rectangle} to align the text with
      * @param alignment The {@link Alignment} to use to align the text
+     * @see Canvas#setBrush(Brush)
+     * @see Canvas#getBrush()
+     * @see Brush
      */
     public void drawTextAligned(final @NotNull OrderedText text,
                                 final @NotNull Rectangle   area,
@@ -1014,8 +1107,7 @@ public final class Canvas
                                    final          int    height,
                                    final          int    centerX)
     {
-        final GuiFont font = this.getFont();
-        this.drawScrollableText(this::drawText, font::getWidthFitted, text, x, y, width, height, centerX);
+        this.drawScrollableText(this::drawText, this.getFont()::getTextWidthFitted, text, x, y, width, height, centerX);
     }
 
     public void drawScrollableText(final @NotNull Text text,
@@ -1025,8 +1117,8 @@ public final class Canvas
                                    final          int  height,
                                    final          int  centerX)
     {
-        final GuiFont font = this.getFont();
-        this.drawScrollableText(this::drawText, font::getWidthFitted, text, x, y, width, height, centerX);
+        this.drawScrollableText(this::drawText, (text1 -> TextLayout.getTextWidthFitted(this.getFont(), text1)), text,
+                                x, y, width, height, centerX);
     }
 
     public void drawScrollableText(final @NotNull OrderedText text,
@@ -1036,8 +1128,8 @@ public final class Canvas
                                    final          int         height,
                                    final          int         centerX)
     {
-        final GuiFont font = this.getFont();
-        this.drawScrollableText(this::drawText, font::getWidthFitted, text, x, y, width, height, centerX);
+        this.drawScrollableText(this::drawText, (text1 -> TextLayout.getTextWidthFitted(this.getFont(), text1)), text,
+                                x, y, width, height, centerX);
     }
 
     public void drawScrollableText(final @NotNull String text, final @NotNull Rectangle rect)
@@ -1075,7 +1167,7 @@ public final class Canvas
     {
         rect.accept((x, y, w, h) -> this.drawScrollableText(text, x, y, w, h, centerX));
     }
-
+    
     //------------------------------------------------------------------------------------------------------------------
     private <T> void drawScrollableText(final @NotNull DrawFunc<T>          drawFunc,
                                         final @NotNull Function<T, Integer> widthFunc,
@@ -1115,7 +1207,7 @@ public final class Canvas
     /**
      * Draws a region of a sprite on the screen with the scaling being automatically determined by the texture atlas.
      * @param spriteId The id of the texture inside the assets' sprites folder ("textures/gui/sprites")
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1153,7 +1245,7 @@ public final class Canvas
     /**
      * Draws a sprite on the screen with the scaling being automatically determined by the texture atlas.
      * @param spriteId The id of the texture inside the assets' sprites folder ("textures/gui/sprites")
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1186,7 +1278,7 @@ public final class Canvas
      * Draws a given region of a sprite with the given scaling algorithm.
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
      * @param scaling  The scaling algorithm
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1232,7 +1324,7 @@ public final class Canvas
      * Draws a sprite with the given scaling algorithm.
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
      * @param scaling  The scaling algorithm
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1267,7 +1359,7 @@ public final class Canvas
     /**
      * Draws a given region of a sprite stretched to the given area.
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1307,7 +1399,7 @@ public final class Canvas
     /**
      * Draws an entire sprite stretched to the given area.
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1338,7 +1430,7 @@ public final class Canvas
      * Draws a region of a sprite on the screen that is tiled and repeated to fill its given area.
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
      * @param scaling  The {@link Scaling.Tile} scaling
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1389,7 +1481,7 @@ public final class Canvas
      * Draws a sprite on the screen that is tiled and repeated to fill its given area.
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
      * @param scaling  The {@link Scaling.Tile} scaling
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1427,7 +1519,7 @@ public final class Canvas
      * (see <a href="https://en.wikipedia.org/wiki/9-slice_scaling">9-slice scaling</a>).
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
      * @param scaling  The {@link Scaling.NineSlice} scaling
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1457,8 +1549,8 @@ public final class Canvas
         if (width == texture_width && height == texture_height)
         {
             // Full sprite
-            this.drawSpriteRegion(sprite, x, y, (x + width), (y + height), texture_u, texture_v, texture_width,
-                                  texture_height, useBrush);
+            this.drawSpriteRegion(sprite, x, y, width, height, texture_u, texture_v, texture_width, texture_height,
+                                  useBrush);
         }
         else if (height == texture_height)
         {
@@ -1568,7 +1660,7 @@ public final class Canvas
      * (see <a href="https://en.wikipedia.org/wiki/9-slice_scaling">9-slice scaling</a>).
      * @param sprite   The sprite to draw (can be fetched from the texture atlas)
      * @param scaling  The {@link Scaling.NineSlice} scaling
-     * @param x        The x coordinate
+     * @param x        The left coordinate
      * @param y        The y coordinate
      * @param width    The width of the area to draw
      * @param height   The height of the area to draw
@@ -1639,18 +1731,19 @@ public final class Canvas
                 "Tiled sprite texture size must be positive, got %sx%s".formatted(tileWidth, tileHeight));
         }
 
-        for (int i = 0; i < width; i += tileWidth)
+        for (int ix = 0; ix < width; ix += tileWidth)
         {
-            final int draw_width = Math.min(tileWidth, (width - i));
-            final int draw_x     = (x + i);
+            final int draw_width = Math.min(tileWidth, (width - ix));
+            final int draw_x     = (x + ix);
 
-            for (int k = 0; k < height; k += tileHeight)
+            for (int iy = 0; iy < height; iy += tileHeight)
             {
-                final int draw_height = Math.min(tileHeight, (height - k));
-                final int draw_y      = (y + k);
+                final int draw_height = Math.min(tileHeight, (height - iy));
+                final int draw_y      = (y + iy);
 
-                this.drawSpriteRegion(sprite, textureWidth, textureHeight, u, v, draw_x, draw_y, draw_width,
-                                      draw_height, useBrush);
+                this.drawSpriteRegion(sprite, draw_x, draw_y, draw_width, draw_height,
+                                      u, v, textureWidth, textureHeight,
+                                      useBrush);
             }
         }
     }
@@ -1694,7 +1787,7 @@ public final class Canvas
     /**
      * Draws a region of a texture on the screen as-is and stretched to the target area.
      * @param textureId The id of the texture inside the assets' root folder
-     * @param x         The x coordinate
+     * @param x         The left coordinate
      * @param y         The y coordinate
      * @param width     The width of the area to draw
      * @param height    The height of the area to draw
@@ -1731,7 +1824,7 @@ public final class Canvas
     /**
      * Draws a texture on the screen as-is and stretched to the target area.
      * @param textureId The id of the texture inside the assets' root folder
-     * @param x         The x coordinate
+     * @param x         The left coordinate
      * @param y         The y coordinate
      * @param width     The width of the area to draw
      * @param height    The height of the area to draw
@@ -1773,46 +1866,26 @@ public final class Canvas
                                   final float u1, final float v1, final float u2, final float v2,
                                   final boolean useBrush)
     {
-        final Matrix3x2f matrix      = new Matrix3x2f(this.state.transform.getMatrix());
-        final ScreenRect clip_bounds = this.state.clipRect.toScreenRect();
-        final float      opacity     = this.getOpacity();
-
-        final ScreenRect bounds;
-        {
-            final Rectangle temp_bounds = this.state.transform
-                .applyToVertices(x1, y1, (x2 - x1), (y2 - y1))
-                .intersect(clip_bounds);
-            bounds = (!temp_bounds.isEmpty() ? temp_bounds.toScreenRect() : null);
-        }
-
+        final Rectangle bounds = Rectangle.fromPoints(x1, y1, x2, y2);
+        
         if (!useBrush)
         {
-            this.draw(new TexturedQuadGuiElementRenderState(
-                this.renderPipelineTextured,
+            final int colour = Colour.WHITE.withOpacityRel(this.getOpacity()).colour();
+            this.draw(new ICanvasState.Renderable(
+                ((vertices, matrix) -> DrawUtil.drawTexturedRect(
+                    matrix, vertices, 0f,
+                    x1, y1, x2, y2,
+                    u1, v1, u2, v2,
+                    colour, colour, colour, colour)),
                 TextureSetup.withoutGlTexture(texture),
-                matrix,
-                x1, y1, x2, y2, u1, u2, v1, v2,
-                ColorHelper.withAlpha(opacity, -1),
-                clip_bounds,
-                bounds));
+                null,
+                bounds
+            ));
             
             return;
         }
 
-        final IBrush brush = this.getBrush().copy();
-        this.draw(new SimpleGuiElementRenderState()
-        {
-            @Override
-            public void setupVertices(final @NotNull VertexConsumer vertices, final float depth)
-            {
-                brush.drawTexturedQuad(vertices, matrix, x1, y1, x2, y2, u1, v1, u2, v2, depth, opacity);
-            }
-
-            @Override public @NotNull  RenderPipeline pipeline()     { return Canvas.this.renderPipelineTextured; }
-            @Override public @NotNull  TextureSetup   textureSetup() { return TextureSetup.withoutGlTexture(texture); }
-            @Override public @NotNull  ScreenRect     scissorArea()  { return clip_bounds; }
-            @Override public @Nullable ScreenRect     bounds()       { return bounds; }
-        });
+        this.drawShaped(new ShapedRectangleRender.Texture(x1, y1, x2, y2, u1, v1, u2, v2), bounds, texture);
     }
 
     //==================================================================================================================

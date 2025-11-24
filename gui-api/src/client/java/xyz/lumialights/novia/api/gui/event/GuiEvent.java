@@ -41,7 +41,7 @@ import xyz.lumialights.novia.api.gui.component.GuiComponent;
 
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
+
 
 
 //**********************************************************************************************************************
@@ -70,16 +70,8 @@ public sealed class GuiEvent<EventArgs extends GuiEventArgs>
     
     //******************************************************************************************************************
     final Set<GuiEventHandler<EventArgs>> handlers = Sets.newIdentityHashSet();
-    final GuiEventHandler<EventArgs>      mainHandler;
     
     //******************************************************************************************************************
-    /** Constructs a new event. */
-    public GuiEvent()
-    {
-        this.mainHandler = (((sender, args) -> this.handlers.forEach(handler -> handler.handle(sender, args))));
-    }
-    
-    //==================================================================================================================
     /**
      * Subscribes to the event with the given handler.
      * <p>
@@ -116,6 +108,6 @@ public sealed class GuiEvent<EventArgs extends GuiEventArgs>
      */
     public void post(final @NotNull GuiComponent sender, final @NotNull EventArgs args)
     {
-        this.mainHandler.handle(sender, args);
+        this.handlers.forEach(handler -> handler.handle(sender, args));
     }
 }

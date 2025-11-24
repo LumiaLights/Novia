@@ -42,6 +42,8 @@ import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import xyz.lumialights.novia.api.core.util.Colour;
+import xyz.lumialights.novia.api.gui.canvas.Canvas;
+import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.impl.StyleAccessor;
 
 import java.nio.CharBuffer;
@@ -51,27 +53,25 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * Provides a list of nodes that represent a styling context of a certain portion of text in a string, each node
- * contains data about its current formatting context. This is possible because internally it will consume any type
- * of text you provide it, and whenever it encounters a new styling (either through explicitly set styles or through
- * format codes inside the text), it will create a new text node that spans the text which has the formatting applied.
- */
+/// Provides a list of nodes that represent a styling context of a certain portion of text in a string, each node
+/// contains data about its current formatting context. This is possible because internally it will consume any type
+/// of text you provide it, and whenever it encounters a new styling (either through explicitly set styles or through
+/// format codes inside the text), it will create a new text node that spans the text which has the formatting applied.
 public class TextFormat
     implements Iterable<TextFormat.Node>
 {
     //******************************************************************************************************************
-    /**
-     * Represents a unit of formatted text that is aliased to an external string.
-     * @param font         The text {@link GuiFont}
-     * @param colour       The text colour
-     * @param shadowColour The text shadow colour
-     * @param startIndex   The index of the first character that this node aliases
-     * @param endIndex     The index one past the last character that this node aliases
-     */
+    /// Represents a unit of formatted text that is aliased to an external string.
+    /// @param font         The text {@link GuiFont}
+    /// @param colour       The text colour
+    /// @param shadowColour The text background colour
+    /// @param shadowColour The text shadow colour
+    /// @param startIndex   The index of the first character that this node aliases
+    /// @param endIndex     The index one past the last character that this node aliases
     public record Node(
         @NotNull  GuiFont   font,
         @Nullable TextColor colour,
+        @Nullable TextColor backgroundColour,
         @Nullable Integer   shadowColour,
                   int       startIndex,
                   int       endIndex
@@ -83,7 +83,7 @@ public class TextFormat
         //==============================================================================================================
         public @NotNull Node withRange(final int start, final int end)
         {
-            return new Node(this.font, this.colour, this.shadowColour, start, end);
+            return new Node(this.font, this.colour, this.backgroundColour, this.shadowColour, start, end);
         }
     }
     
@@ -99,27 +99,47 @@ public class TextFormat
         implements IGuiCharacterVisitor
     {
         //**************************************************************************************************************
-        public final Deque<Node>   nodes   = new ArrayDeque<>(2);
-        public final StringBuilder builder = new StringBuilder(16);
+        private final Deque<Node>   nodes   = new ArrayDeque<>(2);
+        private final StringBuilder builder = new StringBuilder(16);
         
-        //--------------------------------------------------------------------------------------------------------------
-        private Style   lastStyle;
-        private GuiFont lastFont;
-        private int     start;
-        private int     end;
+        private Style   lastStyle = null;
+        private GuiFont lastFont  = null;
+        private int     start     = 0;
+        private int     end       = 0;
         
         //**************************************************************************************************************
+        public @NotNull Collection<Node> getNodes()
+        {
+            if (this.start != this.end)
+            {
+                this.nodes.addLast(new Node(
+                    this.lastFont,
+                    this.lastStyle.getColor(),
+                    (this.lastStyle instanceof GuiStyle g_style ? g_style.getBackgroundColor() : null),
+                    this.lastStyle.getShadowColor(),
+                    this.start,
+                    this.end));
+                this.start = this.end;
+            }
+            
+            return this.nodes;
+        }
+        
+        public @NotNull String getContent() { return this.builder.toString(); }
+        
+        //==============================================================================================================
         @Override
         public boolean accept(final int i, final @NotNull GuiFont font, final @NotNull Style style, final int codePoint)
         {
             // start next node
-            if (style != this.lastStyle)
+            if (font != this.lastFont)
             {
                 if (this.lastStyle != null)
                 {
                     this.nodes.addLast(new Node(
                         this.lastFont,
                         this.lastStyle.getColor(),
+                        (this.lastStyle instanceof GuiStyle g_style ? g_style.getBackgroundColor() : null),
                         this.lastStyle.getShadowColor(),
                         this.start,
                         this.end));
@@ -127,7 +147,7 @@ public class TextFormat
                 
                 this.lastStyle = style;
                 this.lastFont  = font;
-                this.start     = this.end++;
+                this.start     = this.end;
             }
             
             ++this.end;
@@ -172,31 +192,35 @@ public class TextFormat
     }
     
     //******************************************************************************************************************
+    /// Describes a text layout that spans a single line without wrapping or maximum adjustments.
+    public static final TextLayout.LayoutOptions LAYOUT_OPTIONS = new TextLayout.LayoutOptions() {{
+        wordWrap = TextLayout.WordWrap.NO_WRAP;
+    }};
+    
+    //******************************************************************************************************************
     private final List<Node>    nodes   = new ArrayList<>();
     private final StringBuilder content = new StringBuilder();
     
     //******************************************************************************************************************
-    /** {@return the content string represented by this text format} */
+    /// {@return the content string represented by this text format}
     public @NotNull String getContent() { return this.content.toString(); }
     
-    /** {@return the computed nodes from the content string} */
+    /// {@return the computed nodes from the content string}
     public @NotNull List<Node> getNodes() { return new ArrayList<>(this.nodes); }
     
-    /** {@return the number of nodes in this text format} */
+    /// {@return the number of nodes in this text format}
     public int getNodeCount() { return this.nodes.size(); }
     
-    /** {@return the number of characters of the text format content} */
+    /// {@return the number of characters of the text format content}
     public int length() { return this.content.length(); }
     
-    /** {@return creates a stream with the nodes of this text format} */
+    /// {@return creates a stream with the nodes of this text format}
     public Stream<Node> stream() { return this.nodes.stream(); }
     
-    /**
-     * Visits each node in this text format with the given visitor providing the node and a {@link CharBuffer} for the
-     * node's content. Other than {@link #forEachNode(Visitor)}, if the visitor returns {@code false},
-     * the task will be canceled and no further nodes will be visited.
-     * @param visitor The {@link Visitor} to use
-     */
+    /// Visits each node in this text format with the given visitor providing the node and a {@link CharBuffer} for the
+    /// node's content. Other than {@link #forEachNode(Visitor)}, if the visitor returns {@code false},
+    /// the task will be canceled and no further nodes will be visited.
+    /// @param visitor The {@link Visitor} to use
     public void visit(final @NotNull Visitor visitor)
     {
         final CharBuffer buffer = CharBuffer.wrap(this.content);
@@ -213,12 +237,10 @@ public class TextFormat
         }
     }
     
-    /**
-     * Visits each node in this text format with the given visitor providing the node and a {@link CharBuffer} for the
-     * node's content. Other than {@link #visit(Visitor)}, all nodes will be visited regardless what the visitor
-     * returns.
-     * @param visitor The {@link Visitor} to use
-     */
+    /// Visits each node in this text format with the given visitor providing the node and a {@link CharBuffer} for the
+    /// node's content. Other than {@link #visit(Visitor)}, all nodes will be visited regardless what the visitor
+    /// returns.
+    /// @param visitor The {@link Visitor} to use
     public void forEachNode(final @NotNull Visitor visitor)
     {
         final CharBuffer buffer = CharBuffer.wrap(this.content);
@@ -232,104 +254,111 @@ public class TextFormat
     }
     
     //==================================================================================================================
-    /** {@return gets whether this text format contains any nodes} */
+    /// {@return gets whether this text format contains any nodes}
     public boolean isEmpty() { return this.nodes.isEmpty(); }
     
     //==================================================================================================================
-    /**
-     * Appends the given string to this text format and consumes all formatting codes inside the text.
-     * @param text      The string to append
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The parent {@link Style} to use
-     */
-    public void append(final @NotNull String text, final @NotNull GuiFont baseFont, final @NotNull Style baseStyle)
+    /// Appends the given string to this text format and consumes all formatting codes inside the text.
+    /// @param text      The string to append
+    /// @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
+    /// @param baseStyle The parent {@link Style} to use
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull String  text,
+                                      final @NotNull GuiFont baseFont,
+                                      final @NotNull Style   baseStyle)
     {
         this.appendStyled(IGuiCharacterVisitor::visitFormatted, baseFont, baseStyle, text);
+        return this;
     }
     
-    /**
-     * Appends the given string to this text format and consumes all formatting codes inside the text.
-     * @param text     The string to append
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     */
-    public void append(final @NotNull String text, final @NotNull GuiFont baseFont)
+    /// Appends the given string to this text format and consumes all formatting codes inside the text.
+    /// @param text     The string to append
+    /// @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull String text, final @NotNull GuiFont baseFont)
     {
         this.appendNormal(IGuiCharacterVisitor::visitFormatted, baseFont, text);
+        return this;
     }
     
-    /**
-     * Appends the given {@link StringVisitable} to this text format and consumes all formatting codes inside the text.
-     * @param text      The {@link StringVisitable} to append
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The parent {@link Style} to use
-     */
-    public void append(final @NotNull StringVisitable text,
-                       final @NotNull GuiFont         baseFont,
-                       final @NotNull Style           baseStyle)
+    /// Appends the given {@link StringVisitable} to this text format and consumes all formatting codes inside the text.
+    /// @param text      The {@link StringVisitable} to append
+    /// @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
+    /// @param baseStyle The parent {@link Style} to use
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull StringVisitable text,
+                                      final @NotNull GuiFont         baseFont,
+                                      final @NotNull Style           baseStyle)
     {
         this.appendStyled(IGuiCharacterVisitor::visitFormatted, baseFont, baseStyle, text);
+        return this;
     }
     
-    /**
-     * Appends the given {@link StringVisitable} to this text format and consumes all formatting codes inside the text.
-     * @param text     The {@link StringVisitable} to append
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     */
-    public void append(final @NotNull StringVisitable text, final @NotNull GuiFont baseFont)
+    /// Appends the given {@link StringVisitable} to this text format and consumes all formatting codes inside the text.
+    /// @param text     The {@link StringVisitable} to append
+    /// @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull StringVisitable text, final @NotNull GuiFont baseFont)
     {
         this.appendNormal(IGuiCharacterVisitor::visitFormatted, baseFont, text);
+        return this;
     }
     
-    /**
-     * Appends the given {@link Text} to this text format and consumes all formatting codes inside the text.
-     * @param text      The {@link Text} to append
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The parent {@link Style} to use
-     */
-    public void append(final @NotNull Text text, final @NotNull GuiFont baseFont, final @NotNull Style baseStyle)
+    /// Appends the given {@link Text} to this text format and consumes all formatting codes inside the text.
+    /// @param text      The {@link Text} to append
+    /// @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
+    /// @param baseStyle The parent {@link Style} to use
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull Text    text,
+                                      final @NotNull GuiFont baseFont,
+                                      final @NotNull Style   baseStyle)
     {
         this.appendStyled(IGuiCharacterVisitor::visitFormatted, baseFont, baseStyle, text);
+        return this;
     }
     
-    /**
-     * Appends the given {@link Text} to this text format and consumes all formatting codes inside the text.
-     * @param text     The {@link Text} to append
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     */
-    public void append(final @NotNull Text text, final @NotNull GuiFont baseFont)
+    /// Appends the given {@link Text} to this text format and consumes all formatting codes inside the text.
+    /// @param text     The {@link Text} to append
+    /// @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull Text text, final @NotNull GuiFont baseFont)
     {
         this.appendNormal(IGuiCharacterVisitor::visitFormatted, baseFont, text);
+        return this;
     }
     
-    /**
-     * Appends the given {@link OrderedText} to this text format and consumes all formatting codes inside the text.
-     * @param text      The {@link OrderedText} to append
-     * @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
-     * @param baseStyle The parent {@link Style} to use
-     */
-    public void append(final @NotNull OrderedText text, final @NotNull GuiFont baseFont, final @NotNull Style baseStyle)
+    /// Appends the given {@link OrderedText} to this text format and consumes all formatting codes inside the text.
+    /// @param text      The {@link OrderedText} to append
+    /// @param baseFont  The base {@link GuiFont} to use if not overridden by style attributes
+    /// @param baseStyle The parent {@link Style} to use
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull OrderedText text,
+                                      final @NotNull GuiFont     baseFont,
+                                      final @NotNull Style       baseStyle)
     {
         this.appendStyled(IGuiCharacterVisitor::visitFormatted, baseFont, baseStyle, text);
+        return this;
     }
     
-    /**
-     * Appends the given {@link OrderedText} to this text format and consumes all formatting codes inside the text.
-     * @param text     The {@link OrderedText} to append
-     * @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
-     */
-    public void append(final @NotNull OrderedText text, final @NotNull GuiFont baseFont)
+    /// Appends the given {@link OrderedText} to this text format and consumes all formatting codes inside the text.
+    /// @param text     The {@link OrderedText} to append
+    /// @param baseFont The base {@link GuiFont} to use if not overridden by style attributes
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull OrderedText text, final @NotNull GuiFont baseFont)
     {
         this.appendNormal(IGuiCharacterVisitor::visitFormatted, baseFont, text);
+        return this;
     }
     
-    /**
-     * Appends the given string to this text format but keeping the format codes. This will effectively create just
-     * a single node.
-     * @param text  The string to append
-     * @param font  The {@link GuiFont} to use
-     * @param style The {@link Style} to use which will also override the font
-     */
-    public void appendPlain(final @NotNull String text, @NotNull GuiFont font, final @NotNull Style style)
+    /// Appends the given string to this text format but keeping the format codes. This will effectively create just
+    /// a single node.
+    /// @param text  The string to append
+    /// @param font  The {@link GuiFont} to use
+    /// @param style The {@link Style} to use which will also override the font
+    /// @return `this`
+    public @NotNull TextFormat appendPlain(final @NotNull String  text,
+                                                 @NotNull GuiFont font,
+                                           final @NotNull Style   style)
     {
         if (((StyleAccessor) style).novia$isFontSet())
         {
@@ -343,26 +372,27 @@ public class TextFormat
         
         font.setStyle(style);
         this.appendPlain(text, font);
+        
+        return this;
     }
     
-    /**
-     * Appends the given string to this text format but keeping the format codes. This will effectively create just
-     * a single node.
-     * @param text The string to append
-     * @param font The {@link GuiFont} to use
-     */
-    public void appendPlain(final @NotNull String text, final @NotNull GuiFont font)
+    /// Appends the given string to this text format but keeping the format codes. This will effectively create just
+    /// a single node.
+    /// @param text The string to append
+    /// @param font The {@link GuiFont} to use
+    /// @return `this`
+    public @NotNull TextFormat appendPlain(final @NotNull String text, final @NotNull GuiFont font)
     {
-        this.nodes.add(new Node(font, null, null, 0, text.length()));
+        this.nodes.add(new Node(font, null, null, null, 0, text.length()));
         this.content.append(text);
+        return this;
     }
     
-    /**
-     * Appends another {@link TextFormat} to this one. If the text format is the same as this one, the content will be
-     * doubled, therefore it might be worth checking beforehand.
-     * @param other The other {@link TextFormat}
-     */
-    public void append(final @NotNull TextFormat other)
+    /// Appends another {@link TextFormat} to this one. If the text format is the same as this one, the content will be
+    /// doubled, therefore it might be worth checking beforehand.
+    /// @param other The other {@link TextFormat}
+    /// @return `this`
+    public @NotNull TextFormat append(final @NotNull TextFormat other)
     {
         final int offset = this.content.length();
         this.content.append(other.content);
@@ -371,18 +401,18 @@ public class TextFormat
             .map(node -> new Node(
                 node.font,
                 node.colour,
+                node.backgroundColour,
                 node.shadowColour,
                 (node.startIndex + offset),
                 (node.endIndex   + offset)))
             .toList());
+        return this;
     }
     
-    /**
-     * Replaces the underlying text content of this text format. If the new content is larger than the previous,
-     * a new node will be added with {@link GuiFont#DEFAULT} and {@link Style#EMPTY}. If it is smaller, the nodes
-     * will be truncated to fit the new content, otherwise the nodes will be left untouched.
-     * @param newContent The new content string to set for this text format
-     */
+    /// Replaces the underlying text content of this text format. If the new content is larger than the previous,
+    /// a new node will be added with {@link GuiFont#DEFAULT} and {@link Style#EMPTY}. If it is smaller, the nodes
+    /// will be truncated to fit the new content, otherwise the nodes will be left untouched.
+    /// @param newContent The new content string to set for this text format
     public void replaceContent(final @NotNull String newContent)
     {
         final int new_len = newContent.length();
@@ -418,8 +448,8 @@ public class TextFormat
     {
         final RangeVisitor visitor = new RangeVisitor();
         visitorFunc.apply(visitor, baseFont, text);
-        this.nodes  .addAll(visitor.nodes);
-        this.content.append(visitor.builder);
+        this.nodes  .addAll(visitor.getNodes());
+        this.content.append(visitor.getContent());
     }
     
     private <T> void appendStyled(
@@ -431,93 +461,118 @@ public class TextFormat
     {
         final RangeVisitor visitor = new RangeVisitor();
         visitorFunc.apply(visitor, baseFont, style, text);
-        this.nodes  .addAll(visitor.nodes);
-        this.content.append(visitor.builder);
+        this.nodes  .addAll(visitor.getNodes());
+        this.content.append(visitor.getContent());
     }
     
     //==================================================================================================================
-    /**
-     * Sets the {@link GuiFont} for the given node range. If the range crosses node boundaries, nodes will be
-     * merged and split to adhere to the new formatting.
-     * @param font       The {@link GuiFont} to set for the range
-     * @param startIndex The start index of the range
-     * @param endIndex   The end index of the range
-     * @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
-     *                                   greater than end index
-     */
+    /// Sets the {@link GuiFont} for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param font       The {@link GuiFont} to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
     public void setFont(final @NotNull GuiFont font, final int startIndex, final int endIndex)
     {
         this.splitAndApplyToRange(Optional.of(font), new ThreeStateOptional<>(), new ThreeStateOptional<>(),
-                                  startIndex, endIndex);
+                                  new ThreeStateOptional<>(), startIndex, endIndex);
     }
     
-    /**
-     * Sets the text colour for the given node range. If the range crosses node boundaries, nodes will be
-     * merged and split to adhere to the new formatting.
-     * @param colour     The text colour to set for the range
-     * @param startIndex The start index of the range
-     * @param endIndex   The end index of the range
-     * @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
-     *                                   greater than end index
-     */
+    /// Sets the text colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The text colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
     public void setColour(final @Nullable TextColor colour, final int startIndex, final int endIndex)
     {
         this.splitAndApplyToRange(Optional.empty(), new ThreeStateOptional<>(colour), new ThreeStateOptional<>(),
-                                  startIndex, endIndex);
+                                  new ThreeStateOptional<>(), startIndex, endIndex);
     }
     
-    /**
-     * Sets the text colour for the given node range. If the range crosses node boundaries, nodes will be
-     * merged and split to adhere to the new formatting.
-     * @param colour     The text colour to set for the range
-     * @param startIndex The start index of the range
-     * @param endIndex   The end index of the range
-     * @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
-     *                                   greater than end index
-     */
+    /// Sets the text colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The text colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
     public void setColour(final int colour, final int startIndex, final int endIndex)
     {
         this.setColour(TextColor.fromRgb(colour), startIndex, endIndex);
     }
     
-    /**
-     * Sets the text colour for the given node range. If the range crosses node boundaries, nodes will be
-     * merged and split to adhere to the new formatting.
-     * @param colour     The text colour to set for the range
-     * @param startIndex The start index of the range
-     * @param endIndex   The end index of the range
-     * @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
-     *                                   greater than end index
-     */
+    /// Sets the text background colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The text background colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
     public void setColour(final @NotNull Colour colour, final int startIndex, final int endIndex)
     {
         this.setColour(colour.colour(), startIndex, endIndex);
     }
     
-    /**
-     * Sets the shadow colour for the given node range. If the range crosses node boundaries, nodes will be
-     * merged and split to adhere to the new formatting.
-     * @param colour     The shadow colour to set for the range
-     * @param startIndex The start index of the range
-     * @param endIndex   The end index of the range
-     * @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
-     *                                   greater than end index
-     */
-    public void setShadowColour(final @Nullable Integer colour, final int startIndex, final int endIndex)
+    /// Sets the text background colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The text background colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
+    public void setBackgroundColour(final @Nullable TextColor colour, final int startIndex, final int endIndex)
     {
         this.splitAndApplyToRange(Optional.empty(), new ThreeStateOptional<>(), new ThreeStateOptional<>(colour),
-                                  startIndex, endIndex);
+                                  new ThreeStateOptional<>(), startIndex, endIndex);
     }
     
-    /**
-     * Sets the shadow colour for the given node range. If the range crosses node boundaries, nodes will be
-     * merged and split to adhere to the new formatting.
-     * @param colour     The shadow colour to set for the range
-     * @param startIndex The start index of the range
-     * @param endIndex   The end index of the range
-     * @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
-     *                                   greater than end index
-     */
+    /// Sets the text background colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The text background colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
+    public void setBackgroundColour(final int colour, final int startIndex, final int endIndex)
+    {
+        this.setBackgroundColour(TextColor.fromRgb(colour), startIndex, endIndex);
+    }
+    
+    /// Sets the text colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The text colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
+    public void setBackgroundColour(final @NotNull Colour colour, final int startIndex, final int endIndex)
+    {
+        this.setBackgroundColour(colour.colour(), startIndex, endIndex);
+    }
+    
+    /// Sets the shadow colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The shadow colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
+    public void setShadowColour(final @Nullable Integer colour, final int startIndex, final int endIndex)
+    {
+        this.splitAndApplyToRange(Optional.empty(), new ThreeStateOptional<>(), new ThreeStateOptional<>(),
+                                  new ThreeStateOptional<>(colour), startIndex, endIndex);
+    }
+    
+    /// Sets the shadow colour for the given node range. If the range crosses node boundaries, nodes will be
+    /// merged and split to adhere to the new formatting.
+    /// @param colour     The shadow colour to set for the range
+    /// @param startIndex The start index of the range
+    /// @param endIndex   The end index of the range
+    /// @throws IndexOutOfBoundsException If either start index or end index are out of bounds, or if start index is
+    ///                                   greater than end index
     public void setShadowColour(final @NotNull Colour colour, final int startIndex, final int endIndex)
     {
         this.setShadowColour(colour.colour(), startIndex, endIndex);
@@ -527,6 +582,7 @@ public class TextFormat
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private void splitAndApplyToRange(final @NotNull Optional<GuiFont> optFont,
                                       final @NotNull ThreeStateOptional<TextColor> optColour,
+                                      final @NotNull ThreeStateOptional<TextColor> optBackgroundColour,
                                       final @NotNull ThreeStateOptional<Integer> optShadowColour,
                                       final int rangeStart, final int rangeEnd)
     {
@@ -555,6 +611,7 @@ public class TextFormat
                 // re-add start node up to the start of the range
                 new_nodes.addLast(node.withRange(node.startIndex, rangeStart));
                 intermediary = new Node(optFont.orElse(node.font), optColour.orElse(node.colour),
+                                        optBackgroundColour.orElse(node.backgroundColour),
                                         optShadowColour.orElse(node.shadowColour), rangeStart, -1);
             }
             
@@ -577,10 +634,15 @@ public class TextFormat
                        (optFont.isPresent()        || intermediary.font != node.font)
                     && (!optColour      .isEmpty() || !Objects.equals(intermediary.colour,       node.colour))
                     && (!optShadowColour.isEmpty() || !Objects.equals(intermediary.shadowColour, node.shadowColour))
+                    && (
+                        !optBackgroundColour.isEmpty()
+                        || !Objects.equals(intermediary.backgroundColour, node.backgroundColour)
+                    )
                 )
                 {
                     new_nodes.addLast(intermediary.withRange(intermediary.startIndex, node.startIndex));
                     intermediary = new Node(optFont.orElse(node.font), optColour.orElse(node.colour),
+                                            optBackgroundColour.orElse(node.backgroundColour),
                                             optShadowColour.orElse(node.shadowColour), node.startIndex, -1);
                 }
             }
@@ -591,11 +653,26 @@ public class TextFormat
     }
     
     //==================================================================================================================
-    /** Clears this text format's nodes and content. */
+    /// Clears this text format's nodes and content.
     public void clear()
     {
         this.nodes  .clear();
         this.content.setLength(0);
+    }
+    
+    //==================================================================================================================
+    /// Draws the nodes of this format context.
+    /// @param canvas The [Canvas] to draw on
+    /// @param x      The x coordinate of the text
+    /// @param y      The y coordinate of the text
+    public void draw(final @NotNull Canvas canvas, int x, final int y)
+    {
+        if (!this.nodes.isEmpty())
+        {
+            (new TextLayout(this, TextFormat.LAYOUT_OPTIONS)).draw(
+                canvas,
+                new Rectangle(x, y, Integer.MAX_VALUE, Integer.MAX_VALUE));
+        }
     }
     
     //==================================================================================================================

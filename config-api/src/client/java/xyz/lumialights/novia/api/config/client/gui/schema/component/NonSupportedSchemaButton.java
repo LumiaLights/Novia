@@ -46,8 +46,7 @@ import xyz.lumialights.novia.api.core.Novia;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
-import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
-import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,12 +57,42 @@ import java.util.*;
 //**********************************************************************************************************************
 public class NonSupportedSchemaButton
     extends NVSimpleButton
-    implements IStatefulComponent<NonSupportedSchemaButton>
+    implements IStatefulComponent
 {
     //******************************************************************************************************************
-    private static void openFile(final @NotNull NVSimpleButton button)
+    private final Identifier providerId;
+    private final GuiEvent.Simple na = new GuiEvent.Simple();
+    
+    private Value cached = new Value();
+    
+    //******************************************************************************************************************
+    public NonSupportedSchemaButton(final @NotNull Identifier providerId)
     {
-        final Path file = ConfigManager.getInstance().getFileForId(((NonSupportedSchemaButton) button).providerId);
+        super(ConfigApiLangClient.CONFIG_EDIT_IN_CONFIG_NOTICE, ConfigApiLangClient.CONFIG_EDIT_IN_CONFIG_NOTICE);
+
+        this.providerId = Objects.requireNonNull(providerId, "provider id must not be null");
+
+        final Path path = ConfigManager.getInstance().getFileForId(providerId);
+        this.setTooltip(Tooltip.of(Text.of(path.getFileName().toString())));
+        
+        this.clicked.subscribe((sender, e) -> this.openFile());
+    }
+    
+    //==================================================================================================================
+    @Override public @NotNull Value           getValue()       { return this.cached; }
+    @Override public @NotNull GuiEvent.Simple getChangeEvent() { return na; }
+    
+    //==================================================================================================================
+    @Override public void setValue(final @NotNull Value value) { this.cached = value; }
+    
+    //==================================================================================================================
+    @Override public void mute()   {}
+    @Override public void unmute() {}
+    
+    //==================================================================================================================
+    private void openFile()
+    {
+        final Path file = ConfigManager.getInstance().getFileForId(this.providerId);
         
         if (!Files.exists(file))
         {
@@ -79,35 +108,4 @@ public class NonSupportedSchemaButton
             Novia.LOGGER.error("Could not open config file '{}' due to: {}", file, ex);
         }
     }
-    
-    //******************************************************************************************************************
-    private final Identifier providerId;
-    
-    private Value cached = new Value();
-    
-    //******************************************************************************************************************
-    public NonSupportedSchemaButton(final @NotNull Identifier providerId)
-    {
-        super(
-            NonSupportedSchemaButton::openFile,
-            ConfigApiLangClient.CONFIG_EDIT_IN_CONFIG_NOTICE,
-            ConfigApiLangClient.CONFIG_EDIT_IN_CONFIG_NOTICE);
-
-        this.providerId = Objects.requireNonNull(providerId, "provider id must not be null");
-
-        final Path path = ConfigManager.getInstance().getFileForId(providerId);
-        this.setTooltip(Tooltip.of(Text.of(path.getFileName().toString())));
-    }
-    
-    //==================================================================================================================
-    @Override public @NotNull Value getValue() { return this.cached; }
-    
-    //==================================================================================================================
-    @Override public void setValue(final @NotNull Value value) { this.cached = value; }
-    
-    //==================================================================================================================
-    @Override public void addChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
-    @Override public void removeChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
-    @Override public void mute()   {}
-    @Override public void unmute() {}
 }

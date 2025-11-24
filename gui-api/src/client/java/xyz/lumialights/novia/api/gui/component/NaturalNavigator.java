@@ -83,6 +83,21 @@ public class NaturalNavigator
     }
     
     //******************************************************************************************************************
+    public static @NotNull NaturalNavigator withComponents(final @NotNull Collection<GuiComponent> components)
+    {
+        return new NaturalNavigator()
+        {
+            //**********************************************************************************************************
+            @Override
+            public @NotNull List<GuiComponent> getAll(final @NotNull GuiComponent  container,
+                                                      final @NotNull GuiNavigation nav)
+            {
+                return List.copyOf(components);
+            }
+        };
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
     protected static @NotNull Stream<GuiComponent> getAllSorted(final @NotNull GuiComponent             container,
                                                                 final @NotNull Comparator<GuiComponent> comparator,
                                                                 final @NotNull GuiNavigation            nav)
@@ -186,7 +201,7 @@ public class NaturalNavigator
                 container,
                 (switch (nav)
                 {
-                    case GuiNavigation.Tab   ignored -> NATURAL_TAB_COMPARATOR;
+                    case GuiNavigation.Tab   ignored -> NaturalNavigator.NATURAL_TAB_COMPARATOR;
                     case GuiNavigation.Arrow arrow   -> NaturalNavigator.NATURAL_ARROW_COMPARATORS
                                                                         .get(arrow.getDirection().ordinal());
                     case GuiNavigation.Down  ignored -> NaturalNavigator.NATURAL_ARROW_COMPARATORS

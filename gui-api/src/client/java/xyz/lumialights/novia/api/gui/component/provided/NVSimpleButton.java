@@ -51,11 +51,11 @@ import xyz.lumialights.novia.api.gui.canvas.ColourId;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.TextLayout;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
 import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
 
-import javax.swing.*;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -352,7 +352,7 @@ public class NVSimpleButton
                 
                 if (this.text != null)
                 {
-                    text_width = font.getWidthFitted(this.text);
+                    text_width = TextLayout.getTextWidthFitted(font, this.text);
                     width      = text_width;
                     height     = font_height;
                 }
@@ -392,7 +392,7 @@ public class NVSimpleButton
                 if (this.text != null)
                 {
                     text_height = font_height;
-                    width       = font.getWidthFitted(this.text);
+                    width       = TextLayout.getTextWidthFitted(font, this.text);
                     height      = text_height;
                 }
                 

@@ -35,10 +35,7 @@
  */
 package xyz.lumialights.novia.api.gui.mixin.client;
 
-import net.minecraft.client.font.BitmapFont;
-import net.minecraft.client.font.Glyph;
-import net.minecraft.client.font.TrueTypeFont;
-import net.minecraft.client.font.UnihexFont;
+import net.minecraft.client.font.*;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -68,10 +65,11 @@ public interface GlyphMixin
         @Unique public float getOversample() { return (1f / this.scaleFactor); }
         
         //==============================================================================================================
-        @Override public float novia$getBaseline() { return this.ascent;                         }
-        @Override public float novia$getLeft()     { return 0f;                                  }
-        @Override public float novia$getTop()      { return (7.0f - this.ascent);                }
-        @Override public float novia$getRight()    { return (this.width / this.getOversample()); }
+        @Override public float novia$getAscent() { return this.ascent; }
+        @Override public float novia$getLeft()   { return 0f; }
+        @Override public float novia$getTop()    { return (7.0f - this.ascent); }
+        @Override public float novia$getRight()  { return (this.width / this.getOversample()); }
+        @Override public float novia$getHeight() { return this.height; }
         
         @Override
         public float novia$getBottom()
@@ -95,9 +93,10 @@ public interface GlyphMixin
         @Unique public float getOversample() { return ((TrueTypeFontAccessor) this.field_2336).novia$getOversample(); }
         
         //==============================================================================================================
-        @Override public float novia$getBaseline() { return this.ascent;          }
-        @Override public float novia$getLeft()     { return this.bearingX;        }
-        @Override public float novia$getTop()      { return (7.0f - this.ascent); }
+        @Override public float novia$getAscent() { return this.ascent; }
+        @Override public float novia$getLeft()   { return this.bearingX; }
+        @Override public float novia$getTop()    { return (7.0f - this.ascent); }
+        @Override public float novia$getHeight() { return this.height; }
         
         @Override
         public float novia$getRight()
@@ -125,10 +124,37 @@ public interface GlyphMixin
         @Shadow public abstract int width();
         
         //==============================================================================================================
-        @Override public float novia$getBaseline() { return 7f;                                           }
-        @Override public float novia$getLeft()     { return 0f;                                           }
-        @Override public float novia$getTop()      { return 0f;                                           }
-        @Override public float novia$getRight()    { return (this.width() * UnihexGlyphMixin.OVERSAMPLE); }
-        @Override public float novia$getBottom()   { return UnihexGlyphMixin.OVERSAMPLED_HEIGHT;          }
+        @Override public float novia$getAscent() { return 7f; }
+        @Override public float novia$getHeight() { return UnihexGlyphMixin.OVERSAMPLED_HEIGHT; }
+        @Override public float novia$getLeft()   { return 0f; }
+        @Override public float novia$getTop()    { return 0f; }
+        @Override public float novia$getRight()  { return (this.width() * UnihexGlyphMixin.OVERSAMPLE); }
+        @Override public float novia$getBottom() { return UnihexGlyphMixin.OVERSAMPLED_HEIGHT; }
+    }
+    
+    @Mixin(Glyph.EmptyGlyph.class)
+    interface EmptyGlyphMixin
+        extends GlyphMetricsExtension
+    {
+        //**************************************************************************************************************
+        @Override default float novia$getAscent() { return 7; }
+        @Override default float novia$getHeight() { return 8; }
+        @Override default float novia$getLeft()   { return 0; }
+        @Override default float novia$getTop()    { return 0; }
+        @Override default float novia$getRight()  { return 0; }
+        @Override default float novia$getBottom() { return 0; }
+    }
+    
+    @Mixin(BuiltinEmptyGlyph.class)
+    abstract class BuiltinEmptyGlyphMixin
+        implements GlyphMetricsExtension
+    {
+        //**************************************************************************************************************
+        @Override public float novia$getAscent() { return 7; }
+        @Override public float novia$getHeight() { return 8; }
+        @Override public float novia$getLeft()   { return 0; }
+        @Override public float novia$getTop()    { return 0; }
+        @Override public float novia$getRight()  { return 5; }
+        @Override public float novia$getBottom() { return 8; }
     }
 }

@@ -60,7 +60,7 @@ public final class MouseEvent
     public final @NotNull Mouse device = MinecraftClient.getInstance().mouse;
     
     /**
-     * Determines a change on the x-axis since the last mouse event.
+     * Determines a change on the left-axis since the last mouse event.
      * <p>
      * For scroll events this will determine the horizontal scroll amount, for drag events the change in mouse position
      * since the last drag event and for any other mouse event 0.
@@ -86,7 +86,7 @@ public final class MouseEvent
      * Constructs a new mouse button event.
      * @param source    The {@link GuiComponent} that originally triggered the event
      * @param mousePos  The position of the cursor in screen coordinates
-     * @param deltaX    The amount the position has changed from the last move on the x-axis
+     * @param deltaX    The amount the position has changed from the last move on the left-axis
      * @param deltaY    The amount the position has changed from the last move on the y-axis
      * @param button    The code of the mouse button that has been pressed (see {@link GLFW})
      */

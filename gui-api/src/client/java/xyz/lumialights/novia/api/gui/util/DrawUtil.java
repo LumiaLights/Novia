@@ -43,15 +43,9 @@ import org.joml.Matrix4f;
 
 
 //**********************************************************************************************************************
-public abstract class DrawUtil
+public final class DrawUtil
 {
     //******************************************************************************************************************
-    public static @NotNull Matrix4f toDepthMatrix(final @NotNull Matrix3x2f matrix, final float depth)
-    {
-        return (new Matrix4f()).mul(matrix).translate(0f, 0f, depth);
-    }
-    
-    //==================================================================================================================
     public static void drawRect(final @NotNull Matrix4f matrix, final @NotNull VertexConsumer consumer,
                                 final float z,
                                 final float x1, final float y1, final float x2, final float y2,
@@ -210,4 +204,7 @@ public abstract class DrawUtil
         consumer.vertex(matrix, x2, y2, z).color(cbr).texture(u2, v2);
         consumer.vertex(matrix, x2, y1, z).color(ctr).texture(u2, v1);
     }
+    
+    //******************************************************************************************************************
+    private DrawUtil() {}
 }

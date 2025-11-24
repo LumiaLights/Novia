@@ -42,8 +42,6 @@ import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.event.GuiEvent;
-import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
-import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
 
 
 

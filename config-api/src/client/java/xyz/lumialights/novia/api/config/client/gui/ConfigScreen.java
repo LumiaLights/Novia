@@ -112,7 +112,7 @@ public class ConfigScreen
         this.title = this.addChild(this.lookAndFeel.createTitleWidget(this.getMessage()));
         
         this.tabList = this.addChild(new TabList());
-        this.tabList.addSelectionListener(this::onTabChanged);
+        this.tabList.selectionChanged.subscribe((sender, e) -> this.onTabChanged(e.itemIndex()));
         
         this.optList = this.addChild(new OptionList());
         
@@ -139,7 +139,7 @@ public class ConfigScreen
                 this.isCategorised));
 
             final int selected = this.tabList.getIndexOfFirstSelectedItem();
-            this.onTabChanged(this.tabList.getItemAt(selected).orElseThrow(), selected, true);
+            this.onTabChanged(selected);
 
             sender.setTooltip(Tooltip.of(Text.of(this.isCategorised ? "Categorised" : "Uncategorised")));
             ((NVSimpleButton) sender).setIcon(this.isCategorised
@@ -155,19 +155,16 @@ public class ConfigScreen
     }
     
     //==================================================================================================================
-    @Override public @Nullable IComponentNavigator getNavigator() { return this.optList.getNavigator(); }
-    
-    //==================================================================================================================
-    public void showEditScreen(@Nullable final PropertyId            propertyId,
-                               @NotNull  final Text                  title,
-                               @NotNull  final IStatefulComponent<?> content)
+    public void showEditScreen(@Nullable final PropertyId         propertyId,
+                               @NotNull  final Text               title,
+                               @NotNull  final IStatefulComponent content)
     {
         //this.editScreen.setContent(propertyId, title, content);
     }
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         this.lookAndFeel.resize(this.getLocalBounds());
 
@@ -188,14 +185,14 @@ public class ConfigScreen
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         super.draw(canvas);
         this.lookAndFeel.drawBackground(canvas);
     }
     
     //==================================================================================================================
-    private void onTabChanged(final @NotNull TabList.Item tabItem, final int index, final boolean selected)
+    private void onTabChanged(final int index)
     {
         this.optList.clearOptions();
         this.tabManager.streamGroups(index).forEach(this::addGroup);
@@ -207,9 +204,10 @@ public class ConfigScreen
         final OptionList.Group option = this.optList.addGroup(group.title().orElse(null));
         group.entries().forEach(property ->
         {
-            final IStatefulComponent<?> component = property.factory().create(this);
+            final IStatefulComponent component = property.factory().create(this);
             component.setValue(property.getProperty().getValue());
-            component.addChangeListener(comp -> this.valueChanged(property.id(), comp.getValue()));
+            component.getChangeEvent().subscribe((sender, e) ->
+                this.valueChanged(property.id(), ((IStatefulComponent) sender).getValue()));
             option.addProperty(property.id(), property.title(), property.description(), component);
         });
     }

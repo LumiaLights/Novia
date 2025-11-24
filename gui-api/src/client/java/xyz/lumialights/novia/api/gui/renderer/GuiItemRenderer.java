@@ -120,7 +120,7 @@ public class GuiItemRenderer
         
         try
         {
-            canvas.draw(new ItemGuiElementRenderState(
+            canvas.drawItem(new ItemGuiElementRenderState(
                 this.stack.getItem().getName().toString(),
                 canvas.getTransform().getMatrix(),
                 this.keyedItemRenderState,
@@ -156,8 +156,7 @@ public class GuiItemRenderer
 		}
     }
     
-    //------------------------------------------------------------------------------------------------------------------
-    private void drawItemBar(final @NotNull Canvas canvas, int x, int y)
+    public void drawItemBar(final @NotNull Canvas canvas, int x, int y)
     {
         if (this.stack.isItemBarVisible())
         {
@@ -172,31 +171,31 @@ public class GuiItemRenderer
 		}
     }
     
-    private void drawCooldownProgress(final @NotNull Canvas canvas, final int x, final int y)
+    public void drawCooldownProgress(final @NotNull Canvas canvas, final int x, final int y)
     {
         final ClientPlayerEntity player   = this.client.player;
 		final float              cooldown = (player != null
 			? player
                 .getItemCooldownManager()
                 .getCooldownProgress(this.stack, this.client.getRenderTickCounter().getTickProgress(true))
-			: 0.0F);
+			: 0f);
    
-		if (cooldown > 0.0F)
+		if (cooldown > 0f)
         {
-			final int draw_y = (y + MathHelper.floor(16.0F * (1.0F - cooldown)));
+			final int draw_y = (y + MathHelper.floor(16f * (1f - cooldown)));
 			
             canvas.setColour(Integer.MAX_VALUE);
-            canvas.fill(x, draw_y, (x + 16), (draw_y + MathHelper.ceil(16.0F * cooldown)));
+            canvas.fill(x, draw_y, (x + 16), (draw_y + MathHelper.ceil(16f * cooldown)));
 		}
     }
     
-    private void drawStackCount(final @NotNull Canvas canvas, int x, int y, final @Nullable String stackCountText)
+    public void drawStackCount(final @NotNull Canvas canvas, int x, int y, final @Nullable String stackCountText)
     {
         if (this.stack.getCount() != 1 || stackCountText != null)
         {
 			final String text = (stackCountText == null ? String.valueOf(this.stack.getCount()) : stackCountText);
             
-            x += (17 - canvas.getFont().getWidthFitted(text));
+            x += (17 - canvas.getFont().getTextWidthFitted(text));
             y += 9;
             
             canvas.setColour(Colour.WHITE);
@@ -214,9 +213,12 @@ public class GuiItemRenderer
         }
         
         this.keyedItemRenderState = new KeyedItemRenderState();
-        this.client
-            .getItemModelManager()
-            .clearAndUpdate(this.keyedItemRenderState, this.stack, ItemDisplayContext.GUI, this.client.world,
-                            (this.withEntity ? this.client.player : null), this.seed);
+        this.client.getItemModelManager().clearAndUpdate(
+            this.keyedItemRenderState,
+            this.stack,
+            ItemDisplayContext.GUI,
+            this.client.world,
+            (this.withEntity ? this.client.player : null),
+            this.seed);
     }
 }

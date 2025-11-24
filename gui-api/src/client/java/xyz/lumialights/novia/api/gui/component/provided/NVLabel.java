@@ -49,8 +49,8 @@ import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
 import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.event.GuiEvent;
-import xyz.lumialights.novia.api.gui.font.FontUtil;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.TextLayout;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
 import xyz.lumialights.novia.api.gui.property.GuiProperty;
 import xyz.lumialights.novia.api.gui.property.GuiPropertyBuilder;
@@ -127,9 +127,9 @@ public class NVLabel
     {
         DEFAULT_TRIM_FUNCTION = ((text, font, label) ->
         {
-            final int             max_width = (label.getWidth() - font.getWidthFitted(ScreenTexts.ELLIPSIS));
-            final StringVisitable visitable = FontUtil.trimToWidth(font, text, max_width);
-            return Language.getInstance().reorder(StringVisitable.concat(visitable, ScreenTexts.ELLIPSIS));
+            final int  max_width = (label.getWidth() - TextLayout.getTextWidthFitted(font, ScreenTexts.ELLIPSIS));
+            final Text text1     = TextLayout.trimToWidth(font, text, max_width);
+            return Language.getInstance().reorder(StringVisitable.concat(text1, ScreenTexts.ELLIPSIS));
         });
 
         NO_TRIM_FUNCTION = ((text, font, label) -> text.asOrderedText());
@@ -223,7 +223,7 @@ public class NVLabel
      */
     public void setText(final @NotNull Text text)
     {
-        if (!this.text.equals(text))
+        if (!Objects.equals(this.text, text))
         {
             this.text = Objects.requireNonNull(text, "text must not be null");
             this.updateText(this.getFont());
@@ -258,7 +258,7 @@ public class NVLabel
     //==================================================================================================================
     private void updateText(final @NotNull GuiFont font)
     {
-        this.trimmed = (font.getWidth(this.text) > this.getWidth()
+        this.trimmed = (TextLayout.getTextWidth(font, this.text) > this.getWidth()
             ? this.trimFunction.get().trim(this.text, font, this)
             : this.text.asOrderedText());
     }

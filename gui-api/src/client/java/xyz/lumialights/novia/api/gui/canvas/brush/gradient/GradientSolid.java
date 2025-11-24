@@ -36,6 +36,9 @@
 package xyz.lumialights.novia.api.gui.canvas.brush.gradient;
 
 
+import org.jetbrains.annotations.NotNull;
+
+
 
 //**********************************************************************************************************************
 public class GradientSolid
@@ -46,4 +49,18 @@ public class GradientSolid
 
     //==================================================================================================================
     public int getColour(final float point) { return this.startColour(); }
+    
+    //==================================================================================================================
+    @Override
+    public @NotNull Gradient partition(final int x,
+                                       final int y,
+                                       final int width,
+                                       final int height,
+                                       final int deltaXStart,
+                                       final int deltaXEnd,
+                                       final int deltaYStart,
+                                       final int deltaYEnd)
+    {
+        return this;
+    }
 }

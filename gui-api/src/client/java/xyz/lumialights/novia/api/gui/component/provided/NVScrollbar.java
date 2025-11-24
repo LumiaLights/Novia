@@ -440,13 +440,13 @@ public class NVScrollbar
         
         if (this.vertical.get())
         {
-            mouse_pos   = (int) e.localMouseY();
+            mouse_pos   = e.localMouseY();
             thumb_start = this.thumbBounds.y();
             thumb_end   = this.thumbBounds.getBottom();
         }
         else
         {
-            mouse_pos   = (int) e.localMouseX();
+            mouse_pos   = e.localMouseX();
             thumb_start = this.thumbBounds.x();
             thumb_end   = this.thumbBounds.getRight();
         }
@@ -458,10 +458,10 @@ public class NVScrollbar
             this.startMs = Util.getMeasuringTimeMs();
             this.applyMs = Util.getMeasuringTimeMs();
         }
-        else if (mouse_pos > thumb_end)
+        else if (mouse_pos >= thumb_end)
         {
             this.movePages(1);
-            this.canPull  = true;
+            this.canPull = true;
             this.startMs = Util.getMeasuringTimeMs();
             this.applyMs = Util.getMeasuringTimeMs();
         }

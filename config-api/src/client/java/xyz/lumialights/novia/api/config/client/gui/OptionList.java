@@ -35,6 +35,7 @@
  */
 package xyz.lumialights.novia.api.config.client.gui;
 
+import net.minecraft.client.gui.navigation.GuiNavigation;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
@@ -43,6 +44,8 @@ import xyz.lumialights.novia.api.config.PropertyId;
 import xyz.lumialights.novia.api.core.serialisation.IValueConvertible;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
+import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
+import xyz.lumialights.novia.api.gui.component.NaturalNavigator;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.INVItemModel;
 import xyz.lumialights.novia.api.gui.component.provided.NVListBox;
@@ -91,15 +94,15 @@ public class OptionList
             IValueConvertible
     {
         //**************************************************************************************************************
-        public final PropertyId            id;
-        public final NVLabel               label;
-        public final IStatefulComponent<?> component;
+        public final PropertyId         id;
+        public final NVLabel            label;
+        public final IStatefulComponent component;
         
         //**************************************************************************************************************
-        public OptionItem(final @NotNull  PropertyId            id,
-                          final @NotNull  Text                  title,
-                          final @Nullable Text                  description,
-                          final @NotNull  IStatefulComponent<?> component)
+        public OptionItem(final @NotNull  PropertyId         id,
+                          final @NotNull  Text               title,
+                          final @Nullable Text               description,
+                          final @NotNull  IStatefulComponent component)
         {
             this.id        = id;
             this.component = component;
@@ -216,10 +219,10 @@ public class OptionList
         }
         
         //==============================================================================================================
-        public void addProperty(final @NotNull  PropertyId            propertyId,
-                                final @NotNull  Text                  title,
-                                final @Nullable Text                  description,
-                                final @NotNull  IStatefulComponent<?> component)
+        public void addProperty(final @NotNull  PropertyId         propertyId,
+                                final @NotNull  Text               title,
+                                final @Nullable Text               description,
+                                final @NotNull  IStatefulComponent component)
         {
             this.optionItems.add(new OptionItem(propertyId, title, description, component));
         }
@@ -236,12 +239,23 @@ public class OptionList
     //******************************************************************************************************************
     public OptionList()
     {
-        this.itemSize.set(18);
+        this.itemSize     .set(18);
         this.selectionMode.set(SelectionMode.NONE);
     }
     
     //==================================================================================================================
     public @NotNull DisplayMode getDisplayMode() { return this.displayMode; }
+    
+    @Override
+    public @Nullable IComponentNavigator getNavigator()
+    {
+        return NaturalNavigator.withComponents(OptionList.this
+            .getItems()
+            .stream()
+            .flatMap(item -> item.getChildren().stream())
+            .filter(GuiComponent::wantsFocus)
+            .toList());
+    }
     
     //==================================================================================================================
     public void setDisplayMode(final @NotNull DisplayMode displayMode)

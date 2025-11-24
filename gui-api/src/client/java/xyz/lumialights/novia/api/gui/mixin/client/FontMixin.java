@@ -48,6 +48,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import xyz.lumialights.novia.api.gui.font.FontMetrics;
+import xyz.lumialights.novia.api.gui.font.GuiFont;
 import xyz.lumialights.novia.api.gui.impl.FontMetricsExtension;
 import xyz.lumialights.novia.api.gui.impl.TrueTypeFontAccessor;
 
@@ -81,11 +82,16 @@ public interface FontMixin
             {
                 final BitmapFont.BitmapFontGlyph glyph      = Objects.requireNonNull(glyphs.get(it.nextInt()));
                 final float                      oversample = (1f / glyph.scaleFactor());
-                this.metrics = new FontMetrics((glyph.height() / oversample), (glyph.ascent() / oversample));
+                final float                      height     = (glyph.height() / oversample);
+                
+                this.metrics = new FontMetrics(
+                    height,
+                    (glyph.ascent() / oversample),
+                    (GuiFont.getDefaultFontHeight() / height));
             }
             else
             {
-                this.metrics = new FontMetrics(8f, 7f);
+                this.metrics = new FontMetrics(8f, 7f, 1f);
             }
         }
         
@@ -119,12 +125,13 @@ public interface FontMixin
             final FT_Size_Metrics metrics = Objects.requireNonNull(face.size()).metrics();
             final float           ascent  = ((int) (face.ascender()          * (metrics.y_scale() / 65536.0)) >> 6);
             final float           descent = ((int) Math.abs(face.descender() * (metrics.y_scale() / 65536.0)) >> 6);
-            this.metrics = new FontMetrics(((ascent + descent) / this.oversample), (ascent / this.oversample));
+            final float           height  = ((ascent + descent) / this.oversample);
+            this.metrics = new FontMetrics(height, (ascent / this.oversample), (GuiFont.getDefaultFontHeight() / height));
         }
         
         //==============================================================================================================
-        @Override public @NotNull FontMetrics novia$getMetrics() { return this.metrics; }
-        @Override public float novia$getOversample() { return this.oversample; }
+        @Override public @NotNull FontMetrics novia$getMetrics()    { return this.metrics; }
+        @Override public          float       novia$getOversample() { return this.oversample; }
     }
     
     @Mixin(UnihexFont.class)
@@ -132,18 +139,28 @@ public interface FontMixin
         implements FontMetricsExtension
     {
         //**************************************************************************************************************
-        @Unique FontMetrics metrics;
-        
-        //**************************************************************************************************************
-        @Inject(method = "<init>", at = @At("TAIL"))
-        public void initMetrics(final @NotNull GlyphContainer<UnihexFont.UnicodeTextureGlyph> glyphs,
-                                final @NotNull CallbackInfo                                   ci)
-        {
-            // doesn't apply to all fonts but... at this point I don't care any longer
-            this.metrics = new FontMetrics(8f, 7f);
-        }
+        @Unique private static final FontMetrics METRICS = new FontMetrics(8f, 7f, 1f);
         
         //==============================================================================================================
-        @Override public @NotNull FontMetrics novia$getMetrics() { return this.metrics; }
+        @Override public @NotNull FontMetrics novia$getMetrics() { return UnihexFontMixin.METRICS; }
+    }
+    
+    @Mixin(SpaceFont.class)
+    abstract class SpaceFontMixin
+        implements FontMetricsExtension
+    {
+        //**************************************************************************************************************
+        @Unique private static final FontMetrics METRICS = new FontMetrics(8f, 7f, 1f);
+        
+        //==============================================================================================================
+        @Override public @NotNull FontMetrics novia$getMetrics() { return SpaceFontMixin.METRICS; }
+    }
+    
+    @Mixin(BlankFont.class)
+    abstract class BlankFontMixin
+        implements FontMetricsExtension
+    {
+        //**************************************************************************************************************
+        @Override public @NotNull FontMetrics novia$getMetrics() { return SpaceFontMixin.METRICS; }
     }
 }

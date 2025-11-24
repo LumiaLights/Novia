@@ -44,6 +44,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.gen.Invoker;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
+import xyz.lumialights.novia.api.gui.geometry.UvMapping;
 import xyz.lumialights.novia.api.gui.impl.RotatingCubeMapRendererExtension;
 
 
@@ -83,7 +84,9 @@ public abstract class RotatingCubeMapRendererMixin
 		}
 
 		this.cubeMap.draw(this.client, 10.0F, -this.pitch);
-		canvas.drawTexture(RotatingCubeMapRenderer.OVERLAY_TEXTURE, x, y, width, height, 0, 0, 16, 128, 16, 128,
+		canvas.drawTexture(RotatingCubeMapRenderer.OVERLAY_TEXTURE,
+                           x, y, width, height,
+                           UvMapping.mapped(0, 0, 16, 128),
                            false);
     }
 }

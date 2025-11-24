@@ -189,6 +189,7 @@ public class NVNumericBox
         this.textBox.valueChanged.subscribe((sender, args) -> this.textboxTextChanged((NVTextBox) sender));
         
         this.setMonitorChildren(true);
+        this.setWantsFocus(false);
         this.updateText(this.numberFormat.get());
     }
     
@@ -289,7 +290,7 @@ public class NVNumericBox
     @Override
     public void resized()
     {
-        final int       size        = (this.getHeight() / 2);
+        final int       size        = (int) (this.getHeight() * 0.5f);
         final Rectangle local       = this.getLocalBounds();
         final Rectangle button_rect = local
             .withWidth(size)

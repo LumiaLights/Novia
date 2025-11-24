@@ -60,7 +60,6 @@ import xyz.lumialights.novia.api.gui.geometry.Restrainer;
 
 import java.text.DecimalFormat;
 import java.util.*;
-import java.util.function.Function;
 
 
 
@@ -100,8 +99,8 @@ public abstract class AtomicSchemaMixin
                     })))))
                     .ifVar("slider", (() ->
                     {
-                        final Function<Double, Text> text_provider = (format != null
-                            ? (val -> Text.of(formatter.format(val)))
+                        final NVSlider.TextProvider text_provider = (format != null
+                            ? (slider -> Text.of(formatter.format(slider.getValueAsDouble())))
                             : NVSlider.DEFAULT_DISPLAY_TEXT_PROVIDER);
                         
                         return (screen -> Util.make(new NVSlider(), (slider ->

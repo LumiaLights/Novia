@@ -60,7 +60,7 @@ public class EditScreen
     extends GuiScreen
 {
     //******************************************************************************************************************
-    private record Content(@NotNull IStatefulComponent<?> content) {}
+    private record Content(@NotNull IStatefulComponent content) {}
     
     private record StackFrame(@NotNull Text title, @NotNull Content content) {}
     
@@ -87,14 +87,15 @@ public class EditScreen
         this.titleLabel.textAlign.set(Alignment.MIDDLE_CENTRE);
         this.titleLabel.setColour(NVLabel.COLOUR_TEXT, 0xFF333333);
         
-        this.backButton = new NVLabelButton((button -> this.popFrame()), GuiApiLang.GUI_GO_BACK_BUTTON);
+        this.backButton = new NVLabelButton(GuiApiLang.GUI_GO_BACK_BUTTON);
         this.backButton.setColour(NVLabel.COLOUR_TEXT, 0xFF333333);
+        this.backButton.clicked.subscribe((sender, e) -> this.popFrame());
     }
     
     //==================================================================================================================
-    void setContent(final @Nullable PropertyId            propertyId,
-                    final @NotNull  Text                  title,
-                    final @NotNull  IStatefulComponent<?> content)
+    void setContent(final @Nullable PropertyId         propertyId,
+                    final @NotNull  Text               title,
+                    final @NotNull  IStatefulComponent content)
     {
         if (this.content != null)
         {
@@ -109,7 +110,7 @@ public class EditScreen
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private void pushFrame(final @NotNull Text title, final @NotNull IStatefulComponent<?> content)
+    private void pushFrame(final @NotNull Text title, final @NotNull IStatefulComponent content)
     {
         this.contentStack.addLast(new StackFrame(this.titleLabel.getMessage(), this.content));
         this.updateContent(title, content);
@@ -129,7 +130,7 @@ public class EditScreen
     
     //==================================================================================================================
     @Override
-    protected void resized()
+    public void resized()
     {
         this.lookAndFeel.resize(this.getBounds());
         this.titleLabel.setBounds(this.lookAndFeel.getTitleBounds(
@@ -144,13 +145,13 @@ public class EditScreen
     
     //==================================================================================================================
     @Override
-    protected void draw(final @NotNull Canvas canvas)
+    public void draw(final @NotNull Canvas canvas)
     {
         this.lookAndFeel.drawEditPanelBackground(canvas);
     }
     
     //==================================================================================================================
-    private void updateContent(final @NotNull Text title, final @NotNull IStatefulComponent<?> content)
+    private void updateContent(final @NotNull Text title, final @NotNull IStatefulComponent content)
     {
         this.content = new Content(content);
         this.titleLabel.setMessage(title);

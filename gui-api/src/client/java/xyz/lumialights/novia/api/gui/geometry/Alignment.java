@@ -85,7 +85,7 @@ public enum Alignment
     /**
      * Aligns the given target bounds so that it is aligned to the given container area.
      *
-     * @param containerX      The position of the area that the target area should be aligned to on the x-axis
+     * @param containerX      The position of the area that the target area should be aligned to on the left-axis
      * @param containerY      The position of the area that the target area should be aligned to on the y-axis
      * @param containerWidth  The width of the area that the target area should be aligned to
      * @param containerHeight The height of the area that the target area should be aligned to
@@ -127,7 +127,7 @@ public enum Alignment
     /**
      * Aligns {@code target} so that it is aligned relatively to the given container bounds.
      *
-     * @param containerX      The position of the area that the target area should be aligned to on the x-axis
+     * @param containerX      The position of the area that the target area should be aligned to on the left-axis
      * @param containerY      The position of the area that the target area should be aligned to on the y-axis
      * @param containerWidth  The width of the area that the target area should be aligned to
      * @param containerHeight The height of the area that the target area should be aligned to
@@ -140,7 +140,8 @@ public enum Alignment
                                     final @NotNull Number    containerHeight,
                                     final @NotNull Rectangle target)
     {
-        return target.apply((x, y, w, h) -> this.align(containerX, containerY, containerWidth, containerHeight, w, h));
+        return target.transform((x, y, w, h) ->
+            this.align(containerX, containerY, containerWidth, containerHeight, w, h));
     }
     
     /**
@@ -151,10 +152,11 @@ public enum Alignment
      * @param targetHeight The height of the to be aligned area
      * @return A new {@link Rectangle} aligned to the given container rect
      */
-    public @NotNull Rectangle align(final @NotNull Rectangle container, final @NotNull Number targetWidth,
-                                    final @NotNull Number targetHeight)
+    public @NotNull Rectangle align(final @NotNull Rectangle container,
+                                    final @NotNull Number    targetWidth,
+                                    final @NotNull Number    targetHeight)
     {
-        return container.apply((x, y, w, h) -> this.align(x, y, w, h, targetWidth, targetHeight));
+        return container.transform((x, y, w, h) -> this.align(x, y, w, h, targetWidth, targetHeight));
     }
     
     /**
@@ -166,9 +168,8 @@ public enum Alignment
      */
     public @NotNull Rectangle align(final @NotNull Rectangle container, final @NotNull Rectangle target)
     {
-        return container.apply((cx, cy, cw, ch) ->
-            target.apply((tx, ty, tw, th) ->
-                this.align(cx, cy, cw, ch, tw, th)));
+        return container.transform((cx, cy, cw, ch) -> target.transform((tx, ty, tw, th) ->
+            this.align(cx, cy, cw, ch, tw, th)));
     }
     
     //==================================================================================================================

@@ -39,12 +39,14 @@ import net.minecraft.client.gui.tooltip.*;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector2ic;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.ColourId;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
 import xyz.lumialights.novia.api.gui.font.GuiFont;
+import xyz.lumialights.novia.api.gui.font.TextLayout;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 
 import java.util.*;
@@ -67,7 +69,6 @@ public final class GuiTooltipRenderer
     
     public static final Identifier BACKGROUND_TEXTURE = Identifier.ofVanilla("tooltip/background");
     public static final Identifier FRAME_TEXTURE      = Identifier.ofVanilla("tooltip/frame");
-    public static final int        LINE_HEIGHT        = 10;
     
     //==================================================================================================================
     public static void draw(final @NotNull Canvas canvas, final @NotNull Text text, final int x, final int y)
@@ -105,14 +106,14 @@ public final class GuiTooltipRenderer
 
         for (final var line : lines)
         {
-            final int k = font.getWidthFitted(line);
+            final int k = TextLayout.getTextWidthFitted(font, line);
             
             if (k > width)
             {
                 width = k;
             }
-
-            height += GuiTooltipRenderer.LINE_HEIGHT;
+            
+            height += MathHelper.ceil(font.getHeight());
         }
         
         final Vector2ic pos_vec = positioner.getPosition(canvas.getScaledWindowWidth(), canvas.getScaledWindowHeight(),

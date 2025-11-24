@@ -44,7 +44,7 @@ import xyz.lumialights.novia.api.gui.component.StatefulGuiComponent;
 
 //**********************************************************************************************************************
 public class SchemaVariant
-    extends StatefulGuiComponent<SchemaVariant>
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
     public SchemaVariant(final @NotNull ConfigScreen screen)

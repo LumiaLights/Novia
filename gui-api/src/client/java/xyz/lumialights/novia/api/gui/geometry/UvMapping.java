@@ -65,7 +65,7 @@ public record UvMapping(float minU, float minV, float maxU, float maxV)
         return new UvMapping((u / (float) textureWidth), (v / (float) textureHeight), 1f, 1f);
     }
     
-    public static @NotNull UvMapping mapped(final @NotNull Rectangle uvRect) { return uvRect.apply(UvMapping::mapped); }
+    public static @NotNull UvMapping mapped(final @NotNull Rectangle uvRect) { return uvRect.transform(UvMapping::mapped); }
     
     public static @NotNull UvMapping region(final int u,
                                             final int v,
@@ -85,7 +85,7 @@ public record UvMapping(float minU, float minV, float maxU, float maxV)
                                             final          int       regionWidth,
                                             final          int       regionHeight)
     {
-        return uvRect.apply((u, v, w, h) -> UvMapping.region(u, v, w, h, regionWidth, regionHeight));
+        return uvRect.transform((u, v, w, h) -> UvMapping.region(u, v, w, h, regionWidth, regionHeight));
     }
     
     public static @NotNull UvMapping fromTexture(final @NotNull Identifier textureId, final int u, final int v)

@@ -70,7 +70,7 @@ public abstract class NoviaPacketCodecs
      * resulting in precision loss.
      */
     public static final PacketCodec<ByteBuf, Number> NUMBER;
-
+    
     //------------------------------------------------------------------------------------------------------------------
     private static final PacketCodec<ByteBuf, Number> NON_SCALAR;
 
@@ -259,4 +259,11 @@ public abstract class NoviaPacketCodecs
     {
 		return NoviaPacketCodecs::immutableSet;
 	}
+    
+    //==================================================================================================================
+    public static <E extends Enum<E>> @NotNull PacketCodec<ByteBuf, E> enumeration(final @NotNull Class<E> enumeration)
+    {
+        final E[] constants = enumeration.getEnumConstants();
+        return PacketCodecs.VAR_INT.xmap((ord -> constants[ord]), Enum::ordinal);
+    }
 }

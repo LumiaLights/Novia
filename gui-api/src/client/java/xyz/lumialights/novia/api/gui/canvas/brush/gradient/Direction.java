@@ -36,7 +36,14 @@
 package xyz.lumialights.novia.api.gui.canvas.brush.gradient;
 
 
-public enum Direction {
+
+//**********************************************************************************************************************
+/// Specifies the direction in which a gradient goes.
+public enum Direction
+{
+    /// Draws a horizontal gradient, with colours interpolating from left to right.
     HORIZONTAL,
+    
+    /// Draws a vertical gradient, with colours interpolating from top to bottom.
     VERTICAL
 }

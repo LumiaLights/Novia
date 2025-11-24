@@ -35,46 +35,27 @@
  */
 package xyz.lumialights.novia.api.config.client.gui.schema.component;
 
-import com.google.common.collect.Sets;
+import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
-import xyz.lumialights.novia.api.config.client.ConfigApiLangClient;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
-import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
-import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
-
-import java.util.*;
 
 
 
 //**********************************************************************************************************************
 public abstract class SchemaButton
     extends NVSimpleButton
-    implements IStatefulComponent<SchemaButton>
+    implements IStatefulComponent
 {
     //******************************************************************************************************************
-    private final Set<GuiEventHandler<GuiEventArgs>> listeners = Sets.newIdentityHashSet();
-    
     private boolean muted = false;
     
     //******************************************************************************************************************
-    public SchemaButton(final @NotNull Text text) { super(text, ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT); }
-    public SchemaButton() { this(ConfigApiLangClient.CONFIG_EDIT_BUTTON_TEXT); }
+    public SchemaButton(final @NotNull Text text) { super(text, text); }
+    public SchemaButton() { super(ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    @Override
-    public void addChangeListener(final @NotNull GuiEventHandler<GuiEventArgs> handler)
-    {
-        this.listeners.add(handler);
-    }
-    
-    @Override
-    public void removeChangeListener(final @NotNull GuiEventHandler<GuiEventArgs> handler)
-    {
-        this.listeners.remove(handler);
-    }
-    
     @Override public void mute()   { this.muted = true;  }
     @Override public void unmute() { this.muted = false; }
     
@@ -86,6 +67,6 @@ public abstract class SchemaButton
             return;
         }
         
-        this.listeners.forEach(handler -> handler.handle(this, GuiEventArgs.EMPTY));
+        this.getChangeEvent().post(this);
     }
 }

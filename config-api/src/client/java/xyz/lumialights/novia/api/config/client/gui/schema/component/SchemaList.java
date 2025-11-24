@@ -48,8 +48,7 @@ import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.INVItemModel;
 import xyz.lumialights.novia.api.gui.component.provided.NVListBox;
 import xyz.lumialights.novia.api.gui.component.provided.NVSimpleButton;
-import xyz.lumialights.novia.api.gui.event.GuiEventArgs;
-import xyz.lumialights.novia.api.gui.event.GuiEventHandler;
+import xyz.lumialights.novia.api.gui.event.GuiEvent;
 import xyz.lumialights.novia.api.gui.geometry.Rectangle;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 
@@ -62,7 +61,7 @@ import java.util.stream.IntStream;
 //**********************************************************************************************************************
 public class SchemaList
     extends NVListBox<SchemaList.Entry>
-    implements IStatefulComponent<SchemaList>
+    implements IStatefulComponent
 {
     //******************************************************************************************************************
     public class Entry
@@ -74,17 +73,18 @@ public class SchemaList
         private static final int REMOVE_BUTTON_WIDTH = 20;
         
         //**************************************************************************************************************
-        public final IStatefulComponent<?> component;
-        public final NVSimpleButton        removeButton;
+        public final IStatefulComponent component;
+        public final NVSimpleButton     removeButton;
         
         //**************************************************************************************************************
-        public Entry(final @NotNull IStatefulComponent<?> component)
+        public Entry(final @NotNull IStatefulComponent component)
         {
             this.component = Objects.requireNonNull(component, "component must not be null");
             
-            this.removeButton = new NVSimpleButton((btt -> SchemaList.this.removeItem(this)), Text.literal("X"));
+            this.removeButton = new NVSimpleButton(Text.literal("X"));
             this.removeButton.setTooltip(Tooltip.of(ConfigApiLangClient.CONFIG_SCHEMA_LIST_REMOVE_ITEM));
             this.removeButton.setDimensions((SchemaList.this.tuple ? 0 : REMOVE_BUTTON_WIDTH), 0);
+            this.removeButton.clicked.subscribe((sender, e) -> SchemaList.this.removeItem(this));
         }
         
         //==============================================================================================================
@@ -118,6 +118,9 @@ public class SchemaList
     private static final int ITEM_HEIGHT      = 20;
     
     //******************************************************************************************************************
+    public final GuiEvent.Simple saved = new GuiEvent.Simple();
+    
+    //==================================================================================================================
     private final List<IComponentFactory<?>> factories;
     private final NVSimpleButton             addEntryButton;
     private final boolean                    tuple;
@@ -137,9 +140,8 @@ public class SchemaList
         this.tuple      = false;
         this.providerId = providerId;
         
-        this.addEntryButton = this.addChild(new NVSimpleButton(
-            (b -> this.addItem(new Entry(factory.create(screen)))),
-            Text.literal("+")));
+        this.addEntryButton = this.addChild(new NVSimpleButton(Text.literal("+")));
+        this.addEntryButton.clicked.subscribe((sender, e) -> this.addItem(new Entry(factory.create(screen))));
         this.addEntryButton.setPinned(true);
     }
     
@@ -185,6 +187,8 @@ public class SchemaList
             .collect(Collectors.toList()));
     }
     
+    @Override public @NotNull GuiEvent.Simple getChangeEvent() { return this.saved; }
+    
     //==================================================================================================================
     @Override
     public void setValue(@NotNull final Value value)
@@ -211,7 +215,7 @@ public class SchemaList
             .stream()
             .map(val ->
             {
-                final IStatefulComponent<?> component = factory.create(this.screen);
+                final IStatefulComponent component = factory.create(this.screen);
                 component.setValue(val);
                 return new Entry(component);
             })
@@ -219,8 +223,6 @@ public class SchemaList
     }
     
     //==================================================================================================================
-    @Override public void addChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
-    @Override public void removeChangeListener(@NotNull GuiEventHandler<GuiEventArgs> handler) {}
     @Override public void mute()   {}
     @Override public void unmute() {}
 }
