@@ -68,12 +68,9 @@ import java.util.function.Supplier;
 
 
 //**********************************************************************************************************************
-/**
- * Describes the base class of all gui templates used to customise rendering of components.
- * <p>
- * This class can be mixin-ed to allow templating your own components.
- * @see DefaultGuiTemplate
- */
+/// Describes the base class of all gui templates used to customise rendering of components. This class can be mixed-in
+/// to allow templating your own components.
+/// @see DefaultGuiTemplate
 public interface IGuiTemplate
     extends
         IPaletteProvider,
@@ -91,12 +88,9 @@ public interface IGuiTemplate
         GuiTooltipRenderer.Template
 {
     //******************************************************************************************************************
-    /**
-     * The default template used if no explicit template was set.
-     * <p>
-     * This template does not permit changing colours as it defines the defaults used for all components, otherwise
-     * it will throw an {@link UnsupportedOperationException}.
-     */
+    /// The default template used if no explicit template was set. This template does not permit changing colours as it
+    /// defines the defaults used for all components.
+    /// @throws UnsupportedOperationException If any of the colours in the map is being changed
     IGuiTemplate DEFAULT = new DefaultGuiTemplate()
     {
         @Override
@@ -113,13 +107,9 @@ public interface IGuiTemplate
     };
     
     //******************************************************************************************************************
-    /**
-     * Gets the default brush for this template.
-     * <p>
-     * The default brush is the brush that is used whenever the {@link Canvas} visits the next component to draw.
-     *
-     * @return The default {@link Brush}
-     */
+    /// Gets the default brush for this template. The default brush is the brush that is used whenever the [Canvas]
+    /// visits the next component to draw.
+    /// @return The default [Brush]
     @Contract(pure = true)
     default @NotNull Supplier<Brush> getDefaultBrush() { return (() -> new Brush(Colour.WHITE)); }
     

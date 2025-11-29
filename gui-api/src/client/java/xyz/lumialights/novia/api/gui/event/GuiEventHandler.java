@@ -43,13 +43,20 @@ import java.util.Objects;
 
 
 //**********************************************************************************************************************
+/// Describes a handler for a GUI event that is used to define how the event should be handled.
 @FunctionalInterface
 public interface GuiEventHandler<EventArgs extends GuiEventArgs>
 {
     //******************************************************************************************************************
+    /// Handles the event.
+    /// @param sender The component sending the event
+    /// @param args   The arguments to pass to the handler
     void handle(@NotNull GuiComponent sender, @NotNull EventArgs args);
     
     //==================================================================================================================
+    /// Composes an event handler of this and a second one.
+    /// @param after The event handler that should be executed after this one
+    /// @return The new composed event handler
     default @NotNull GuiEventHandler<EventArgs> andThen(final @NotNull GuiEventHandler<EventArgs> after)
     {
         Objects.requireNonNull(after);

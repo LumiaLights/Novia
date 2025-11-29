@@ -35,7 +35,6 @@
  */
 package xyz.lumialights.novia.api.gui.geometry;
 
-import net.minecraft.client.gui.ScreenRect;
 import org.jetbrains.annotations.NotNull;
 
 
@@ -45,22 +44,22 @@ import org.jetbrains.annotations.NotNull;
 public interface Positioner
 {
     //******************************************************************************************************************
-    /**
-     * Creates a full-size positioner that returns the rectangle passed in.
-     * @return The full-size {@link Positioner}
-     */
+    /// Creates a full-size positioner that returns the rectangle passed in.
+    /// @return The full-size {@link Positioner}
     static @NotNull Positioner full() { return Rectangle::new; }
     
     //******************************************************************************************************************
+    /// Calculates the bounds.
+    /// @param parentX      The x coordinate of the positioner's parent
+    /// @param parentY      The y coordinate of the positioner's parent
+    /// @param parentWidth  The width of the positioner's parent
+    /// @param parentHeight The height of the positioner's parent
     @NotNull Rectangle getBounds(int parentX, int parentY, int parentWidth, int parentHeight);
     
+    /// Calculates the bounds.
+    /// @param parentBounds The bounds of the positioner's parent
     default @NotNull Rectangle getBounds(final @NotNull Rectangle parentBounds)
     {
         return parentBounds.transform(this::getBounds);
-    }
-    
-    default @NotNull Rectangle getBounds(final @NotNull ScreenRect parentScreenRect)
-    {
-        return this.getBounds(new Rectangle(parentScreenRect));
     }
 }

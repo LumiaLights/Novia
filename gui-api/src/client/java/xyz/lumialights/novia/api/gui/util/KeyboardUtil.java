@@ -43,12 +43,9 @@ import org.lwjgl.glfw.GLFW;
 public abstract class KeyboardUtil
 {
     //******************************************************************************************************************
-
-    /**
-     * Gets the number represented on the number key from the key code (also keypad).
-     * @param keyCode The key code
-     * @return The number from the number key or {@code -1} if the key was not a number key
-     */
+    /// Gets the number represented on the number key from the key code (also keypad).
+    /// @param keyCode The key code
+    /// @return The number from the number key or {@code -1} if the key was not a number key
     public static int getKeyNumber(final int keyCode)
     {
         return switch (keyCode)

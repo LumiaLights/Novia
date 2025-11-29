@@ -43,7 +43,7 @@ import xyz.lumialights.novia.api.gui.geometry.Alignment;
 
 
 //**********************************************************************************************************************
-/** An {@link NVAbstractButton} implementation with an optional label and icon. */
+/// An [NVAbstractButton] implementation with an optional label and icon.
 public class NVLabelButton
     extends NVAbstractButton
 {
@@ -51,11 +51,9 @@ public class NVLabelButton
     private final NVLabel label;
 
     //******************************************************************************************************************
-    /**
-     * Constructs a new button with the given action and label.
-     * @param label   The text drawn onto the button
-     * @param message The message and the initial text on the button
-     */
+    /// Constructs a new button with the given action and label.
+    /// @param label   The text drawn onto the button
+    /// @param message The message and the initial text on the button
     public NVLabelButton(final @NotNull Text label, final @NotNull Text message)
     {
         super(message);
@@ -64,20 +62,17 @@ public class NVLabelButton
         this.label.textAlign.set(Alignment.CENTRE);
     }
     
-    /**
-     * Constructs a new button with the given action and label.
-     * @param label The text drawn onto the button
-     */
+    /// Constructs a new button with the given label.
+    /// @param label The text drawn onto the button
     public NVLabelButton(final @NotNull Text label) { this(label, ScreenTexts.EMPTY); }
     
-    /** Constructs a new button with no text and no action. */
+    /// Constructs a new button with no text.
     public NVLabelButton() { this(ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the internal label the button uses to display its text. Use this only for styling purposes or changing text.
-     * @return The internal {@link NVLabel}
-     */
+    /// Gets the internal label the button uses to display its text. Use this only for styling purposes or changing
+    /// text.
+    /// @return The internal [NVLabel]
     public @NotNull NVLabel getLabel() { return this.label; }
     
     //==================================================================================================================

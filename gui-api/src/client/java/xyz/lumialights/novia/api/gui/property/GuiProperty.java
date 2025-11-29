@@ -47,39 +47,32 @@ import java.util.function.Predicate;
 
 
 //**********************************************************************************************************************
-/**
- * A utility class that allows {@link GuiComponent} classes define its own easily accessible properties.
- * <p>
- * Properties can be used for any sort of state in a component; however, it is best to only use them for things that
- * change a component's behaviour or look, so no data like text in a text box but more like item orientation in a
- * list-box.
- * <p>
- * When declaring property fields, it is always best to use the most recent subclass as field type; e.g. for non-null
- * properties, use {@link GuiProperty.NonNull}.
- *
- * @param <T> The type of content the property holds
- */
+/// A utility class that allows [GuiComponent] classes define its own easily accessible properties.
+///
+/// Properties can be used for any sort of state in a component; however, it is best to only use them for things that
+/// change a component's behaviour or look, so no data like text in a text box but more like item orientation in a
+/// list-box.
+///
+/// When declaring property fields, it is always best to use the most recent subclass as field type; e.g. for non-null
+/// properties, use [GuiProperty.NonNull].
+/// @param <T> The type of content the property holds
 public sealed class GuiProperty<T>
     implements IGuiProperty<T>
     permits
         GuiProperty.NonNull
 {
     //******************************************************************************************************************
-    /**
-     * A {@link GuiProperty} variant that does not allow {@code null} values, meaning it must be set.
-     * @param <T> The type of content the property holds
-     * @see GuiProperty
-     */
+    /// A [GuiProperty] variant that does not allow `null` values, meaning it must be set.
+    /// @param <T> The type of content the property holds
+    /// @see GuiProperty
     public static final class NonNull<T>
         extends GuiProperty<T>
     {
         //**************************************************************************************************************
-        /**
-         * Constructs a new gui property.
-         * @param initValue The initial value of the property
-         * @param setter    A setter that is executed whenever the internal value is changed
-         * @param validator A validator that will throw an exception if the value is invalid
-         */
+        /// Constructs a new gui property.
+        /// @param initValue The initial value of the property
+        /// @param setter    A setter that is executed whenever the internal value is changed
+        /// @param validator A validator that will throw an exception if the value is invalid
         public NonNull(final @NotNull T                     initValue,
                        final @NotNull Consumer <@NotNull T> setter,
                        final @NotNull Predicate<@NotNull T> validator)
@@ -91,26 +84,20 @@ public sealed class GuiProperty<T>
         @Override public @NotNull T get() { return this.value; }
 
         //==============================================================================================================
-        /**
-         * Returns always {@code true} for {@link GuiProperty.NonNull} (see {@link IGuiProperty#isSet()}).
-         * @return <code>true</code>
-         */
+        /// Returns always `true` for [GuiProperty.NonNull] (see [IGuiProperty#isSet()]).
+        /// @return `true`
         @Override public boolean isSet() { return true; }
 
         //==============================================================================================================
-        /**
-         * Sets the value currently held in the property to a new, non-null, value.
-         * <p>
-         * If unsure and a validator is attached, it is best to test before setting a value with {@link #isValid(Object)};
-         * otherwise if the value is not accepted by this property, this will throw a {@link IllegalArgumentException}
-         * exception.
-         *
-         * @param value The new non-null value
-         * @return {@code true} if the value was successfully changed; this is true if it was different from the previous
-         *
-         * @throws IllegalArgumentException If the value was not correct according to the attached validator
-         * @throws NullPointerException     If the new value was {@code null}
-         */
+        /// Sets the value currently held in the property to a new, non-null, value.
+        ///
+        /// If unsure and a validator is attached, it is best to test before setting a value with [#isValid(Object)];
+        /// otherwise if the value is not accepted by this property, this will throw a [IllegalArgumentException]
+        /// exception.
+        /// @param value The new non-null value
+        /// @return `true` if the value was successfully changed; this is true if it was different from the previous
+        /// @throws IllegalArgumentException If the value was not correct according to the attached validator
+        /// @throws NullPointerException     If the new value was `null`
         @Override
         public boolean set(final @NotNull T value)
         {
@@ -128,16 +115,13 @@ public sealed class GuiProperty<T>
         public @NotNull GuiProperty<T> ifEmpty(final @NotNull Runnable consumer) { return this; }
     }
 
-    /**
-     * A {@link GuiProperty} variant that references a property from another component.
-     * <p>
-     * This can be used for cases where a component consists of one or more child components and the components shall
-     * not be exposed but its properties do need to be exposed; this allows those properties to be
-     * aliased in the parent.
-     *
-     * @param <T> The type of content the property holds
-     * @see GuiProperty
-     */
+    /// A [GuiProperty] variant that references a property from another component.
+    ///
+    /// This can be used for cases where a component consists of one or more child components and the components shall
+    /// not be exposed but its properties do need to be exposed; this allows those properties to be
+    /// aliased in the parent.
+    /// @param <T> The type of content the property holds
+    /// @see GuiProperty
     @SuppressWarnings("ClassCanBeRecord")
     public static final class Reference<T>
         implements IGuiProperty<T>
@@ -176,13 +160,11 @@ public sealed class GuiProperty<T>
         return new GuiProperty.NonNull<>(initialValue, RefUtils.emptyConsumer(), RefUtils.alwaysTrue());
     }
     
-    /**
-     * Creates a reference to another property.
-     * @param owner    The owning {@link GuiComponent}
-     * @param property The {@link GuiProperty} that should be referenced
-     * @return The new {@link GuiProperty.Reference}
-     * @param <T> The type of content the property holds
-     */
+    /// Creates a reference to another property.
+    /// @param owner    The owning [GuiComponent]
+    /// @param property The [GuiProperty] that should be referenced
+    /// @return The new [GuiProperty.Reference]
+    /// @param <T> The type of content the property holds
     public static <T> @NotNull Reference<T> referTo(final @NotNull GuiComponent   owner,
                                                     final @NotNull GuiProperty<T> property)
     {
@@ -196,12 +178,10 @@ public sealed class GuiProperty<T>
     T value;
 
     //******************************************************************************************************************
-    /**
-     * Constructs a new gui property.
-     * @param initValue The initial value of the property
-     * @param setter    A setter that is executed whenever the internal value is changed
-     * @param validator A validator that will throw an exception if the value is invalid
-     */
+    /// Constructs a new gui property.
+    /// @param initValue The initial value of the property
+    /// @param setter    A setter that is executed whenever the internal value is changed
+    /// @param validator A validator that will throw an exception if the value is invalid
     public GuiProperty(final T initValue, final @NotNull Consumer<T> setter, final @NotNull Predicate<T> validator)
     {
         if (!validator.test(initValue))
@@ -221,26 +201,20 @@ public sealed class GuiProperty<T>
     //==================================================================================================================
     @Override public boolean isSet() { return (this.value != null); }
 
-    /**
-     * Can be used to check if a value is valid before giving it to the property.
-     * @param value The value to test
-     * @return {@code true} if the value is valid, {@code false} otherwise
-     */
+    /// Can be used to check if a value is valid before giving it to the property.
+    /// @param value The value to test
+    /// @return `true` if the value is valid, `false` otherwise
     public boolean isValid(final T value) { return this.validator.test(value); }
 
     //==================================================================================================================
-    /**
-     * Sets the value currently held in the property to a new value.
-     * <p>
-     * If unsure and a validator is attached, it is best to test before setting a value with {@link #isValid(Object)};
-     * otherwise if the value is not accepted by this property, this will throw a {@link IllegalArgumentException}
-     * exception.
-     *
-     * @param value The new value
-     * @return {@code true} if the value was successfully changed; this is true if it was different from the previous
-     *
-     * @throws IllegalArgumentException If the value was not correct according to the attached validator
-     */
+    /// Sets the value currently held in the property to a new value.
+    ///
+    /// If unsure and a validator is attached, it is best to test before setting a value with [#isValid(Object)];
+    /// otherwise if the value is not accepted by this property, this will throw a [IllegalArgumentException]
+    /// exception.
+    /// @param value The new value
+    /// @return `true` if the value was successfully changed; this is true if it was different from the previous
+    /// @throws IllegalArgumentException If the value was not correct according to the attached validator
     @Override
     public boolean set(final T value)
     {
@@ -261,12 +235,10 @@ public sealed class GuiProperty<T>
     }
 
     //==================================================================================================================
-    /**
-     * Executes a {@link Consumer} with the currently held value if {@link #isSet()} returns {@code true}
-     * (if the content is non-null).
-     * @param consumer The consumer to execute
-     * @return {@code this}
-     */
+     /// Executes a [Consumer] with the currently held value if [#isSet()] returns `true`
+     /// (if the content is non-null).
+     /// @param consumer The consumer to execute
+     /// @return `this`
     public @NotNull GuiProperty<T> ifSet(final @NotNull Consumer<T> consumer)
     {
         if (this.value != null)
@@ -277,11 +249,9 @@ public sealed class GuiProperty<T>
         return this;
     }
 
-    /**
-     * Executes a {@link Runnable} if {@link #isSet()} returns {@code false} (if the content is {@code null}).
-     * @param runnable The runnable to execute
-     * @return {@code this}
-     */
+    /// Executes a [Runnable] if [#isSet()] returns `false` (if the content is `null`).
+    /// @param runnable The runnable to execute
+    /// @return `this`
     public @NotNull GuiProperty<T> ifEmpty(final @NotNull Runnable runnable)
     {
         if (this.value == null)

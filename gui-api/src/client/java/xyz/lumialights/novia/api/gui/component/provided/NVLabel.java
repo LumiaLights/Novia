@@ -61,12 +61,8 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A component, which renders an associated text on the screen.
- * <p>
- * The advantage of using a component over directly drawing the text to the screen is the ease of positioning and
- * transformation.
- */
+/// A component, which renders an associated text on the screen. The advantage of using a component over directly
+/// drawing the text to the screen is the ease of positioning and transformation.
 public class NVLabel
     extends GuiComponent
 {
@@ -74,52 +70,46 @@ public class NVLabel
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the label's background.
-         * @param canvas The {@link Canvas}
-         * @param label  The {@link NVLabel}
-         */
+        /// Draws the label's background.
+        /// @param canvas The [Canvas]
+        /// @param label  The [NVLabel]
         void nvLabelDrawBackground(@NotNull Canvas canvas, @NotNull NVLabel label);
 
-        /**
-         * Draws the label's text.
-         * @param canvas The {@link Canvas}
-         * @param label  The {@link NVLabel}
-         * @param text   The text to draw
-         */
+        /// Draws the label's text.
+        /// @param canvas The [Canvas]
+        /// @param label  The [NVLabel]
+        /// @param text   The text to draw
         void nvLabelDrawText(@NotNull Canvas canvas, @NotNull NVLabel label, @NotNull OrderedText text);
     }
 
-    /** Describes how the text inside the label should be trimmed if it is too long to fit. */
+    /// Describes how the text inside the label should be trimmed if it is too long to fit.
     @FunctionalInterface
     public interface TrimFunction
     {
-        /**
-         * Trims the given text.
-         * @param text  The text to trim
-         * @param font  The {@link GuiFont} used to determine the size of the text on screen
-         * @param label The {@link NVLabel} component
-         * @return The trimmed text
-         */
+        /// Trims the given text.
+        /// @param text  The text to trim
+        /// @param font  The [GuiFont] used to determine the size of the text on screen
+        /// @param label The [NVLabel] component
+        /// @return The trimmed text
         OrderedText trim(@NotNull Text text, @NotNull GuiFont font, @NotNull NVLabel label);
     }
     
     //******************************************************************************************************************
-    /** The colour used for the text when the component is active. */
+    /// The colour used for the text when the component is active.
     public static final ColourId COLOUR_TEXT = ColourId.reserve();
 
-    /** The colour used for the text when the component is inactive. */
+    /// The colour used for the text when the component is inactive.
     public static final ColourId COLOUR_TEXT_INACTIVE = ColourId.reserve();
     
     //==================================================================================================================
-    /** See {@link NVLabel#textAlign}. */
+    /// See [NVLabel#textAlign].
     public static final Alignment DEFAULT_ALIGNMENT = Alignment.LEFT;
     
-    /** See {@link NVLabel#trimFunction}. */
+    /// See [NVLabel#trimFunction].
     public static final TrimFunction DEFAULT_TRIM_FUNCTION;
 
     //==================================================================================================================
-    /** A {@link TrimFunction} that does no trimming and just converts the {@link Text} to {@link OrderedText}. */
+    /// A [TrimFunction] that does no trimming and just converts the [Text] to [OrderedText].
     public static final TrimFunction NO_TRIM_FUNCTION;
     
     //==================================================================================================================
@@ -136,17 +126,15 @@ public class NVLabel
     }
     
     //******************************************************************************************************************
-    /** Describes the alignment of the text inside the label's bounds. */
+    /// Describes the alignment of the text inside the label's bounds.
     public final GuiProperty.NonNull<Alignment> textAlign;
     
-    /**
-     * Describes the function to be used to trim the text if it is too long, and how this should happen.
-     * If the text should not be trimmed {@link NVLabel#NO_TRIM_FUNCTION} can be used instead.
-     */
+    /// Describes the function to be used to trim the text if it is too long, and how this should happen. If the text
+    /// should not be trimmed [NVLabel#NO_TRIM_FUNCTION] can be used instead.
     public final GuiProperty.NonNull<TrimFunction> trimFunction;
     
     //==================================================================================================================
-    /** Triggered whenever the component's text changed. */
+    /// Triggered whenever the component's text changed.
     public final GuiEvent.Simple textChanged = new GuiEvent.Simple();
     
     //==================================================================================================================
@@ -154,11 +142,9 @@ public class NVLabel
     private OrderedText trimmed;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new label component with the given text and message.
-     * @param text    The text to draw on the label
-     * @param message The options of this label
-     */
+    /// Constructs a new label component with the given text and message.
+    /// @param text    The text to draw on the label
+    /// @param message The options of this label
     public NVLabel(final @NotNull Text text, final @NotNull Text message)
     {
         super(message);
@@ -171,22 +157,17 @@ public class NVLabel
         this.setText(text);
     }
     
-    /**
-     * Constructs a new label component with the given text as display text and message.
-     * @param text The text to draw on the label and the message of the component
-     */
+    /// Constructs a new label component with the given text as display text and message.
+    /// @param text The text to draw on the label and the message of the component
     public NVLabel(final @NotNull Text text) { this(text, text); }
 
-    /** Constructs a new empty label component without display text and message. */
+    /// Constructs a new empty label component without display text and message.
     public NVLabel() { this(ScreenTexts.EMPTY); }
 
     //==================================================================================================================
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
 
-    /**
-     * Gets the text, that is drawn on this label.
-     * @return The labels text
-     */
+    /// {@return the text that is drawn onto this label}
     public @NotNull Text getText() { return this.text; }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -204,10 +185,8 @@ public class NVLabel
     }
     
     //==================================================================================================================
-    /**
-     * Gets whether the given Label's text is empty; a label is empty if it contains no characters or only whitespace.
-     * @return {@code true} if the label text is empty
-     */
+    /// Gets whether the given Label's text is empty; a label is empty if it contains no characters or only whitespace.
+    /// @return `true` if the label text is empty
     public boolean isEmpty()
     {
         return Objects
@@ -217,10 +196,8 @@ public class NVLabel
     }
     
     //==================================================================================================================
-    /**
-     * Sets the text that should be drawn on the label
-     * @param text The new text
-     */
+    /// Sets the text that should be drawn on the label
+    /// @param text The new text
     public void setText(final @NotNull Text text)
     {
         if (!Objects.equals(this.text, text))

@@ -47,19 +47,17 @@ import java.util.stream.Collectors;
 
 
 //**********************************************************************************************************************
-/**
- * Provides the Novia default template for {@link IGuiTemplate}, which can be overridden to style components on top of
- * the default style. Overriding this class should usually be preferred to {@link IGuiTemplate}, as this provides
- * a reasonable default colour palette.
- * <p>
- * If you want to also set defaults for your own third-party components, you can do this by subscribing to the
- * {@link NoviaGuiEvent#DEFAULT_PALETTE_INITIALISATION} event. A good way to make sure that all templates share the
- * same default colours in a mod is to provide a basic custom template that all more specifically targeted
- * templates inherit from.
- * <p>
- * Do not mixin your own component's template functions into this class, this should be done with
- * the {@link IGuiTemplate} class.
- */
+/// Provides the Novia default template for [IGuiTemplate], which can be overridden to style components on top of
+/// the default style. Overriding this class should usually be preferred to [IGuiTemplate], as this provides
+/// a reasonable default colour palette.
+///
+/// If you want to also set defaults for your own third-party components, you can do this by subscribing to the
+/// [NoviaGuiEvent#DEFAULT_PALETTE_INITIALISATION] event. A good way to make sure that all templates share the
+/// same default colours in a mod is to provide a basic custom template that all more specifically targeted
+/// templates inherit from.
+///
+/// Do not mixin your own component's template functions into this class, this should be done with
+/// the [IGuiTemplate] class.
 public class DefaultGuiTemplate
     implements IGuiTemplate
 {
@@ -121,7 +119,7 @@ public class DefaultGuiTemplate
     }
     
     //******************************************************************************************************************
-    /** {@return a copy of the default colour map} */
+    /// {@return a copy of the default colour map}
     public static @NotNull Map<ColourId, Colour> getDefaultColours()
     {
         return new HashMap<>(DefaultGuiTemplate.DEFAULT_COLOURS);
@@ -131,7 +129,7 @@ public class DefaultGuiTemplate
     private final Palette palette;
     
     //******************************************************************************************************************
-    /** Constructs a new default template. */
+    /// Constructs a new default template.
     public DefaultGuiTemplate() { this.palette = new Palette(DefaultGuiTemplate.DEFAULT_COLOURS, null); }
     
     //==================================================================================================================

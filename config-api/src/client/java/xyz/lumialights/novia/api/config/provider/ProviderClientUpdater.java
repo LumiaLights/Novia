@@ -51,17 +51,17 @@ import java.util.List;
 public class ProviderClientUpdater
 {
     //******************************************************************************************************************
-    public static <Container> void updateClient(@NotNull final BaseNetworkProvider<Container> provider,
-                                                @NotNull final List<Pair<JsonPointer, Value>> values,
-                                                         final boolean                        isRemote)
+    public static <Container> void updateClient(final @NotNull BaseNetworkProvider<Container> provider,
+                                                final @NotNull List<Pair<JsonPointer, Value>> values,
+                                                final          boolean                        isRemote)
         throws PropertyValidationException
     {
         provider.updateClient(values, isRemote);
     }
     
-    public static <Container> void forceUpdateClient(@NotNull final BaseNetworkProvider<Container> provider,
-                                                     @NotNull final List<Pair<JsonPointer, Value>> values,
-                                                              final boolean                        isRemote)
+    public static <Container> void forceUpdateClient(final @NotNull BaseNetworkProvider<Container> provider,
+                                                     final @NotNull List<Pair<JsonPointer, Value>> values,
+                                                     final          boolean                        isRemote)
     {
         provider.forceUpdateClient(values, isRemote);
     }

@@ -48,63 +48,48 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
-/**
- * Provides the item model used to display and manage the list box items. Every item can have its own drawing code
- * as well as its own components that can be added to it.
- */
+/// Provides the item model used to display and manage the list box items. Every item can have its own drawing code as
+/// well as its own components that can be added to it.
 public interface INVItemModel
 {
     //******************************************************************************************************************
-    /**
-     * Override to add child components to this item instance.
-     * @return The list of children
-     */
+    /// Override to add child components to this item instance.
+    /// @return The list of children
     default @NotNull List<GuiComponent> getChildren() { return List.of(); }
     
     //==================================================================================================================
-    /**
-     * Called whenever this item instance got its bounds changed;
-     * can be used to update the bounds of child components.
-     * <p>
-     * Do note that the position of {@code bounds} is relative to the list box top-left corner, but the positioning
-     * of children is relative to the top-left corner of the item;
-     * hence for positioning children {@link Rectangle#resetPos()} should be used.
-     *
-     * @param bounds The new bounds of the item
-     */
+    /// Called whenever this item instance got its bounds changed; can be used to update the bounds of child components.
+    ///
+    /// Do note that the position of `bounds` is relative to the list box top-left corner, but the positioning of
+    /// children is relative to the top-left corner of the item; hence for positioning children [Rectangle#resetPos()]
+    /// should be used.
+    /// @param bounds The new bounds of the item
     default void resized(@NotNull Rectangle bounds) {}
     
     //==================================================================================================================
-    /**
-     * Called when the item has been clicked.
-     * @param mousePos The mouse position relative to the item's bounds
-     * @param selected {@code true} if this item is currently selected
-     * @return {@code true} if the item should be selected (if enabled)
-     */
+    /// Called when the item has been clicked.
+    /// @param mousePos The mouse position relative to the item's bounds
+    /// @param selected `true` if this item is currently selected
+    /// @return `true` if the item should be selected (if enabled)
     default boolean onClick(@NotNull Point mousePos, boolean selected) { return true; }
     
     //==================================================================================================================
-    /**
-     * Gets the tooltip for this item, or null if no tooltip.
-     * @return The tooltip for this item
-     */
+    /// Gets the tooltip for this item, or null if no tooltip.
+    /// @return The tooltip for this item
     default @Nullable Tooltip getTooltip(boolean selected) { return null; }
     
     //==================================================================================================================
-    /**
-     * Draws the item to the canvas.
-     * <p>
-     * Do note that the position of {@code bounds} is relative to the list box top-left corner, but the drawing
-     * is relative to the top-left corner of the item;
-     * hence for drawing to the canvas {@link Rectangle#resetPos()} should be used.
-     *
-     * @param canvas   The canvas to draw to
-     * @param bounds   The bounds of the item inside the list box
-     * @param index    The index of the item
-     * @param selected {@code true} if this item is selected
-     * @param hovered  {@code true} if the mouse is hovering over this item
-     * @param focused  {@code true} if this item is focused
-     */
+    /// Draws the item to the canvas.
+    ///
+    /// Do note that the position of `bounds` is relative to the list box top-left corner, but the drawing
+    /// is relative to the top-left corner of the item;
+    /// hence for drawing to the canvas [Rectangle#resetPos()] should be used.
+    /// @param canvas   The canvas to draw to
+    /// @param bounds   The bounds of the item inside the list box
+    /// @param index    The index of the item
+    /// @param selected `true` if this item is selected
+    /// @param hovered  `true` if the mouse is hovering over this item
+    /// @param focused  `true` if this item is focused
     default void draw(@NotNull Canvas    canvas,
                       @NotNull Rectangle bounds,
                                int       index,

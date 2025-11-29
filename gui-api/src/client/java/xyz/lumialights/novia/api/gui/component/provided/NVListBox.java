@@ -65,30 +65,27 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A component, which allows listing custom-defined items in a list.
- * <p>
- * Do note, however, that changing order, adding or removing items, {@link NVListBox#refreshList()} should be called
- * after these operations to not leave the list in an intermediary state, working on the list could have
- * unexpected results otherwise.
- *
- * @param <T> The item implementation based on {@link INVItemModel}
- */
+/// A component, which allows listing custom-defined items in a list.
+///
+/// Do note, however, that changing order, adding or removing items, [NVListBox#refreshList()] should be called
+/// after these operations to not leave the list in an intermediary state, working on the list could have
+/// unexpected results otherwise.
+/// @param <T> The item implementation based on [INVItemModel]
 public class NVListBox<T extends INVItemModel>
     extends GuiComponent
 {
     //******************************************************************************************************************
-    /** Defines the selection mode for the list box. */
+    ///  Defines the selection mode for the list box.
     public enum SelectionMode
         implements StringIdentifiable
     {
-        /** Only one item can be selected at a time. */
+        /// Only one item can be selected at a time.
         SINGLE,
         
-        /** Multiple items can be selected at a time. */
+        /// Multiple items can be selected at a time.
         MULTIPLE,
         
-        /** No items can be selected at all. */
+        /// No items can be selected at all.
         NONE,
         ;
         
@@ -102,12 +99,10 @@ public class NVListBox<T extends INVItemModel>
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the list box's background.
-         * @param canvas  The {@link Canvas}
-         * @param listBox The {@link NVListBox}
-         * @param <T> The item model type
-         */
+        /// Draws the list box's background.
+        /// @param canvas  The [Canvas]
+        /// @param listBox The [NVListBox]
+        /// @param <T> The item model type
         <T extends INVItemModel> void nvListBoxDrawBackground(@NotNull Canvas canvas, @NotNull NVListBox<T> listBox);
     }
     
@@ -118,26 +113,21 @@ public class NVListBox<T extends INVItemModel>
         int itemIndex();
         
         //==============================================================================================================
-        /**
-         * Gets the item at the index specified by the current event.
-         * <p>
-         * Do only use the current handler's sender object!
-         * @param sender The sender object of the current handler
-         * @return {@link INVItemModel} the item model
-         */
+        /// Gets the item at the index specified by the current event.
+        ///
+        /// Do only use the current handler's sender object!
+        /// @param sender The sender object of the current handler
+        /// @return [INVItemModel] the item model
         @SuppressWarnings("unchecked")
         default @NotNull T getItem(final GuiComponent sender)
         {
             return ((NVListBox<T>) sender).getItemAt(this.itemIndex()).orElseThrow();
         }
         
-        /**
-         * Gets whether the item at the index specified by the current event is currently selected.
-         * <p>
-         * Do only use the current handler's sender object!
-         * @param sender The sender object of the current handler
-         * @return {@code true} if the item is selected
-         */
+        /// Gets whether the item at the index specified by the current event is currently selected. Do only use the
+        /// current handler's sender object!
+        /// @param sender The sender object of the current handler
+        /// @return `true` if the item is selected
         @SuppressWarnings("unchecked")
         default boolean isSelected(final GuiComponent sender)
         {
@@ -450,76 +440,67 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //******************************************************************************************************************
-    /** See {@link NVListBox#vertical}. */
+    /// See [NVListBox#vertical].
     public static final boolean DEFAULT_VERTICAL = true;
     
-    /** See {@link NVListBox#itemSize}. */
+    /// See [NVListBox#itemSize].
     public static final int DEFAULT_ITEM_SIZE = 20;
     
-    /** See {@link NVListBox#defaultItem}. */
+    /// See [NVListBox#defaultItem].
     public static final int DEFAULT_DEFAULT_ITEM_INDEX = 0;
     
-    /** See {@link NVListBox#alwaysSelected}. */
+    /// See [NVListBox#alwaysSelected].
     public static final boolean DEFAULT_ALWAYS_SELECTED = false;
     
-    /** See {@link NVListBox#canDeselect}. */
+    /// See [NVListBox#canDeselect].
     public static final boolean DEFAULT_CAN_DESELECT = true;
     
-    /** See {@link NVListBox#canFocusItems}. */
+    /// See [NVListBox#canFocusItems].
     public static final boolean DEFAULT_CAN_FOCUS_ITEMS = false;
     
-    /** See {@link NVListBox#selectionMode}. */
+    /// See [NVListBox#selectionMode].
     public static final SelectionMode DEFAULT_SELECTION_MODE = SelectionMode.SINGLE;
     
     //******************************************************************************************************************
-    /** Describes whether the orientation of the list box is vertical or horizontal. */
+    /// Describes whether the orientation of the list box is vertical or horizontal.
     public final GuiProperty.NonNull<Boolean> vertical;
     
-    /**
-     * Describes the mode of selection this list allows.
-     * @see SelectionMode
-     */
+    /// Describes the mode of selection this list allows.
+    /// @see SelectionMode
     public final GuiProperty.NonNull<SelectionMode> selectionMode;
     
-    /**
-     * Describes the default item to be selected if {@link #alwaysSelected} is {@code true} and no item is currently
-     * selected.
-     * <p>
-     * If no item is in the list, none will be selected, and if the index is out of bounds the closest item.
-     */
+    /// Describes the default item to be selected if [#alwaysSelected] is `true` and no item is currently
+    /// selected.
+    ///
+    /// If no item is in the list, none will be selected, and if the index is out of bounds the closest item.
     public final GuiProperty.NonNull<Integer> defaultItem;
     
-    /**
-     * Describes whether this list box must always have at least one item selected,
-     * if {@link #selectionMode} is anything other than {@link SelectionMode#NONE}.
-     * <p>
-     * If {@code true} and no item is selected, {@link #defaultItem} will be automatically selected.
-     */
+    /// Describes whether this list box must always have at least one item selected,
+    /// if [#selectionMode] is anything other than [SelectionMode#NONE].
+    ///
+    /// If `true` and no item is selected, [#defaultItem] will be automatically selected.
     public final GuiProperty.NonNull<Boolean> alwaysSelected;
     
-    /**
-     * Describes whether selected items can be deselected in {@link SelectionMode#SINGLE} if
-     * {@link #alwaysSelected} is {@code false}.
-     */
+    /// Describes whether selected items can be deselected in [SelectionMode#SINGLE] if [#alwaysSelected] is `false`.
     public final GuiProperty.NonNull<Boolean> canDeselect;
     
-    /** Describes whether items in the list box can gain focus through input devices. */
+    /// Describes whether items in the list box can gain focus through input devices.
     public final GuiProperty.NonNull<Boolean> canFocusItems;
     
-    /** Describes the size of the items in the list box (height for vertical and width for horizontal). */
+    /// Describes the size of the items in the list box (height for vertical and width for horizontal).
     public final GuiProperty.NonNull<Integer> itemSize;
     
     //==================================================================================================================
-    /** Triggered whenever an item has changed its selection state. */
+    /// Triggered whenever an item has changed its selection state.
     public final GuiEvent<ItemEventArgs<T>> selectionChanged = new GuiEvent<>();
     
-    /** Triggered whenever an item has been added to the list (not necessarily on screen). */
+    /// Triggered whenever an item has been added to the list (not necessarily on screen).
     public final GuiEvent<ItemEventArgs<T>> itemAdded = new GuiEvent<>();
     
-    /** Triggered whenever an item has been removed from the list (not necessarily on screen). */
+    /// Triggered whenever an item has been removed from the list (not necessarily on screen).
     public final GuiEvent<ItemRemovedEventArgs<T>> itemRemoved = new GuiEvent<>();
     
-    /** Triggered whenever an item has moved inside the list (not necessarily on screen). */
+    /// Triggered whenever an item has moved inside the list (not necessarily on screen).
     public final GuiEvent<ItemMovedEventArgs<T>> itemMoved = new GuiEvent<>();
     
     //==================================================================================================================
@@ -534,10 +515,8 @@ public class NVListBox<T extends INVItemModel>
     private ListHandler    handler;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new list box with the given message.
-     * @param message The message
-     */
+    /// Constructs a new list box with the given message.
+    /// @param message The message
     public NVListBox(final @NotNull Text message)
     {
         super(message);
@@ -588,19 +567,16 @@ public class NVListBox<T extends INVItemModel>
             : NVViewport.ScrollbarBehaviour.NEVER);
     }
     
-    /** Constructs a new list box component with an empty message. */
+    /// Constructs a new list box component with an empty message.
     public NVListBox() { this(ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the item at the given index, or an empty optional if there is no item at the given index.
-     * <p>
-     * Do note that the index given is the index in the list's internal item list and not the index of the items
-     * currently on screen (if {@link #refreshList()} had not been called yet).
-     *
-     * @param index The index to get
-     * @return The item or -1 if no item was found
-     */
+    /// Gets the item at the given index, or an empty optional if there is no item at the given index.
+    ///
+    /// Do note that the index given is the index in the list's internal item list and not the index of the items
+    /// currently on screen (if [#refreshList()] had not been called yet).
+    /// @param index The index to get
+    /// @return The item or -1 if no item was found
     public @NotNull Optional<T> getItemAt(final int index)
     {
         return this
@@ -608,27 +584,21 @@ public class NVListBox<T extends INVItemModel>
             .map(item -> item.model);
     }
     
-    /**
-     * Gets the first item in the list that is selected, or an empty optional if no item is selected or if selections
-     * are disabled.
-     * <p>
-     * This is useful when using {@link SelectionMode#SINGLE}, when there usually is only one selected item.
-     *
-     * @return The selected item
-     */
+    /// Gets the first item in the list that is selected, or an empty optional if no item is selected or if selections
+    /// are disabled.
+    ///
+    /// This is useful when using [SelectionMode#SINGLE], when there usually is only one selected item.
+    /// @return The selected item
     public @NotNull Optional<T> getFirstSelectedItem() { return this.streamSelectedItems().findFirst(); }
     
-    /**
-     * Gets the index of the first selected item or {@code -1} if no item is selected or if selections are disabled.
-     * <p>
-     * This is useful when using {@link SelectionMode#SINGLE}, when there usually is only one selected item.
-     * <p>
-     * Do note that the returned index of the item is the index in the list's internal item list,
-     * if there have been items that are deleted, moved or added and {@link #refreshList()} has not been called yet,
-     * this index might not reflect the index of the items on screen.
-     *
-     * @return The index of the first selected item
-     */
+    /// Gets the index of the first selected item or `-1` if no item is selected or if selections are disabled.
+    ///
+    /// This is useful when using [SelectionMode#SINGLE], when there usually is only one selected item.
+    ///
+    /// Do note that the returned index of the item is the index in the list's internal item list,
+    /// if there have been items that are deleted, moved or added and [#refreshList()] has not been called yet,
+    /// this index might not reflect the index of the items on screen.
+    /// @return The index of the first selected item
     public int getIndexOfFirstSelectedItem()
     {
         return IntStream
@@ -638,19 +608,17 @@ public class NVListBox<T extends INVItemModel>
             .orElse(-1);
     }
     
-    /**
-     * Gets the index of the given item.
-     * <p>
-     * Items are compared by identity and not by contents, this will only return a valid index if exactly the given item
-     * instance is part of the list.
-     * <p>
-     * Do note that the returned index of the item is the index in the list's internal item list,
-     * if there have been items that are deleted, moved or added and {@link #refreshList()} has not been called yet,
-     * this index might not reflect the index of the items on screen.
-     *
-     * @param item The item instance
-     * @return The index of the item, or -1 if no such item is currently part of the list
-     */
+    /// Gets the index of the given item.
+    ///
+    /// Items are compared by identity and not by contents, this will only return a valid index if exactly the given
+    /// item instance is part of the list.
+    ///
+    /// Do note that the returned index of the item is the index in the list's internal item list, if there have been
+    /// items that are deleted, moved or added and [#refreshList()] has not been called yet, this index might not
+    /// reflect the index of the items on screen.
+    ///
+    /// @param item The item instance
+    /// @return The index of the item, or -1 if no such item is currently part of the list
     public int getIndexOfItem(final @Nullable T item)
     {
         return IntStream
@@ -660,57 +628,42 @@ public class NVListBox<T extends INVItemModel>
             .orElse(-1);
     }
     
-    /**
-     * Returns the number of items this list box has.
-     * <p>
-     * The returned number will reflect the list's internal item count, if there are items that have been removed or
-     * added without calling {@link #refreshList()}, this number will not represent the items on screen.
-     *
-     * @return The number of items
-     */
+    /// Returns the number of items this list box has.
+    ///
+    /// The returned number will reflect the list's internal item count, if there are items that have been removed or
+    /// added without calling [#refreshList()], this number will not represent the items on screen.
+    /// @return The number of items
     public int getItemCount() { return this.items.size(); }
     
-    /**
-     * Returns the number of selected items this list box has.
-     * <p>
-     * The returned number will reflect the list's internal item count, if there are items that have been removed or
-     * added without calling {@link #refreshList()}, this number will not represent the items on screen.
-     *
-     * @return The number of items
-     */
+    /// Returns the number of selected items this list box has.
+    ///
+    /// The returned number will reflect the list's internal item count, if there are items that have been removed or
+    /// added without calling [#refreshList()], this number will not represent the items on screen.
+    /// @return The number of items
     public int getSelectedCount() { return (int) this.streamSelectedItems().count(); }
     
-    /**
-     * Gets a list of all items currently contained in this list box.
-     * <p>
-     * This does not necessarily return the list of items that are currently shown on screen, especially if the items
-     * were updated and {@link #refreshList()} has not been called yet.
-     *
-     * @return The list of items in this list box
-     */
+    /// Gets a list of all items currently contained in this list box.
+    ///
+    /// This does not necessarily return the list of items that are currently shown on screen, especially if the items
+    /// were updated and [#refreshList()] has not been called yet.
+    /// @return The list of items in this list box
     public @NotNull List<T> getItems() { return this.streamItems().collect(Collectors.toList()); }
     
-    /**
-     * Gets a list of all selected items currently contained in this list box.
-     * This does not necessarily return the list of items that are currently shown on screen, especially if the items
-     * were updated and {@link #refreshList()} has not been called yet.
-     *
-     * @return The list of all selected items in this list box
-     */
+    /// Gets a list of all selected items currently contained in this list box. This does not necessarily return the
+    /// list of items that are currently shown on screen, especially if the items were updated and [#refreshList()]
+    /// has not been called yet.
+    /// @return The list of all selected items in this list box
     public @NotNull List<T> getSelectedItems() { return this.streamSelectedItems().collect(Collectors.toList()); }
     
-    /**
-     * Gets the item at the given point on screen relative to the viewpoints top left corner.
-     * <p>
-     * If the point lies outside the viewport's bounds, or the list has no items, an empty optional will be returned.
-     * <p>
-     * This will only get items that are currently drawn on screen and ignore any item, which has been added or removed
-     * prior to a call to {@link #refreshList()}.
-     *
-     * @param x The viewport relative coordinate on the left-axis
-     * @param y The viewport relative coordinate on the y-axis
-     * @return The item at the given point within the viewport
-     */
+    /// Gets the item at the given point on screen relative to the viewpoints top left corner.
+    ///
+    /// If the point lies outside the viewport's bounds, or the list has no items, an empty optional will be returned.
+    ///
+    /// This will only get items that are currently drawn on screen and ignore any item, which has been added or removed
+    /// prior to a call to [#refreshList()].
+    /// @param x The viewport relative coordinate on the left-axis
+    /// @param y The viewport relative coordinate on the y-axis
+    /// @return The item at the given point within the viewport
     public @NotNull Optional<T> getItemAtPoint(final int x, final int y)
     {
         return this
@@ -718,19 +671,16 @@ public class NVListBox<T extends INVItemModel>
             .map(item -> item.model);
     }
     
-    /**
-     * Gets the item at the given point on screen relative to the viewpoints top left corner.
-     * <p>
-     * If the point lies outside the viewport's bounds, or the list has no items, an empty optional will be returned.
-     * <p>
-     * This will only get items that are currently drawn on screen and ignore any item, which has been added or removed
-     * prior to a call to {@link #refreshList()}. However, the returned index will represent the internal item index
-     * and not the on-screen index.
-     *
-     * @param x The viewport relative coordinate on the left-axis
-     * @param y The viewport relative coordinate on the y-axis
-     * @return The item at the given point within the viewport
-     */
+    /// Gets the item at the given point on screen relative to the viewpoints top left corner.
+    ///
+    /// If the point lies outside the viewport's bounds, or the list has no items, an empty optional will be returned.
+    ///
+    /// This will only get items that are currently drawn on screen and ignore any item, which has been added or removed
+    /// prior to a call to [#refreshList()]. However, the returned index will represent the internal item index and not
+    /// the on-screen index.
+    /// @param x The viewport relative coordinate on the left-axis
+    /// @param y The viewport relative coordinate on the y-axis
+    /// @return The item at the given point within the viewport
     public int getItemIndexAtPoint(final int x, final int y)
     {
         return this
@@ -745,11 +695,9 @@ public class NVListBox<T extends INVItemModel>
         return ((this.hasItems() && this.canFocusItems.get()) ? this.container.getNavigator() : null);
     }
     
-    /**
-     * Gets the internal viewport component managed by this list box. Use this with caution, generally only for styling
-     * purposes or for changing the viewport's scroll-bar behaviour.
-     * @return The {@link NVViewport}
-     */
+    /// Gets the internal viewport component managed by this list box. Use this with caution, generally only for styling
+    /// purposes or for changing the viewport's scroll-bar behaviour.
+    /// @return The [NVViewport]
     public @NotNull NVViewport getViewport() { return this.viewport; }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -830,41 +778,32 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //==================================================================================================================
-    /**
-     * Gets whether this item at the given index is currently selected. If the item does not exist, this will also
-     * return {@code false}
-     *
-     * @param index The index of the item to check
-     * @return {@code true} if the item is selected
-     */
+    /// Gets whether this item at the given index is currently selected. If the item does not exist, this will also
+    /// return `false`
+    /// @param index The index of the item to check
+    /// @return `true` if the item is selected
     public boolean isItemSelectedAt(final int index)
     {
         return (index >= 0 && index < this.items.size() && this.items.get(index).selected);
     }
     
-    /**
-     * Gets whether this list box currently holds any items.
-     * @return {@code true} if this list box holds items
-     */
+    /// Gets whether this list box currently holds any items.
+    /// @return `true` if this list box holds items
     public boolean hasItems() { return !this.items.isEmpty(); }
     
-    /**
-     * Gets whether this list box currently has at least one selected item.
-     * @return {@code true} if there is a selected item
-     */
+    /// Gets whether this list box currently has at least one selected item.
+    /// @return `true` if there is a selected item
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean hasSelectedItems() { return this.streamSelectedItems().findAny().isPresent(); }
     
-    /**
-     * Determines whether items can be deselected.
-     * <p>
-     * If {@link #alwaysSelected} is {@code true} and {@link #selectionMode} is {@link SelectionMode#SINGLE},
-     * this will always return {@code false}.
-     * <p>
-     * Other than {@link #canDeselect}, this will also return {@code true} if the current {@link #selectionMode} is
-     * {@link SelectionMode#MULTIPLE}.
-     *
-     * @return {@code true} if items can be deselected
-     */
+    /// Determines whether items can be deselected.
+    ///
+    /// If [#alwaysSelected] is `true` and [#selectionMode] is [SelectionMode#SINGLE],
+    /// this will always return `false`.
+    ///
+    /// Other than [#canDeselect], this will also return `true` if the current [#selectionMode] is
+    /// [SelectionMode#MULTIPLE].
+    /// @return `true` if items can be deselected
     public boolean canDeselectItems()
     {
         final SelectionMode mode = this.selectionMode.get();
@@ -872,24 +811,18 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //==================================================================================================================
-    /**
-     * Streams the items this list box currently holds.
-     * <p>
-     * Do note that the returned stream concerns the items currently held inside the list box and not the items
-     * currently drawn on screen.
-     *
-     * @return The item stream
-     */
+    /// Streams the items this list box currently holds.
+    ///
+    /// Do note that the returned stream concerns the items currently held inside the list box and not the items
+    /// currently drawn on screen.
+    /// @return The item stream
     public @NotNull Stream<T> streamItems() { return this.items.stream().map(item -> item.model); }
     
-    /**
-     * Streams the selected items this list box currently holds.
-     * <p>
-     * Do note that the returned stream concerns the items currently held inside the list box and not the items
-     * currently drawn on screen.
-     *
-     * @return The selected item stream
-     */
+    /// Streams the selected items this list box currently holds.
+    ///
+    /// Do note that the returned stream concerns the items currently held inside the list box and not the items
+    /// currently drawn on screen.
+    /// @return The selected item stream
     public @NotNull Stream<T> streamSelectedItems()
     {
         if (this.selectionMode.get() == SelectionMode.NONE)
@@ -904,27 +837,19 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //==================================================================================================================
-    /**
-     * Selects the item at the given index (if the item exists and selections are enabled).
-     * <p>
-     * Do note that the given index concerns the index inside the list box's internal item list and not the index of the
-     * item currently drawn on screen.
-     *
-     * @param index The index of the item to select
-     */
+    /// Selects the item at the given index (if the item exists and selections are enabled).
+    ///
+    /// Do note that the given index concerns the index inside the list box's internal item list and not the index of
+    /// the item currently drawn on screen.
+    /// @param index The index of the item to select
     public void selectItem(final int index) { this.selectInternal(index, true); }
     
-    /**
-     * Selects the given item (if the item is part of this list box and selections are enabled).
-     * @param item The item to select
-     */
+    /// Selects the given item (if the item is part of this list box and selections are enabled).
+    /// @param item The item to select
     public void selectItem(final @NotNull T item) { this.selectInternal(this.getIndexOfItem(item), true); }
     
-    /**
-     * Selects all items in this list box.
-     * <p>
-     * If selection mode is not set to {@link SelectionMode#MULTIPLE}, no items will be selected.
-     */
+    /// Selects all items in this list box. If selection mode is not set to [SelectionMode#MULTIPLE], no items will be
+    /// selected.
     public void selectAll()
     {
         if (this.selectionMode.get() != SelectionMode.MULTIPLE)
@@ -937,23 +862,18 @@ public class NVListBox<T extends INVItemModel>
             .forEach(this::selectItem);
     }
     
-    /**
-     * Removes the selection from the item at the given index (if the item exists and selections are enabled).
-     * <p>
-     * Do note that the given index concerns the index inside the list box's internal item list and not the index of the
-     * item currently drawn on screen.
-     *
-     * @param index The index of the item to deselect
-     */
+    /// Removes the selection from the item at the given index (if the item exists and selections are enabled).
+    ///
+    /// Do note that the given index concerns the index inside the list box's internal item list and not the index of
+    /// the item currently drawn on screen.
+    /// @param index The index of the item to deselect
     public void deselectItem(final int index) { this.selectInternal(index, false); }
     
-    /**
-     * Removes the selection from the given item (if the item is part of this list box and selections are enabled).
-     * @param item The item to deselect
-     */
+    /// Removes the selection from the given item (if the item is part of this list box and selections are enabled).
+    /// @param item The item to deselect
     public void deselectItem(final @NotNull T item) { this.selectInternal(this.getIndexOfItem(item), false); }
     
-    /** Deselects all items in this list box. */
+    /// Deselects all items in this list box.
     public void deselectAll()
     {
         final SelectionMode mode = this.selectionMode.get();
@@ -1025,16 +945,13 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //==================================================================================================================
-    /**
-     * If the item is not already contained, will add the item to this list box.
-     * <p>
-     * This will not update the list box on the screen, to add the items to the screen,
-     * {@link #refreshList()} needs to be called. Because of this, the given index represents the index of the item
-     * inside the list-box's internal item list and not the index on screen.
-     *
-     * @param item  The item to add
-     * @param index The index to insert the item at
-     */
+    /// If the item is not already contained, will add the item to this list box.
+    ///
+    /// This will not update the list box on the screen, to add the items to the screen, [#refreshList()] needs to be
+    /// called. Because of this, the given index represents the index of the item inside the list-box's internal item
+    /// list and not the index on screen.
+    /// @param item  The item to add
+    /// @param index The index to insert the item at
     public void addItem(final @NotNull T item, int index)
     {
         if (this.getIndexOfItem(item) != -1)
@@ -1054,36 +971,27 @@ public class NVListBox<T extends INVItemModel>
         this.needsRefresh = true;
     }
     
-    /**
-     * If the item is not already contained, will add the item to the end of this list box.
-     * <p>
-     * This will not update the list box on the screen, to add the items to the GUI {@link #refreshList()} needs to be
-     * called.
-     *
-     * @param item The item to add
-     */
+    /// If the item is not already contained, will add the item to the end of this list box.
+    ///
+    /// This will not update the list box on the screen, to add the items to the GUI [#refreshList()] needs to be
+    /// called.
+    /// @param item The item to add
     public void addItem(final @NotNull T item) { this.addItem(item, this.getItemCount()); }
     
-    /**
-     * Adds all the given items that are not already contained to the end of this list box.
-     * <p>
-     * This will not update the list box on the screen, to add the items to the GUI {@link #refreshList()} needs to be
-     * called.
-     *
-     * @param items The list of items to add
-     */
+    /// Adds all the given items that are not already contained to the end of this list box.
+    ///
+    /// This will not update the list box on the screen, to add the items to the GUI [#refreshList()] needs to be
+    /// called.
+    /// @param items The list of items to add
     public void addAllItems(final @NotNull Collection<T> items) { items.forEach(this::addItem); }
     
-    /**
-     * Removes the item at the index from the list box if it exists.
-     * <p>
-     * This will not update the list box on the screen, to remove the items from the GUI {@link #refreshList()} needs to
-     * be called. Because of this, the given index represents the index of the item
-     * inside the list-box's internal item list and not the index on screen.
-     *
-     * @param index The index of the item to remove
-     * @return The item, which was removed or {@code null} if there was no item at the given index
-     */
+    /// Removes the item at the index from the list box if it exists.
+    ///
+    /// This will not update the list box on the screen, to remove the items from the GUI [#refreshList()] needs to
+    /// be called. Because of this, the given index represents the index of the item inside the list-box's internal item
+    /// list and not the index on screen.
+    /// @param index The index of the item to remove
+    /// @return The item, which was removed or `null` if there was no item at the given index
     public @Nullable T removeItem(final int index)
     {
         if (index < 0 || index >= this.getItemCount())
@@ -1099,29 +1007,24 @@ public class NVListBox<T extends INVItemModel>
         return removed;
     }
     
-    /**
-     * Removes the given item from the list box if it exists.
-     * <p>
-     * This will not update the list box on the screen, to remove the items from the GUI {@link #refreshList()} needs to
-     * be called.
-     *
-     * @param item The item to remove
-     */
+    /// Removes the given item from the list box if it exists.
+    ///
+    /// This will not update the list box on the screen, to remove the items from the GUI [#refreshList()] needs to be
+    /// called.
+    /// @param item The item to remove
     public void removeItem(final @NotNull T item) { this.removeItem(this.getIndexOfItem(item)); }
     
-    /**
-     * Moves the item at the given index to the new specified index if it exists.
-     * <p>
-     * If the new index is below 0, it will be moved to the front; if it is above the size of items, it will be moved to
-     * the end.
-     * <p>
-     * This will not update the list box on the screen, to rearrange the items {@link #refreshList()} needs to be
-     * called. Because of this, the given indices represent the indices of the items inside the list-box's internal
-     * item list and not the items on screen.
-     *
-     * @param oldIndex The index of the item to move
-     * @param newIndex The index to move the item to
-     */
+    /// Moves the item at the given index to the new specified index if it exists.
+    ///
+    /// If the new index is below 0, it will be moved to the front; if it is above the size of items, it will be moved
+    /// to the end.
+    ///
+    /// This will not update the list box on the screen, to rearrange the items [#refreshList()] needs to be called.
+    /// Because of this, the given indices represent the indices of the items inside the list-box's internal item list
+    /// and not the items on screen.
+    ///
+    /// @param oldIndex The index of the item to move
+    /// @param newIndex The index to move the item to
     public void moveItem(final int oldIndex, int newIndex)
     {
         if (oldIndex < 0 || oldIndex >= this.getItemCount())
@@ -1156,33 +1059,28 @@ public class NVListBox<T extends INVItemModel>
         this.itemMoved.post(this, new ItemMovedEventArgs<>(newIndex, oldIndex));
     }
     
-    /**
-     * Moves the given item to the new specified index if it exists.
-     * <p>
-     * If the new index is below 0, it will be moved to the front; if it is above the size of items, it will be moved to
-     * the end.
-     * <p>
-     * This will not update the list box on the screen, to rearrange the items {@link #refreshList()} needs to be
-     * called. Because of this, the given index represents the index of the item inside the list-box's internal
-     * item list and not the index on screen.
-     *
-     * @param item     The item to move
-     * @param newIndex The index to move the item to
-     */
+    /// Moves the given item to the new specified index if it exists.
+    ///
+    /// If the new index is below 0, it will be moved to the front; if it is above the size of items, it will be moved
+    /// to the end.
+    ///
+    /// This will not update the list box on the screen, to rearrange the items [#refreshList()] needs to be called.
+    /// Because of this, the given index represents the index of the item inside the list-box's internal item list and
+    /// not the index on screen.
+    /// @param item     The item to move
+    /// @param newIndex The index to move the item to
     public void moveItem(final @NotNull T item, final int newIndex)
     {
         this.moveItem(this.getIndexOfItem(item), newIndex);
     }
     
-    /**
-     * Clears all the items that this list box currently contains.
-     * <p>
-     * This will not update the list box on the screen, to remove the items from the GUI {@link #refreshList()} needs to
-     * be called.
-     * <p>
-     * However, this means the items on screen will be ghost items, and any functionality concerning them will treat
-     * the list-box as empty even if they are still drawn on screen.
-     */
+    /// Clears all the items that this list box currently contains.
+    ///
+    /// This will not update the list box on the screen, to remove the items from the GUI [#refreshList()] needs to be
+    /// called.
+    ///
+    /// However, this means the items on screen will be ghost items, and any functionality concerning them will treat
+    /// the list-box as empty even if they are still drawn on screen.
     public void clearItems()
     {
         final List<Item> items = new ArrayList<>(this.items);
@@ -1193,82 +1091,67 @@ public class NVListBox<T extends INVItemModel>
         items.forEach(item -> this.sendItemRemovedNotification(item.model));
     }
     
-    /**
-     * Scrolls the list box content by the given offset amount in pixels. If the offset is negative, this will scroll
-     * backwards.
-     *
-     * @param offset The offset to scroll
-     */
+    /// Scrolls the list box content by the given offset amount in pixels. If the offset is negative, this will scroll
+    /// backwards.
+    /// @param offset The offset to scroll
     public void scroll(final int offset)
     {
         if (this.vertical.get()) this.viewport.move(0, offset);
         else                     this.viewport.move(offset, 0);
     }
     
-    /**
-     * Scrolls the list box content by the given scroll delta applied {@code steps} times. If {@code steps} is
-     * negative, this will scroll backwards.
-     *
-     * @param steps The number of times, delta should be applied to the current list box offset
-     */
+    /// Scrolls the list box content by the given scroll delta applied `steps` times. If `steps` is
+    /// negative, this will scroll backwards.
+    /// @param steps The number of times, delta should be applied to the current list box offset
     public void scrollSteps(final int steps)
     {
         if (this.vertical.get()) this.viewport.moveSteps(0, steps);
         else                     this.viewport.moveSteps(steps, 0);
     }
     
-    /**
-     * Scrolls the list box content by the given page amount, by that means, {@code pages} times the view size.
-     * If {@code pages} is negative, this will scroll backwards.
-     *
-     * @param pages The number of pages to scroll
-     */
+    /// Scrolls the list box content by the given page amount, by that means, `pages` times the view size. If `pages` is
+    /// negative, this will scroll backwards.
+    /// @param pages The number of pages to scroll
     public void scrollPages(final int pages)
     {
         if (this.vertical.get()) this.viewport.movePages(0, pages);
         else                     this.viewport.movePages(pages, 0);
     }
     
-    /** Scrolls the list box all the way to the start. */
+    /// Scrolls the list box all the way to the start.
     public void scrollToStart()
     {
         if (this.vertical.get()) this.viewport.moveToTop();
         else                     this.viewport.moveToLeft();
     }
     
-    /** Scrolls the list box all the way to the end. */
+    /// Scrolls the list box all the way to the end.
     public void scrollToEnd()
     {
         if (this.vertical.get()) this.viewport.moveToBottom();
         else                     this.viewport.moveToRight();
     }
     
-    /**
-     * Scrolls to the given item in the list.
-     * <p>
-     * If the item is not yet part of the list on the screen because it was not yet refreshed,
-     * or the item is not part of the list at all, this will do nothing.
-     *
-     * @param item   The item to scroll to
-     * @param select Whether to select the item if selections are enabled, and it is not yet selected
-     */
+    /// Scrolls to the given item in the list.
+    ///
+    /// If the item is not yet part of the list on the screen because it was not yet refreshed, or the item is not part
+    /// of the list at all, this will do nothing.
+    /// @param item   The item to scroll to
+    /// @param select Whether to select the item if selections are enabled, and it is not yet selected
     public void scrollToItem(final @NotNull T item, final boolean select)
     {
         this.scrollToItem(this.getIndexOfItem(item), select);
     }
     
-    /**
-     * Scrolls to the item at the given index in the list.
-     * <p>
-     * If the item is not yet part of the list on the screen because it was not yet refreshed,
-     * or the item is not part of the list at all, this will do nothing.
-     * <p>
-     * The index of the item to scroll to, represents the index inside the list-box's internal item list and not the
-     * index of the item on screen.
-     *
-     * @param index  The index of the item to scroll to
-     * @param select Whether to select the item if selections are enabled, and it is not yet selected
-     */
+    /// Scrolls to the item at the given index in the list.
+    ///
+    /// If the item is not yet part of the list on the screen because it was not yet refreshed, or the item is not part
+    /// of the list at all, this will do nothing.
+    ///
+    /// The index of the item to scroll to, represents the index inside the list-box's internal item list and not the
+    /// index of the item on screen.
+    /// @param index  The index of the item to scroll to
+    /// @param select Whether to select the item if selections are enabled, and it is not yet selected
     public void scrollToItem(final int index, final boolean select)
     {
         if (index < 0 || index >= this.items.size())
@@ -1318,17 +1201,14 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //==================================================================================================================
-    /**
-     * Refreshes the item at the given index inside the list box if there is an item at the index.
-     * <p>
-     * This is different from {@link #refreshList()} in that it refreshes only the item itself, but not the list box.
-     * This can be used to update things like newly added components to an item or when the tooltip is changed.
-     * <p>
-     * The index of the item to refresh, represents the index inside the list-box's internal item list and not the
-     * index of the items on screen.
-     *
-     * @param index The index of the item to update
-     */
+    /// Refreshes the item at the given index inside the list box if there is an item at the index.
+    ///
+    /// This is different from [#refreshList()] in that it refreshes only the item itself, but not the list box.
+    /// This can be used to update things like newly added components to an item or when the tooltip is changed.
+    ///
+    /// The index of the item to refresh, represents the index inside the list-box's internal item list and not the
+    /// index of the items on screen.
+    /// @param index The index of the item to update
     public void refreshItem(final int index)
     {
         if (index < 0 || index >= this.getItemCount())
@@ -1339,14 +1219,11 @@ public class NVListBox<T extends INVItemModel>
         this.refreshItemInternal(index);
     }
     
-    /**
-     * Refreshes the given item inside the list box if it exists.
-     * <p>
-     * This is different from {@link #refreshList()} in that it refreshes only the item itself, but not the list box.
-     * This can be used to update things like newly added components to an item or when the tooltip is changed.
-     *
-     * @param item The item to update
-     */
+    /// Refreshes the given item inside the list box if it exists.
+    ///
+    /// This is different from [#refreshList()] in that it refreshes only the item itself, but not the list box.
+    /// This can be used to update things like newly added components to an item or when the tooltip is changed.
+    /// @param item The item to update
     public void refreshItem(final @Nullable T item)
     {
         final int index = this.getIndexOfItem(item);
@@ -1359,12 +1236,10 @@ public class NVListBox<T extends INVItemModel>
         this.refreshItemInternal(index);
     }
     
-    /**
-     * Refreshes the items inside the list box.
-     * <p>
-     * This is different from {@link #refreshList()} in that it refreshes only the items, but not the list box. This can
-     * be used to update things like newly added components to an item or when the tooltip is changed.
-     */
+    /// Refreshes the items inside the list box.
+    ///
+    /// This is different from [#refreshList()] in that it refreshes only the items, but not the list box. This can
+    /// be used to update things like newly added components to an item or when the tooltip is changed.
     public void refreshItems()
     {
         IntStream
@@ -1372,13 +1247,11 @@ public class NVListBox<T extends INVItemModel>
             .forEach(this::refreshItemInternal);
     }
     
-    /**
-     * Refreshes the component hierarchy based on the contained items in this list.
-     * <p>
-     * Because modifying items in a list do not automatically update the component hierarchy,
-     * this needs to be called to do this. If the added or removed items are not yet refreshed, the list box is in an
-     * undefined state and any undefined behaviour is possible.
-     */
+    /// Refreshes the component hierarchy based on the contained items in this list.
+    ///
+    /// Because modifying items in a list do not automatically update the component hierarchy,
+    /// this needs to be called to do this. If the added or removed items are not yet refreshed, the list box is in an
+    /// undefined state and any undefined behaviour is possible.
     public void refreshList()
     {
         if (this.needsRefresh)
@@ -1550,29 +1423,21 @@ public class NVListBox<T extends INVItemModel>
     }
     
     //==================================================================================================================
-    /**
-     * Called whenever the selection state of an item changed.
-     * @param itemIndex The index of the item
-     */
+    /// Called whenever the selection state of an item changed.
+    /// @param itemIndex The index of the item
     public void onSelectionChanged(int itemIndex) {}
     
-    /**
-     * Called whenever an item has been added to this list box (not necessarily on screen).
-     * @param itemIndex The index of the item
-     */
+    /// Called whenever an item has been added to this list box (not necessarily on screen).
+    /// @param itemIndex The index of the item
     public void onItemAdded(int itemIndex) {}
     
-    /**
-     * Called whenever an item has been removed from this list box (not necessarily on screen).
-     * @param item The item that was removed
-     */
+    /// Called whenever an item has been removed from this list box (not necessarily on screen).
+    /// @param item The item that was removed
     public void onItemRemoved(@NotNull T item) {}
     
-    /**
-     * Called whenever an item has moved inside the list (not necessarily on screen).
-     * @param itemIndex The new item index
-     * @param oldIndex  The old item index
-     */
+    /// Called whenever an item has moved inside the list (not necessarily on screen).
+    /// @param itemIndex The new item index
+    /// @param oldIndex  The old item index
     public void onItemMoved(int itemIndex, int oldIndex) {}
     
     //==================================================================================================================

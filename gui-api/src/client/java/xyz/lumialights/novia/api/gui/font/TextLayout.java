@@ -1214,7 +1214,7 @@ public class TextLayout
             final float line_height = (line.ascent + line.descent);
             final float line_top    = baseline;
             
-            float line_left = alignment.align(target_box, Math.ceil(line.width), this.height).x();
+            float line_left = alignment.align(target_box, MathHelper.ceil(line.width), this.height).x();
             
             baseline += line.ascent;
             
@@ -1248,8 +1248,6 @@ public class TextLayout
                     
                     if (texture2 != texture || pipeline2 != pipeline)
                     {
-                        final int width = MathHelper.ceil(run_advance);
-                        
                         if (!drawables.isEmpty() && run_advance > 0f)
                         {
                             states.addLast(new ICanvasState.Renderable(
@@ -1258,8 +1256,8 @@ public class TextLayout
                                 pipeline,
                                 new Rectangle(
                                     MathHelper.floor(line_left),
-                                    run_top,
-                                    width,
+                                    MathHelper.floor(run_top),
+                                    MathHelper.ceil(run_advance),
                                     MathHelper.ceil(run_height))));
                         }
         
@@ -1328,7 +1326,7 @@ public class TextLayout
                             pipeline,
                             new Rectangle(
                                 MathHelper.floor(line_left),
-                                run_top,
+                                MathHelper.floor(run_top),
                                 MathHelper.ceil(run_advance),
                                 MathHelper.ceil(run_height))));
                 }

@@ -51,7 +51,7 @@ public sealed abstract class AbstractInputEvent<Self extends AbstractInputEvent<
         KeyEvent
 {
     //******************************************************************************************************************
-    /** The component, which this event has been initially triggered on. */
+    /// The component, which this event has been initially triggered on.
     public final GuiComponent source;
     
     //------------------------------------------------------------------------------------------------------------------
@@ -65,23 +65,18 @@ public sealed abstract class AbstractInputEvent<Self extends AbstractInputEvent<
     }
     
     //==================================================================================================================
-    /**
-     * Gets the final component on which this event has been successfully handled.
-     * <p>
-     * Do note that this is only accurate upon completion of all handlers, by that means, only when this event is being
-     * monitored from the outside (such as through a monitoring parent) the returned target is available,
-     * otherwise this will always be the current handler component.
-     *
-     * @return The handler component
-     */
+    /// Gets the final component on which this event has been successfully handled.
+    ///
+    /// Do note that this is only accurate upon completion of all handlers, by that means, only when this event is being
+    /// monitored from the outside (such as through a monitoring parent) the returned target is available,
+    /// otherwise this will always be the current handler component.
+    /// @return The handler component
     public final @NotNull GuiComponent target() { return this.target; }
     
     //==================================================================================================================
-    /**
-     * Posts the event to the component hierarchy.
-     * @param listener The listener function
-     * @return {@code true} if any one of the components handled this event successfully
-     */
+    /// Posts the event to the component hierarchy.
+    /// @param listener The listener function
+    /// @return `true` if any one of the components handled this event successfully
     @SuppressWarnings("unchecked")
     public final boolean post(final @NotNull BiFunction<GuiComponent, Self, Boolean> listener)
     {

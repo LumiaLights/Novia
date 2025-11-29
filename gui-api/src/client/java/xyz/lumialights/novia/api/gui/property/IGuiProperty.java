@@ -41,31 +41,24 @@ import org.jetbrains.annotations.NotNull;
 
 
 //**********************************************************************************************************************
-/**
- * The base class for {@link GuiProperty} and {@link GuiProperty.Reference}.
- * <p>
- * This class should not be used as the declarator type of properties, but instead the most recent subclass that
- * declares the property. (e.g. {@link GuiProperty}, {@link GuiProperty.NonNull} ect.)
- *
- * @param <T> The type of content the property holds
- */
+/// The base class for [GuiProperty] and [GuiProperty.Reference].
+///
+/// This class should not be used as the declarator type of properties, but instead the most recent subclass that
+/// declares the property. (e.g. [GuiProperty], [GuiProperty.NonNull] ect.)
+/// @param <T> The type of content the property holds
 public sealed interface IGuiProperty<T>
     permits
         GuiProperty,
         GuiProperty.Reference
 {
     //******************************************************************************************************************
-    /**
-     * Gets the value the property currently holds.
-     * @return The value
-     */
+    /// Gets the value the property currently holds.
+    /// @return The value
     T get();
 
-    /**
-     * Creates a {@link Codec} for this property that is only applicable to the current instance of the property.
-     * @param contentCodec The codec of the content of the property
-     * @return The {@link Codec}
-     */
+    /// Creates a [Codec] for this property that is only applicable to the current instance of the property.
+    /// @param contentCodec The codec of the content of the property
+    /// @return The [Codec]
     default @NotNull Codec<IGuiProperty<T>> getCodec(final @NotNull Codec<T> contentCodec)
     {
         return contentCodec.xmap(
@@ -78,17 +71,13 @@ public sealed interface IGuiProperty<T>
     }
 
     //==================================================================================================================
-    /**
-     * Checks whether the property currently has a set value (non-null).
-     * @return {@code true} if the content is not {@code null}
-     */
+    /// Checks whether the property currently has a set value (non-null).
+    /// @return `true` if the content is not `null`
     boolean isSet();
     
     //==================================================================================================================
-    /**
-     * Sets the value currently held in the property to a new value.
-     * @param value The new value
-     * @return {@code true} if the value could be set
-     */
+    /// Sets the value currently held in the property to a new value.
+    /// @param value The new value
+    /// @return `true` if the value could be set
     boolean set(T value);
 }

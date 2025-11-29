@@ -89,7 +89,7 @@ public class ClientConfigManagerHandler
         ClientPlayNetworking         .PlayPayloadHandler         <PlayS2CConfigSyncPayload>
 {
     //******************************************************************************************************************
-    private final Queue<IPlayS2CUpdateConfigPayload> pending = new LinkedList<>();
+    private final Deque<IPlayS2CUpdateConfigPayload> pending = new ArrayDeque<>();
     
     private volatile PacketByteBuf configBuf = null;
     private volatile RemotePhase   phase     = null;
@@ -106,37 +106,45 @@ public class ClientConfigManagerHandler
                 this.configBuf = PacketByteBufs.create();
                 this.phase     = RemotePhase.CONFIGURATION;
             }
-            else if (this.phase != null)
-            {
-                resetProviders(client);
-            }
         });
         ClientPlayConnectionEvents.INIT.register((handler, client) ->
         {
-            if (!client.isInSingleplayer())
-            {
-                ClientPlayNetworking.registerGlobalReceiver(
-                    IPlayS2CUpdateConfigPayload.Single.ID,
-                    this::processPlaySyncPacket);
-                ClientPlayNetworking.registerGlobalReceiver(
-                    IPlayS2CUpdateConfigPayload.Bulk.ID,
-                    this::processPlaySyncPacket);
-            }
-            
             if (this.phase == RemotePhase.CONFIGURATION)
             {
+                ClientPlayNetworking.registerReceiver(
+                    IPlayS2CUpdateConfigPayload.Single.ID,
+                    this::processPlaySyncPacket);
+                ClientPlayNetworking.registerReceiver(
+                    IPlayS2CUpdateConfigPayload.Bulk.ID,
+                    this::processPlaySyncPacket);
+                
                 ClientPlayNetworking.registerReceiver(PlayS2CConfigSyncPayload.ID, this);
                 
                 this.configBuf = PacketByteBufs.create();
                 this.phase     = RemotePhase.PLAY_INIT;
             }
         });
+
+        ClientConfigurationConnectionEvents.DISCONNECT.register(this::disconnect);
+        ClientPlayConnectionEvents         .DISCONNECT.register(this::disconnect);
+        ClientLoginConnectionEvents        .DISCONNECT.register(this::disconnect);
+    }
+    
+    //------------------------------------------------------------------------------------------------------------------
+    private <T> void disconnect(final @NotNull T handler, final @NotNull MinecraftClient client)
+    {
+        if (this.phase != null)
+        {
+            this.resetProviders(client);
+        }
+        
+        this.phase = null;
     }
     
     //==================================================================================================================
-    /** This will only be called in single-player, as a remote connection to a server won't update local providers. */
+    // This will only be called in single-player, as a remote connection to a server won't update local providers.
     @Override
-    public void sendUpdates(@NotNull final Identifier configId, @NotNull final List<Pair<JsonPointer, Value>> updates)
+    public void sendUpdates(final @NotNull Identifier configId, final @NotNull List<Pair<JsonPointer, Value>> updates)
     {
         if (updates.isEmpty())
         {
@@ -148,13 +156,11 @@ public class ClientConfigManagerHandler
         
         if (server == null)
         {
-            Novia.LOGGER.warn(
-                "Tried sending client updates for provider '{}' in remote or invalid session",
-                configId);
+            Novia.LOGGER.warn("Tried sending client updates for provider '{}' in remote or invalid session", configId);
             return;
         }
         
-        updateRollingCache(configId, updates);
+        this.updateRollingCache(configId, updates);
         client.execute(() -> ProviderClientUpdater.forceUpdateClient(this.providers.get(configId), updates, false));
         
         if (server.getCurrentPlayerCount() < 2)
@@ -167,11 +173,11 @@ public class ClientConfigManagerHandler
             .stream()
             .filter(player -> !server.isHost(player.getGameProfile()))
             .toList();
-        sendPacket(configId, players, updates);
+        this.sendPacket(configId, players, updates);
     }
     
     @Override
-    public @Nullable ProviderOverride getRegistryOverride(@NotNull Identifier providerId)
+    public @Nullable ProviderOverride getRegistryOverride(final @NotNull Identifier providerId)
     {
         final MinecraftClient client = MinecraftClient.getInstance();
         return (client.world != null ? ConfigManager.REGISTRY.getOverride(client.world, providerId) : null);
@@ -179,7 +185,8 @@ public class ClientConfigManagerHandler
     
     //==================================================================================================================
     @Override
-    protected void processConfigTask(final ServerConfigurationNetworkHandler handler, final MinecraftServer server)
+    protected void processConfigTask(final @NotNull ServerConfigurationNetworkHandler handler,
+                                     final @NotNull MinecraftServer                   server)
     {
         if (server.isHost(handler.getDebugProfile()))
         {
@@ -190,9 +197,9 @@ public class ClientConfigManagerHandler
     }
     
     @Override
-    protected void processRollingUpdates(final ServerPlayNetworkHandler handler,
-                                         final PacketSender             sender,
-                                         final MinecraftServer          server)
+    protected void processRollingUpdates(final @NotNull ServerPlayNetworkHandler handler,
+                                         final @NotNull PacketSender             sender,
+                                         final @NotNull MinecraftServer          server)
     {
         if (server.isHost(handler.player.getGameProfile()))
         {
@@ -203,23 +210,25 @@ public class ClientConfigManagerHandler
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private void processPlaySyncPacket(final CustomPayload payload, final ClientPlayNetworking.Context ctx)
+    private void processPlaySyncPacket(final @NotNull CustomPayload                payload,
+                                       final @NotNull ClientPlayNetworking.Context ctx)
     {
+        //noinspection resource
         ctx.client().execute(() ->
         {
             final IPlayS2CUpdateConfigPayload sync_payload = (IPlayS2CUpdateConfigPayload) payload;
 
             if (this.phase != RemotePhase.PLAY)
             {
-                this.pending.add(sync_payload);
+                this.pending.addLast(sync_payload);
                 return;
             }
             
-            processPlaySyncPacketImpl(sync_payload);
+            this.processPlaySyncPacketImpl(sync_payload);
         });
     }
     
-    private void processPlaySyncPacketImpl(final IPlayS2CUpdateConfigPayload payload)
+    private void processPlaySyncPacketImpl(final @NotNull IPlayS2CUpdateConfigPayload payload)
     {
         final BaseNetworkProvider<?> provider = this.providers.get(payload.getProviderId());
         
@@ -233,14 +242,15 @@ public class ClientConfigManagerHandler
     
     //==================================================================================================================
     @Override
-    public void receive(final ConfigS2CConfigSyncPayload payload, final ClientConfigurationNetworking.Context context)
+    public void receive(final @NotNull ConfigS2CConfigSyncPayload            payload,
+                        final @NotNull ClientConfigurationNetworking.Context context)
     {
         if (this.phase != RemotePhase.CONFIGURATION)
         {
             return;
         }
         
-        if (readIncomingBuffer(payload.byteBuf()) > 0)
+        if (this.readIncomingBuffer(payload.byteBuf()) > 0)
         {
             return;
         }
@@ -269,14 +279,15 @@ public class ClientConfigManagerHandler
             }
         }
         
-        resetBuffers();
+        this.resetBuffers();
         
+        //noinspection resource
         context.client()
             .submit(() ->
             {
                 try
                 {
-                    processConfigSync(origin_flat);
+                    this.processConfigSync(origin_flat);
                 }
                 catch (final ConfigSyncException ex)
                 {
@@ -288,8 +299,11 @@ public class ClientConfigManagerHandler
                 if (throwable != null)
                 {
                     Novia.LOGGER.error("configuration sync failed", throwable);
-                    context.client().execute(() ->
-                        context.responseSender().disconnect(getDisconnectionMessage(throwable)));
+                    
+                    //noinspection resource
+                    context.client().execute(() -> context
+                        .responseSender()
+                        .disconnect(getDisconnectionMessage(throwable)));
                     
                     return;
                 }
@@ -299,7 +313,8 @@ public class ClientConfigManagerHandler
     }
     
     @Override
-    public void receive(final PlayS2CConfigSyncPayload payload, final ClientPlayNetworking.Context context)
+    public void receive(final @NotNull PlayS2CConfigSyncPayload     payload,
+                        final @NotNull ClientPlayNetworking.Context context)
     {
         if (this.phase != RemotePhase.PLAY_INIT)
         {
@@ -312,10 +327,11 @@ public class ClientConfigManagerHandler
         }
         
         final SnapshotCache cache = SnapshotCache.PACKET_CODEC.decode(this.configBuf);
-        resetBuffers();
+        this.resetBuffers();
         
         final Map<Identifier, List<Pair<JsonPointer, Value>>> client_updates = transformCache(cache);
         
+        //noinspection resource
         context.client()
             .submit(() -> client_updates.forEach((id, updates) ->
             {
@@ -330,15 +346,14 @@ public class ClientConfigManagerHandler
             {
                 final Object2ObjectMap<Identifier, List<Pair<JsonPointer, Value>>> updates
                     = new Object2ObjectOpenHashMap<>();
-                IPlayS2CUpdateConfigPayload                                        next    = this.pending.poll();
+                IPlayS2CUpdateConfigPayload next;
                 
-                while (next != null)
+                while ((next = this.pending.poll()) != null)
                 {
-                    final List<Pair<JsonPointer, Value>> list = updates
-                        .computeIfAbsent(next.getProviderId(), (k -> new ArrayList<>()));
-                    
+                    final List<Pair<JsonPointer, Value>> list = updates.computeIfAbsent(
+                        next.getProviderId(),
+                        (k -> new ArrayList<>()));
                     list.addAll(next.getUpdates());
-                    next = this.pending.poll();
                 }
                 
                 updates.forEach((id, list) ->
@@ -356,7 +371,7 @@ public class ClientConfigManagerHandler
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private int readIncomingBuffer(final PacketByteBuf buf)
+    private int readIncomingBuffer(final @NotNull PacketByteBuf buf)
     {
         final int bytes_to_read = buf.readableBytes();
 
@@ -368,7 +383,7 @@ public class ClientConfigManagerHandler
         return bytes_to_read;
     }
     
-    private @NotNull Text getDisconnectionMessage(@NotNull final Throwable throwable)
+    private @NotNull Text getDisconnectionMessage(final @NotNull Throwable throwable)
     {
         if (throwable instanceof CompletionException)
         {
@@ -385,7 +400,7 @@ public class ClientConfigManagerHandler
     }
     
     //==================================================================================================================
-    private void processConfigSync(@NotNull final Map<Identifier, Pair<Boolean, List<SnapshotCache.Snapshot>>> origin)
+    private void processConfigSync(final @NotNull Map<Identifier, Pair<Boolean, List<SnapshotCache.Snapshot>>> origin)
         throws ConfigSyncException
     {
         final Map<Identifier, BaseNetworkProvider<?>> temp_providers = new HashMap<>(this.providers);
@@ -400,7 +415,7 @@ public class ClientConfigManagerHandler
                 if (!optional)
                 {
                     throw new ConfigSyncException(String.format(
-                        "mismatching provider '%s', not supported by the client",
+                        "mismatching config provider '%s', not supported by the client",
                         entry.getKey()));
                 }
                 
@@ -410,13 +425,14 @@ public class ClientConfigManagerHandler
             if (optional != provider.isOptional())
             {
                 throw new ConfigSyncException(String.format(
-                    "mismatching provider '%s', specification out of sync",
+                    "mismatching config provider '%s', specification out of sync",
                     entry.getKey()));
             }
             
             final List<Pair<JsonPointer, Value>>    updates        = new ArrayList<>();
-            final Map<JsonPointer, PropertySpec<?>> property_specs
-                = new HashMap<>(provider.getSpec().flatPropertySpecs());
+            final Map<JsonPointer, PropertySpec<?>> property_specs = new HashMap<>(provider
+                .getSpec()
+                .flatPropertySpecs());
             
             for (final var snapshot : entry.getValue().second())
             {
@@ -424,9 +440,8 @@ public class ClientConfigManagerHandler
                 
                 if (property_spec == null)
                 {
-                    throw new ConfigSyncException(String.format(
-                        "mismatching provider '%s', specification out of sync",
-                        entry.getKey()));
+                    throw new ConfigSyncException("mismatching config provider '%s', specification out of sync"
+                        .formatted(entry.getKey()));
                 }
                 
                 updates.add(Pair.of(snapshot.pointer(), snapshot.value()));
@@ -434,9 +449,8 @@ public class ClientConfigManagerHandler
             
             if (!property_specs.isEmpty())
             {
-                throw new ConfigSyncException(String.format(
-                    "mismatching provider '%s', specification out of sync",
-                    entry.getKey()));
+                throw new ConfigSyncException("mismatching config provider '%s', specification out of sync"
+                    .formatted(entry.getKey()));
             }
             
             try
@@ -445,7 +459,8 @@ public class ClientConfigManagerHandler
             }
             catch (final PropertyValidationException ex)
             {
-                throw new ConfigSyncException("mismatching provider '%s', specification out of sync");
+                throw new ConfigSyncException("mismatching config provider '%s', specification out of sync"
+                    .formatted(entry.getKey()), ex);
             }
         }
         
@@ -453,20 +468,25 @@ public class ClientConfigManagerHandler
         {
             if (!entry.getValue().isOptional())
             {
-                throw new ConfigSyncException(String.format(
-                    "mismatching provider '%s', not supported by the server",
-                    entry.getKey()));
+                throw new ConfigSyncException("mismatching config provider '%s', not supported by the server"
+                    .formatted(entry.getKey()));
             }
         }
     }
     
-    private void resetProviders(final MinecraftClient client)
+    // we are resetting the providers in a single player setting, because we might have been on a previously synced
+    // remote
+    // since the server container is untouched on a remote session, we just copy back the data from the server container
+    // to the client container, as this is the one that is always up-to-date
+    private void resetProviders(final @NotNull MinecraftClient client)
     {
         final Map<Identifier, BaseNetworkProvider<?>> filtered = this.providers
             .entrySet()
             .stream()
-            .filter(e -> e.getValue().isRemotelySynced())
+            .filter(e -> e.getValue().isRemote())
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        
+        @SuppressWarnings("DataFlowIssue")
         final Map<Identifier, List<Pair<JsonPointer, Value>>> temp_cache = filtered
             .entrySet()
             .stream()
@@ -478,9 +498,10 @@ public class ClientConfigManagerHandler
                     .map(prop -> Pair.of(Objects.requireNonNull(prop.getSpec()).pointer(), prop.getValue()))
                     .collect(Collectors.toList()))));
         
-        client.execute(() ->
-            filtered.forEach((id, provider) ->
-                ProviderClientUpdater.forceUpdateClient(provider, Objects.requireNonNull(temp_cache.remove(id)), false)));
+        client.execute(() -> filtered.forEach((id, provider) -> ProviderClientUpdater.forceUpdateClient(
+            provider,
+            Objects.requireNonNull(temp_cache.remove(id)),
+            false)));
         
         this.phase = null;
     }
@@ -498,7 +519,7 @@ public class ClientConfigManagerHandler
     }
     
     //==================================================================================================================
-    private Map<Identifier, List<Pair<JsonPointer, Value>>> transformCache(@NotNull final SnapshotCache cache)
+    private @NotNull Map<Identifier, List<Pair<JsonPointer, Value>>> transformCache(final @NotNull SnapshotCache cache)
     {
         return cache
             .namespaces()

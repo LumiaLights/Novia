@@ -35,14 +35,9 @@
  */
 package xyz.lumialights.novia.api.gui.component;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.datafixers.util.Function3;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.Element;
 import net.minecraft.client.gui.Selectable;
@@ -52,15 +47,12 @@ import net.minecraft.client.gui.navigation.NavigationDirection;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.screen.narration.NarrationPart;
-import net.minecraft.client.render.VertexFormats;
 import net.minecraft.sound.MusicSound;
 import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import xyz.lumialights.novia.api.gui.ApiDefine;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.canvas.CanvasAttorney;
 import xyz.lumialights.novia.api.gui.canvas.IGuiTemplate;
@@ -487,7 +479,7 @@ public final class ScreenInterop
             return;
         }
         
-        final Point        mouse_pos = new Point(mouseX, mouseY);
+        final Point        mouse_pos = new Point((int) mouseX, (int) mouseY);
         final GuiComponent target    = mouse_pos.transform(this::getScreenComponentAt);
         
         this.setHovered(target);
@@ -537,7 +529,7 @@ public final class ScreenInterop
             this.setDragging(true);
         }
         
-        final boolean result = (new MouseEvent(this.hovered, new Point(mouseX, mouseY), 0, 0, button))
+        final boolean result = (new MouseEvent(this.hovered, new Point((int) mouseX, (int) mouseY), 0, 0, button))
             .post(GuiComponent::onMouseDown);
         
         if (modal_to_remove != null)
@@ -559,7 +551,7 @@ public final class ScreenInterop
             return false;
         }
         
-        final Point   mouse_pos = new Point(mouseX, mouseY);
+        final Point   mouse_pos = new Point((int) mouseX, (int) mouseY);
         final boolean result    = (new MouseEvent(this.hovered, mouse_pos, 0, 0, button)).post(GuiComponent::onMouseUp);
         
         this.updateHoverState(mouse_pos);
@@ -580,7 +572,7 @@ public final class ScreenInterop
             return false;
         }
         
-        return (new MouseEvent(this.hovered, new Point(mouseX, mouseY), deltaX, deltaY, button))
+        return (new MouseEvent(this.hovered, new Point((int) mouseX, (int) mouseY), deltaX, deltaY, button))
             .post(GuiComponent::onMouseDrag);
     }
     
@@ -592,7 +584,7 @@ public final class ScreenInterop
             return false;
         }
         
-        return (new MouseEvent(this.hovered, new Point(mouseX, mouseY), deltaX, deltaY))
+        return (new MouseEvent(this.hovered, new Point((int) mouseX, (int) mouseY), deltaX, deltaY))
             .post(GuiComponent::onMouseScroll);
     }
     

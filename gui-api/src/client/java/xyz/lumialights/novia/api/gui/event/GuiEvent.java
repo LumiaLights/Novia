@@ -45,19 +45,18 @@ import java.util.Set;
 
 
 //**********************************************************************************************************************
-/**
- * A lightweight event system that allows subscribing and unsubscribing handlers that get posted when the event
- * was triggered.
- * <p>
- * An event lets subscribers know that there was a change inside the component, therefore an event should never be
- * triggered by anything other than its owning component. This also applies to parent components, which should never
- * trigger events for children.
- * @param <EventArgs> The {@link EventArgs} implementation to use
- */
+/// A lightweight event system that allows subscribing and unsubscribing handlers that get posted when the event
+/// was triggered.
+///
+/// An event lets subscribers know that there was a change inside the component, therefore an event should never be
+/// triggered by anything other than its owning component. This also applies to parent components, which should never
+/// trigger events for children.
+/// @param <EventArgs> The [GuiEventArgs] implementation to use
 public sealed class GuiEvent<EventArgs extends GuiEventArgs>
     permits GuiEvent.Simple
 {
     //******************************************************************************************************************
+    /// A convenience [GuiEvent] that avoid having to deal with empty [GuiEventArgs] objects.
     public static final class Simple
         extends GuiEvent<GuiEventArgs>
     {
@@ -65,6 +64,8 @@ public sealed class GuiEvent<EventArgs extends GuiEventArgs>
         public Simple() { super(); }
         
         //==============================================================================================================
+        /// Posts the event to all subscribed handlers.
+        /// @param sender The component sending the event
         public void post(final @NotNull GuiComponent sender) { this.post(sender, GuiEventArgs.EMPTY); }
     }
     
@@ -72,40 +73,34 @@ public sealed class GuiEvent<EventArgs extends GuiEventArgs>
     final Set<GuiEventHandler<EventArgs>> handlers = Sets.newIdentityHashSet();
     
     //******************************************************************************************************************
-    /**
-     * Subscribes to the event with the given handler.
-     * <p>
-     * Do note that, if the handler should be unsubscribed from the event later on,
-     * you need the original handler object. As is the case for lambdas and method references, this means you will need
-     * to keep that handler object stored somewhere, or it will not be possible to unsubscribe.
-     * @param handler The {@link GuiEventHandler} for this event
-     * @return {@code true} if the given handler was not already subscribed to this event, otherwise {@code false}
-     */
+    /// Subscribes to the event with the given handler.
+    ///
+    /// Do note that, if the handler should be unsubscribed from the event later on,
+    /// you need the original handler object. As is the case for lambdas and method references, this means you will need
+    /// to keep that handler object stored somewhere, or it will not be possible to unsubscribe.
+    /// @param handler The [GuiEventHandler] for this event
+    /// @return `true` if the given handler was not already subscribed to this event, otherwise `false`
     public boolean subscribe(final @NotNull GuiEventHandler<EventArgs> handler)
     {
         return this.handlers.add(Objects.requireNonNull(handler, "handler must not be null"));
     }
     
-    /**
-     * Unsubscribes a handler from this event.
-     * <p>
-     * Do note that you need the original handler object. As is the case for lambdas and method references,
-     * you will need to pass the original handler object you subscribed with earlier, or it will not be possible
-     * to unsubscribe.
-     * @param handler The {@link GuiEventHandler} for this event
-     * @return {@code true} if the given handler could be unsubscribed from this event, otherwise {@code false}
-     */
+    /// Unsubscribes a handler from this event.
+    ///
+    /// Do note that you need the original handler object. As is the case for lambdas and method references,
+    /// you will need to pass the original handler object you subscribed with earlier, or it will not be possible
+    /// to unsubscribe.
+    /// @param handler The [GuiEventHandler] for this event
+    /// @return `true` if the given handler could be unsubscribed from this event, otherwise `false`
     public boolean unsubscribe(final @NotNull GuiEventHandler<EventArgs> handler)
     {
         return this.handlers.remove(Objects.requireNonNull(handler, "handler must not be null"));
     }
     
     //==================================================================================================================
-    /**
-     * Posts the event to all subscribed handlers.
-     * @param sender The component sending the event
-     * @param args   The {@link EventArgs} for this event
-     */
+    /// Posts the event to all subscribed handlers.
+    /// @param sender The component sending the event
+    /// @param args   The [EventArgs] for this event
     public void post(final @NotNull GuiComponent sender, final @NotNull EventArgs args)
     {
         this.handlers.forEach(handler -> handler.handle(sender, args));

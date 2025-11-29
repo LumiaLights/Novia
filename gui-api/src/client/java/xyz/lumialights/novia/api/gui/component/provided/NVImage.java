@@ -54,22 +54,18 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * Represents a simple component that only draws a texture on screen that can be specified with the
- * {@link NVImage.Sprites} record.
- */
+/// Represents a simple component that only draws a texture on screen that can be specified with the [NVImage.Sprites]
+/// record.
 public class NVImage
     extends GuiComponent
 {
     //******************************************************************************************************************
-    /**
-     * Describes the texture to be used, when:
-     * @param active         the component is active but neither focused nor hovered
-     * @param inactive       the component is inactive
-     * @param focused        the component is active and focused but not hovered
-     * @param hovered        the component is active and hovered but not focused
-     * @param hoveredFocused the component is active and hovered as well as focused
-     */
+    /// Describes the texture to be used, when:
+    /// @param active         the component is active but neither focused nor hovered
+    /// @param inactive       the component is inactive
+    /// @param focused        the component is active and focused but not hovered
+    /// @param hovered        the component is active and hovered but not focused
+    /// @param hoveredFocused the component is active and hovered as well as focused
     public record Sprites(
         @NotNull Identifier active,
         @NotNull Identifier inactive,
@@ -102,13 +98,11 @@ public class NVImage
         public Sprites(final @NotNull Identifier all) { this(all, all, all, all, all); }
         
         //==============================================================================================================
-        /**
-         * Gets the ID of the texture.
-         * @param active  Whether the component is active
-         * @param hovered Whether the component is hovered
-         * @param focused Whether the component is focused
-         * @return The sprite {@link Identifier} associated with the given state of the component
-         */
+        /// Gets the ID of the texture.
+        /// @param active  Whether the component is active
+        /// @param hovered Whether the component is hovered
+        /// @param focused Whether the component is focused
+        /// @return The sprite [Identifier] associated with the given state of the component
         public Identifier getId(final boolean active, final boolean hovered, final boolean focused)
         {
             if (active)
@@ -130,31 +124,27 @@ public class NVImage
     public static final UvMapping DEFAULT_SPRITE_UV = UvMapping.FULL;
     
     //==================================================================================================================
-    /** The default texture used if no texture is set for the image component. */
+    /// The default texture used if no texture is set for the image component.
     public static final Identifier DEFAULT_TEXTURE_ID = Identifier.of(ApiDefine.API_ID, "widget/no_image");
     
     //******************************************************************************************************************
-    /** Raised whenever the displayed sprites have changed. */
+    /// Raised whenever the displayed sprites have changed.
     public final GuiEvent.Simple spritesChanged = new GuiEvent.Simple();
     
     //==================================================================================================================
-    /**
-     * Describes the explicit scaling of the sprite in this image, or {@code null} to apply automatic scaling as
-     * described for the sprite's texture atlas entry.
-     */
+    /// Describes the explicit scaling of the sprite in this image, or `null` to apply automatic scaling as described
+    /// for the sprite's texture atlas entry.
     public final GuiProperty<Scaling> explicitScaling;
     
-    /** Describes how the UV coordinates are mapped to the rendered sprite ({@link UvMapping#FULL} by default). */
+    /// Describes how the UV coordinates are mapped to the rendered sprite ([UvMapping#FULL] by default).
     public final GuiProperty.NonNull<UvMapping> spriteUv;
     
     //==================================================================================================================
     private Sprites sprites;
 
     //******************************************************************************************************************
-    /**
-     * Constructs a new image component with the given sprites.
-     * @param sprites The sprites to use or {@code null} to not use any sprites
-     */
+    /// Constructs a new image component with the given sprites.
+    /// @param sprites The sprites to use or `null` to not use any sprites
     public NVImage(final @Nullable Sprites sprites)
     {
         this.explicitScaling = GuiProperty.nullable(NVImage.DEFAULT_EXPLICIT_SCALING);
@@ -162,20 +152,16 @@ public class NVImage
         this.sprites         = sprites;
     }
     
-    /**
-     * Constructs a new image component with the given sprite.
-     * @param spriteId The ID of the sprite to use
-     */
+    /// Constructs a new image component with the given sprite.
+    /// @param spriteId The ID of the sprite to use
     public NVImage(final @NotNull Identifier spriteId) { this(new Sprites(spriteId)); }
     
-    /** Constructs a new empty image component. */
+    /// Constructs a new empty image component.
     public NVImage() { this((Sprites) null); }
 
     //==================================================================================================================
-    /**
-     * Gets the sprites that are currently set for this image component.
-     * @return The {@link Sprites}
-     */
+    /// Gets the sprites that are currently set for this image component.
+    /// @return The [Sprites]
     public @Nullable Sprites getSprites() { return this.sprites; }
     
     @Override
@@ -195,17 +181,13 @@ public class NVImage
     }
     
     //==================================================================================================================
-    /**
-     * Gets whether this image component currently has sprites set.
-     * @return {@code true} if there are sprites set for this component
-     */
+    /// Gets whether this image component currently has sprites set.
+    /// @return `true` if there are sprites set for this component
     public boolean hasSprite() { return (this.sprites != null); }
     
     //==================================================================================================================
-    /**
-     * Sets the sprites to be used for this image component.
-     * @param sprites The sprites to use or {@code null} to not use any sprites
-     */
+    /// Sets the sprites to be used for this image component.
+    /// @param sprites The sprites to use or `null` to not use any sprites
     public void setSprites(final @Nullable Sprites sprites)
     {
         if (!Objects.equals(this.sprites, sprites))
@@ -217,10 +199,8 @@ public class NVImage
         }
     }
     
-    /**
-     * Sets the sprite to the given sprite ID.
-     * @param spriteId The ID of the sprite to use
-     */
+    /// Sets the sprite to the given sprite ID.
+    /// @param spriteId The ID of the sprite to use
     public void setImage(final @NotNull Identifier spriteId)
     {
         final Sprites new_sprites = new Sprites(spriteId);
@@ -248,6 +228,6 @@ public class NVImage
     }
     
     //==================================================================================================================
-    /** Can be overridden to get notified whenever the image component's sprites changed. */
+    /// Can be overridden to get notified whenever the image component's sprites changed.
     public void onSpritesChanged() {}
 }

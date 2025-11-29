@@ -64,15 +64,13 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * An extension to {@link NVTextBox} which can be used to display and edit numeric values specifically.
- * <p>
- * This special text box comes with two {@link NVSimpleButton}, used to decrement and increment the current numeric
- * value and a {@link NVTextBox} that displays the current value.
- * <p>
- * This is a stateful GUI component, the number it contains represents the number currently contained inside the box,
- * it can be converted between number qualified {@link Value} objects.
- */
+/// An extension to [NVTextBox] which can be used to display and edit numeric values specifically.
+///
+/// This special text box comes with two [NVSimpleButton], used to decrement and increment the current numeric
+/// value and a [NVTextBox] that displays the current value.
+///
+/// This is a stateful GUI component, the number it contains represents the number currently contained inside the box,
+/// it can be converted between number qualified [Value] objects.
 public class NVNumericBox
     extends StatefulGuiComponent
 {
@@ -80,13 +78,11 @@ public class NVNumericBox
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the numeric box's up- and down-arrow button background.
-         * @param canvas     The {@link Canvas}
-         * @param numericBox The {@link NVNumericBox}
-         * @param button     The button to draw
-         * @param isUpButton Draws the up-arrow button if {@code true}, otherwise draws the down-arrow button
-         */
+        /// Draws the numeric box's up- and down-arrow button background.
+        /// @param canvas     The [Canvas]
+        /// @param numericBox The [NVNumericBox]
+        /// @param button     The button to draw
+        /// @param isUpButton Draws the up-arrow button if `true`, otherwise draws the down-arrow button
         void nvNumericBoxDrawArrowButton(@NotNull Canvas canvas, @NotNull NVNumericBox numericBox,
                                          @NotNull NVAbstractButton button, boolean isUpButton);
     }
@@ -119,10 +115,10 @@ public class NVNumericBox
     public static final ColourId COLOUR_ARROW_INACTIVE = ColourId.reserve();
     
     //==================================================================================================================
-    /** See {@link NVNumericBox#range}. */
+    /// See [NVNumericBox#range].
     public static final NormalisedRange DEFAULT_RANGE = NormalisedRange.FULL_RANGE;
     
-    /** See {@link NVNumericBox#numberFormat}. */
+    /// See [NVNumericBox#numberFormat].
     public static final Supplier<DecimalFormat> DEFAULT_FORMAT_SUPPLIER = (() ->
     {
         final DecimalFormat format = new DecimalFormat("0");
@@ -136,16 +132,12 @@ public class NVNumericBox
     private static final int COUNT_APPLY_DELAY_MS = 100;
     
     //******************************************************************************************************************
-    /**
-     * Describes the range the box can step between.
-     * @see NormalisedRange
-     */
+    /// Describes the range the box can step between.
+    /// @see NormalisedRange
     public final GuiProperty.NonNull<NormalisedRange> range;
     
-    /**
-     * Describes the formatting of the number as text in the text box.
-     * @see DecimalFormat
-     */
+    /// Describes the formatting of the number as text in the text box.
+    /// @see DecimalFormat
     public final GuiProperty.NonNull<DecimalFormat> numberFormat;
     
     //==================================================================================================================
@@ -159,11 +151,9 @@ public class NVNumericBox
     private double value;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new numeric text box.
-     * @param value   The initial value for the numeric box
-     * @param message The component message
-     */
+    /// Constructs a new numeric text box.
+    /// @param value   The initial value for the numeric box
+    /// @param message The component message
     public NVNumericBox(final double value, final @NotNull Text message)
     {
         super(message);
@@ -193,38 +183,28 @@ public class NVNumericBox
         this.updateText(this.numberFormat.get());
     }
     
-    /**
-     * Constructs a new numeric text box with an empty message.
-     * @param value The initial value for the numeric box
-     */
+    /// Constructs a new numeric text box with an empty message.
+    /// @param value The initial value for the numeric box
     public NVNumericBox(final double value) { this(value, ScreenTexts.EMPTY); }
     
-    /** Constructs a new numeric text box with an initial value of 0. */
+    /// Constructs a new numeric text box with an initial value of 0.
     public NVNumericBox() { this(0, ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the last valid number of this text box as a {@link Value} object.
-     * @return The number {@link Value}
-     */
+    /// Gets the last valid number of this text box as a [Value] object.
+    /// @return The number [Value]
     @Override public @NotNull Value getValue() { return new Value(this.value); }
     
-    /**
-     * Gets the last valid number of this number box.
-     * @return The number
-     */
+    /// Gets the last valid number of this number box.
+    /// @return The number
     public double getValueAsDouble() { return this.value; }
     
-    /**
-     * Gets the textual representation of the number inside the numeric text box.
-     * @return The value string
-     */
+    /// Gets the textual representation of the number inside the numeric text box.
+    /// @return The value string
     public @NotNull String getText() { return this.textBox.getText(); }
     
-    /**
-     * Gets the internal text box, this should only be used for styling and templating the text box.
-     * @return The {@link NVTextBox}
-     */
+    /// Gets the internal text box, this should only be used for styling and templating the text box.
+    /// @return The [NVTextBox]
     public @NotNull NVTextBox getTextBox() { return this.textBox; }
     
     @Override
@@ -243,11 +223,9 @@ public class NVNumericBox
     }
     
     //==================================================================================================================
-    /**
-     * Sets the value of this numeric box as a number qualified {@link Value} object. If the value is not a number
-     * value, this does nothing and if the value is outside the specified range, it will be clamped to fit.
-     * @param value The new boolean {@link Value}
-     */
+    /// Sets the value of this numeric box as a number qualified [Value] object. If the value is not a number
+    /// value, this does nothing and if the value is outside the specified range, it will be clamped to fit.
+    /// @param value The new boolean [Value]
     @Override
     public void setValue(final @NotNull Value value)
     {
@@ -259,10 +237,8 @@ public class NVNumericBox
         this.setValue(value.getNumber().doubleValue());
     }
     
-    /**
-     * Sets the value of this box to the new value. If the value is outside the range, it will be clamped to fit.
-     * @param value The new value to set
-     */
+    /// Sets the value of this box to the new value. If the value is outside the range, it will be clamped to fit.
+    /// @param value The new value to set
     public void setValue(final @NotNull Number value)
     {
         final double new_value = this.range.get().clamp(value.doubleValue());
@@ -276,10 +252,8 @@ public class NVNumericBox
         }
     }
     
-    /**
-     * Sets numeric box's number text explicitly, if it is not a valid number nothing happens.
-     * @param text The number text to set
-     */
+    /// Sets numeric box's number text explicitly, if it is not a valid number nothing happens.
+    /// @param text The number text to set
     public void setText(final @NotNull String text) { this.textBox.setText(text); }
     
     //==================================================================================================================

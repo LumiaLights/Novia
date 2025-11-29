@@ -45,20 +45,18 @@ import java.util.stream.IntStream;
 
 
 //**********************************************************************************************************************
-/**
- * Describes a numeric value that represents a colour component for the entire component system. Each colour ID is
- * unique and cannot be defined twice.
- */
+/// Describes a numeric value that represents a colour component for the entire component system. Each colour ID is
+/// unique and cannot be defined twice.
 public final class ColourId
     extends Number
     implements Comparable<Integer>
 {
     //******************************************************************************************************************
-    /** Describes a range of colour IDs. */
+    /// Describes a range of colour IDs.
     public static final class Range
     {
         //**************************************************************************************************************
-        /** The list of colour IDs associated with this range. */
+        /// The list of colour IDs associated with this range.
         private final @NotNull ImmutableList<ColourId> ids;
         
         //**************************************************************************************************************
@@ -71,18 +69,14 @@ public final class ColourId
         }
         
         //==============================================================================================================
-        /**
-         * Gets a colour ID at the given index from the range.
-         * @param index The index of the ID
-         * @return The {@link ColourId}
-         * @throws IndexOutOfBoundsException If the index is not inside the range
-         */
+        /// Gets a colour ID at the given index from the range.
+        /// @param index The index of the ID
+        /// @return The [ColourId]
+        /// @throws IndexOutOfBoundsException If the index is not inside the range
         public @NotNull ColourId get(final int index) { return this.ids.get(index); }
 
-        /**
-         * Gets the entire list of colour IDs inside this range.
-         * @return The immutable list containing the colour IDs
-         */
+        /// Gets the entire list of colour IDs inside this range.
+        /// @return The immutable list containing the colour IDs
         public @NotNull List<ColourId> getIDs() { return this.ids; }
     }
     
@@ -90,27 +84,21 @@ public final class ColourId
     private static final AtomicInteger CURRENT_ID = new AtomicInteger(0);
     
     //==================================================================================================================
-    /**
-     * Allocates a new ID for use with the component system.
-     * @return The new {@link ColourId}
-     */
+    /// Allocates a new ID for use with the component system.
+    /// @return The new [ColourId]
     public static @NotNull ColourId reserve() { return new ColourId(CURRENT_ID.getAndIncrement()); }
 
-    /**
-     * Allocates a range of new colour IDs for use with the component system.
-     * @param count The number of IDs to reserver
-     * @return The new ID {@link Range}
-     */
+    /// Allocates a range of new colour IDs for use with the component system.
+    /// @param count The number of IDs to reserver
+    /// @return The new ID [Range]
     public static @NotNull Range reserveRange(final int count) { return new Range(CURRENT_ID.getAndAdd(count), count); }
 
-    /**
-     * Gets the current number of allocated colour IDs.
-     * @return The number of IDs
-     */
+    /// Gets the current number of allocated colour IDs.
+    /// @return The number of IDs
     public static int getSlotCount() { return CURRENT_ID.get(); }
     
     //******************************************************************************************************************
-    /** The integral ID of this colour ID object. */
+    /// The integral ID of this colour ID object.
     public final int id;
     
     //******************************************************************************************************************

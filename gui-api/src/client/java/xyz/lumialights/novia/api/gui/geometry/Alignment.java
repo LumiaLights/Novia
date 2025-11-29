@@ -67,105 +67,90 @@ public enum Alignment
     public static final Codec<Alignment> CODEC = StringIdentifiable.createCodec(Alignment::values);
     
     //******************************************************************************************************************
+    /// The flags that are given for the constant.
     public final int flags;
     
     //******************************************************************************************************************
-    Alignment(final int flags)
-    {
-        this.flags = flags;
-    }
+    Alignment(final int flags) { this.flags = flags; }
     
     //==================================================================================================================
-    public boolean has(@NotNull final Alignment alignment)
+    /// {@return for compound flags, whether the given flag <code>alignment</code> is implicated}
+    public boolean has(final @NotNull Alignment alignment)
     {
         return ((this.flags & alignment.flags) == alignment.flags);
     }
     
     //==================================================================================================================
-    /**
-     * Aligns the given target bounds so that it is aligned to the given container area.
-     *
-     * @param containerX      The position of the area that the target area should be aligned to on the left-axis
-     * @param containerY      The position of the area that the target area should be aligned to on the y-axis
-     * @param containerWidth  The width of the area that the target area should be aligned to
-     * @param containerHeight The height of the area that the target area should be aligned to
-     * @param targetWidth     The width of the to be aligned area
-     * @param targetHeight    The height of the to be aligned area
-     * @return A new {@link Rectangle} aligned to the given container rect
-     */
-    public @NotNull Rectangle align(final @NotNull Number containerX,
-                                    final @NotNull Number containerY,
-                                    final @NotNull Number containerWidth,
-                                    final @NotNull Number containerHeight,
-                                    final @NotNull Number targetWidth,
-                                    final @NotNull Number targetHeight)
+    /// Aligns the given target bounds so that it is aligned to the given container area.
+    /// @param containerX      The position of the area that the target area should be aligned to on the left-axis
+    /// @param containerY      The position of the area that the target area should be aligned to on the y-axis
+    /// @param containerWidth  The width of the area that the target area should be aligned to
+    /// @param containerHeight The height of the area that the target area should be aligned to
+    /// @param targetWidth     The width of the to be aligned area
+    /// @param targetHeight    The height of the to be aligned area
+    /// @return A new [Rectangle] aligned to the given container rect
+    public @NotNull Rectangle align(final int containerX,
+                                    final int containerY,
+                                    final int containerWidth,
+                                    final int containerHeight,
+                                    final int targetWidth,
+                                    final int targetHeight)
     {
-        int x = containerX.intValue();
-        int y = containerY.intValue();
+        int x = containerX;
+        int y = containerY;
         
         if (this.has(Alignment.CENTRE))
         {
-            x += (int) Math.round((containerWidth.intValue() - targetWidth.intValue()) * 0.5);
+            x += (int) Math.round((containerWidth - targetWidth) * 0.5);
         }
         else if (this.has(Alignment.RIGHT))
         {
-            x += (containerWidth.intValue() - targetWidth.intValue());
+            x += (containerWidth - targetWidth);
         }
         
         if (this.has(Alignment.MIDDLE))
         {
-            y += (int) Math.round((containerHeight.intValue() - targetHeight.intValue()) * 0.5);
+            y += (int) Math.round((containerHeight - targetHeight) * 0.5);
         }
         else if (this.has(Alignment.BOTTOM))
         {
-            y += (containerHeight.intValue() - targetHeight.intValue());
+            y += (containerHeight - targetHeight);
         }
         
         return new Rectangle(x, y, targetWidth, targetHeight);
     }
     
-    /**
-     * Aligns {@code target} so that it is aligned relatively to the given container bounds.
-     *
-     * @param containerX      The position of the area that the target area should be aligned to on the left-axis
-     * @param containerY      The position of the area that the target area should be aligned to on the y-axis
-     * @param containerWidth  The width of the area that the target area should be aligned to
-     * @param containerHeight The height of the area that the target area should be aligned to
-     * @param target          The {@link Rectangle} to be aligned
-     * @return A new {@link Rectangle} aligned to the given container rect
-     */
-    public @NotNull Rectangle align(final @NotNull Number    containerX,
-                                    final @NotNull Number    containerY,
-                                    final @NotNull Number    containerWidth,
-                                    final @NotNull Number    containerHeight,
+    /// Aligns `target` so that it is aligned relatively to the given container bounds.
+    /// @param containerX      The position of the area that the target area should be aligned to on the left-axis
+    /// @param containerY      The position of the area that the target area should be aligned to on the y-axis
+    /// @param containerWidth  The width of the area that the target area should be aligned to
+    /// @param containerHeight The height of the area that the target area should be aligned to
+    /// @param target          The [Rectangle] to be aligned
+    /// @return A new [Rectangle] aligned to the given container rect
+    public @NotNull Rectangle align(final          int       containerX,
+                                    final          int       containerY,
+                                    final          int       containerWidth,
+                                    final          int       containerHeight,
                                     final @NotNull Rectangle target)
     {
         return target.transform((x, y, w, h) ->
             this.align(containerX, containerY, containerWidth, containerHeight, w, h));
     }
     
-    /**
-     * Aligns the target area so that it is aligned relatively to {@code container} based on the given alignment flags.
-     *
-     * @param container    The containing area that the target area should be aligned to
-     * @param targetWidth  The width of the to be aligned area
-     * @param targetHeight The height of the to be aligned area
-     * @return A new {@link Rectangle} aligned to the given container rect
-     */
-    public @NotNull Rectangle align(final @NotNull Rectangle container,
-                                    final @NotNull Number    targetWidth,
-                                    final @NotNull Number    targetHeight)
+    /// Aligns the target area so that it is aligned relatively to `container` based on the given alignment flags.
+    /// @param container    The containing area that the target area should be aligned to
+    /// @param targetWidth  The width of the to be aligned area
+    /// @param targetHeight The height of the to be aligned area
+    /// @return A new [Rectangle] aligned to the given container rect
+    public @NotNull Rectangle align(final @NotNull Rectangle container, final int targetWidth, final int targetHeight)
     {
         return container.transform((x, y, w, h) -> this.align(x, y, w, h, targetWidth, targetHeight));
     }
     
-    /**
-     * Aligns {@code target} so that it is aligned relatively to {@code container} based on the given alignment flags.
-     *
-     * @param container The {@link Rectangle} to align to
-     * @param target    The {@link Rectangle} to be aligned
-     * @return A new {@link Rectangle} aligned to the given container rect
-     */
+    /// Aligns `target` so that it is aligned relatively to `container` based on the given alignment flags.
+    /// @param container The [Rectangle] to align to
+    /// @param target    The [Rectangle] to be aligned
+    /// @return A new [Rectangle] aligned to the given container rect
     public @NotNull Rectangle align(final @NotNull Rectangle container, final @NotNull Rectangle target)
     {
         return container.transform((cx, cy, cw, ch) -> target.transform((tx, ty, tw, th) ->
@@ -173,5 +158,5 @@ public enum Alignment
     }
     
     //==================================================================================================================
-    @Override public String asString() { return this.name().toLowerCase(); }
+    @Override public @NotNull String asString() { return this.name().toLowerCase(); }
 }

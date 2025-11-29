@@ -35,20 +35,33 @@
  */
 package xyz.lumialights.novia.api.gui.canvas.brush.gradient;
 
-
 import org.jetbrains.annotations.NotNull;
+import xyz.lumialights.novia.api.core.util.Colour;
+import xyz.lumialights.novia.api.gui.canvas.brush.VertexPalette;
 
 
 
 //**********************************************************************************************************************
+/// An implementation of [Gradient] that does not provide an interpolation but instead just gives a solid colour.
 public class GradientSolid
     extends Gradient
 {
     //******************************************************************************************************************
     public GradientSolid(final int colour) { super(colour, colour, Direction.HORIZONTAL); }
-
+    
+    public GradientSolid(final @NotNull Colour colour) { super(colour, colour, Direction.HORIZONTAL); }
+    
     //==================================================================================================================
     public int getColour(final float point) { return this.startColour(); }
+    
+    @Override public @NotNull VertexPalette getPalette() { return new VertexPalette(this.startColour()); }
+    
+    //==================================================================================================================
+    @Override
+    public @NotNull Gradient withOpacity(final float opacity)
+    {
+        return new GradientSolid(new Colour(this.startColour()).withOpacityRel(opacity));
+    }
     
     //==================================================================================================================
     @Override

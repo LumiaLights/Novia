@@ -38,9 +38,10 @@ package xyz.lumialights.novia.api.gui.event;
 
 
 //**********************************************************************************************************************
+/// The base class used for all GUI event's arguments.
 public interface GuiEventArgs
 {
     //******************************************************************************************************************
-    /** Can be used for events that do not provide their own event arguments.*/
+    /// Can be used for events that do not provide their own event arguments.
     GuiEventArgs EMPTY = new GuiEventArgs(){};
 }

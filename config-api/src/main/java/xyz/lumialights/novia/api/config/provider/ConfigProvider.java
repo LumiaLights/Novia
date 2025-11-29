@@ -319,7 +319,7 @@ public class ConfigProvider<Container>
 
     //==================================================================================================================
     @Override
-    void updateClient(@NotNull final List<Pair<JsonPointer, Value>> updates, final boolean isRemote)
+    void updateClient(final @NotNull List<Pair<JsonPointer, Value>> updates, final boolean isRemote)
         throws PropertyValidationException
     {
         final BiConsumer<Property, Value> setter = ((property, value) ->
@@ -356,22 +356,20 @@ public class ConfigProvider<Container>
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    private void processClientUpdate(@NotNull final List<Pair<JsonPointer, Value>> updates,
-                                     @NotNull final BiConsumer<Property, Value>    consumer,
-                                              final boolean                        isRemote)
+    private void processClientUpdate(final @NotNull List<Pair<JsonPointer, Value>> updates,
+                                     final @NotNull BiConsumer<Property, Value>    consumer,
+                                     final          boolean                        isRemote)
     {
+        if (FabricLoader.getInstance().getEnvironmentType() != EnvType.CLIENT)
         {
-            if (FabricLoader.getInstance().getEnvironmentType() != EnvType.CLIENT)
-            {
-                Novia.LOGGER.error("Tried updating client provider on physical server");
-                return;
-            }
-            
-            if (!Novia.getInstance().isRenderThread())
-            {
-                Novia.LOGGER.error("Tried updating client provider not on logical client");
-                return;
-            }
+            Novia.LOGGER.error("Tried updating client provider on physical server");
+            return;
+        }
+        
+        if (!Novia.getInstance().isRenderThread())
+        {
+            Novia.LOGGER.error("Tried updating client provider not on logical client");
+            return;
         }
         
         this.lockClientContainer = false;
@@ -392,7 +390,7 @@ public class ConfigProvider<Container>
     }
 
     //==================================================================================================================
-    private void serverValueChanged(@NotNull final Property property, @NotNull final Value value)
+    private void serverValueChanged(final @NotNull Property property, final @NotNull Value value)
     {
         if (!this.batchMode)
         {
@@ -400,7 +398,7 @@ public class ConfigProvider<Container>
         }
     }
 
-    private void clientValueChanged(@NotNull final Property property, @NotNull final Value ignored)
+    private void clientValueChanged(final @NotNull Property property, final @NotNull Value ignored)
     {
         if (this.lockClientContainer)
         {
@@ -409,7 +407,7 @@ public class ConfigProvider<Container>
     }
     
     //==================================================================================================================
-    private void sendUpdates(@NotNull final List<Pair<JsonPointer, Value>> values)
+    private void sendUpdates(final @NotNull List<Pair<JsonPointer, Value>> values)
     {
         ConfigManagerNetwork.sendUpdates(this.getId(), values);
     }

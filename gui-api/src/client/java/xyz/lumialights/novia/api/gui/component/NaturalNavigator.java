@@ -48,7 +48,7 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/** Describes the natural navigation order that is used by default to navigate between components on screen. */
+/// Describes the natural navigation order that is used by default to navigate between components on screen.
 public class NaturalNavigator
     implements IComponentNavigator
 {

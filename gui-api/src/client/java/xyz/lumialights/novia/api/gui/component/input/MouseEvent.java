@@ -47,49 +47,41 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
-/**
- * Provides data about the action of a mouse input event, such as the left mouse button or the mouse-wheel.
- * This is used for component events in the {@link GuiComponent} class such as for
- * {@link GuiComponent#onMouseDown(MouseEvent)}.
- */
+/// Provides data about the action of a mouse input event, such as the left mouse button or the mouse-wheel.
+/// This is used for component events in the [GuiComponent] class such as for
+/// [GuiComponent#onMouseDown(MouseEvent)].
 public final class MouseEvent
     extends AbstractInputEvent<MouseEvent>
 {
     //******************************************************************************************************************
-    /** The mouse device that has triggered this event. */
+    /// The mouse device that has triggered this event.
     public final @NotNull Mouse device = MinecraftClient.getInstance().mouse;
     
-    /**
-     * Determines a change on the left-axis since the last mouse event.
-     * <p>
-     * For scroll events this will determine the horizontal scroll amount, for drag events the change in mouse position
-     * since the last drag event and for any other mouse event 0.
-     */
+    /// Determines a change on the left-axis since the last mouse event.
+    ///
+    /// For scroll events this will determine the horizontal scroll amount, for drag events the change in mouse position
+    /// since the last drag event and for any other mouse event 0.
     public final double deltaX;
     
-    /**
-     * Determines a change on the y-axis since the last mouse event.
-     * <p>
-     * For scroll events this will determine the vertical scroll amount, for drag events the change in mouse position
-     * since the last drag event and for any other mouse event 0.
-     */
+    /// Determines a change on the y-axis since the last mouse event.
+    ///
+    /// For scroll events this will determine the vertical scroll amount, for drag events the change in mouse position
+    /// since the last drag event and for any other mouse event 0.
     public final double deltaY;
     
-    /** The mouse position in screen coordinates. */
+    /// The mouse position in screen coordinates.
     public final @NotNull Point mousePos;
     
     //------------------------------------------------------------------------------------------------------------------
     private final BitSet buttons = new BitSet();
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new mouse button event.
-     * @param source    The {@link GuiComponent} that originally triggered the event
-     * @param mousePos  The position of the cursor in screen coordinates
-     * @param deltaX    The amount the position has changed from the last move on the left-axis
-     * @param deltaY    The amount the position has changed from the last move on the y-axis
-     * @param button    The code of the mouse button that has been pressed (see {@link GLFW})
-     */
+    /// Constructs a new mouse button event.
+    /// @param source   The [GuiComponent] that originally triggered the event
+    /// @param mousePos The position of the cursor in screen coordinates
+    /// @param deltaX   The amount the position has changed from the last move on the left-axis
+    /// @param deltaY   The amount the position has changed from the last move on the y-axis
+    /// @param button   The code of the mouse button that has been pressed (see [GLFW])
     public MouseEvent(final @NotNull GuiComponent source,
                       final @NotNull Point        mousePos,
                       final          double       deltaX,
@@ -105,13 +97,11 @@ public final class MouseEvent
         this.buttons.set(button);
     }
 
-    /**
-     * Constructs a new scroll event.
-     * @param source    The {@link GuiComponent} that originally triggered the event
-     * @param mousePos  The position of the cursor in screen coordinates
-     * @param deltaX    The amount the mouse-wheel has been horizontally scrolled since its last position
-     * @param deltaY    The amount the mouse-wheel has been vertically scrolled since its last position
-     */
+    /// Constructs a new scroll event.
+    /// @param source   The [GuiComponent] that originally triggered the event
+    /// @param mousePos The position of the cursor in screen coordinates
+    /// @param deltaX   The amount the mouse-wheel has been horizontally scrolled since its last position
+    /// @param deltaY   The amount the mouse-wheel has been vertically scrolled since its last position
     public MouseEvent(final @NotNull GuiComponent source,
                       final @NotNull Point        mousePos,
                       final          double       deltaX,
@@ -140,50 +130,28 @@ public final class MouseEvent
     }
     
     //==================================================================================================================
-    /**
-     * Gets the mouse coordinates relative to the {@link #target()} component.
-     * @return The mouse coordinates
-     */
+    /// {@return the mouse coordinates relative to the [#target()] component}
     public @NotNull Point localMousePos() { return this.target().toRelativePos(this.mousePos); }
     
-    /**
-     * Gets the X mouse coordinate relative to the {@link #target()} component.
-     * @return The X coordinate
-     */
+    /// {@return the X mouse coordinate relative to the [#target()] component}
     public int localMouseX() { return this.target().toRelativeX(this.mousePos.x()); }
     
-    /**
-     * Gets the Y mouse coordinate relative to the {@link #target()} component.
-     * @return The Y coordinate
-     */
+    /// {@return the Y mouse coordinate relative to the [#target()] component}
     public int localMouseY() { return this.target().toRelativeY(this.mousePos.y()); }
     
     //==================================================================================================================
-    
-    /**
-     * Whether the left mouse button was pressed when the event triggered.
-     * @return {@code true} if the left mouse button was pressed
-     */
+    /// {@return whether the left mouse button was pressed when the event triggered}
     public boolean isLeftButtonDown() { return this.buttons.get(GLFW.GLFW_MOUSE_BUTTON_LEFT); }
     
-    /**
-     * Whether the right mouse button was pressed when the event triggered.
-     * @return {@code true} if the right mouse button was pressed
-     */
+    /// {@return whether the right mouse button was pressed when the event triggered}
     public boolean isRightButtonDown() { return this.buttons.get(GLFW.GLFW_MOUSE_BUTTON_RIGHT); }
     
-    /**
-     * Whether the middle mouse button was pressed when the event triggered.
-     * @return {@code true} if the middle mouse button was pressed
-     */
+    /// {@return whether the middle mouse button was pressed when the event triggered}
     public boolean isMiddleButtonDown() { return this.buttons.get(GLFW.GLFW_MOUSE_BUTTON_MIDDLE); }
     
     //==================================================================================================================
-    /**
-     * Disables the cursor.
-     * <p>
-     * {@link #enableCursor()} should be called after every call to this one, otherwise the cursor won't reappear.
-     */
+    /// Disables the cursor. [#enableCursor()] should be called after every call to this one, otherwise the cursor won't
+    /// reappear.
     public void disableCursor()
     {
         GLFW.glfwSetInputMode(
@@ -192,11 +160,8 @@ public final class MouseEvent
             GLFW.GLFW_CURSOR_DISABLED);
     }
     
-    /**
-     * Re-enables the cursor.
-     * <p>
-     * This should be called after every call to {@link #disableCursor()}, otherwise the cursor won't reappear.
-     */
+    /// Re-enables the cursor. This should be called after every call to [#disableCursor()], otherwise the cursor won't
+    /// reappear.
     public void enableCursor()
     {
         GLFW.glfwSetInputMode(

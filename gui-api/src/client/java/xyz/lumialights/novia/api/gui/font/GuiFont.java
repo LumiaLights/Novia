@@ -82,11 +82,11 @@ import java.util.stream.Stream;
 ///
 /// Those metrics are not necessarily the real font's metrics, but rather [font provider](https://minecraft.wiki/w/Font)
 /// specified metrics that are adjusted to the specific instance they are used in. These justified metrics are
-/// attainable through a font's [#getMetrics()] method. Additionally, fonts have [#getAscent()], [#getDescent()] and
-/// [#getHeight()] which are (other than [#getMetrics()]) the specific font instance's adjusted metrics, such as with
-/// applied font scaling. It is worth noting that for a single Novia font instance, there may be multiple providers that
-/// are used, which creates an automatic font fallback environment in case there are glyphs missing in one of them. For
-/// this reason, the metrics of such a font object are the combined maximums of all providers
+/// attainable through a font's [#getAscent()], [#getDescent()] and [#getHeight()] methods, which are the specific font
+/// instance's adjusted metrics, such as with applied font scaling. It is worth noting that for a single Novia font
+/// instance, there may be multiple providers that are used, which creates an automatic font fallback environment in
+/// case there are glyphs missing in one of them. For this reason, the metrics of such a font object are the combined
+/// maximums of all providers.
 ///
 /// To define a font's metrics, Minecraft uses its providers with a set of options that declare how a font is measured
 /// internally. Many providers (such as bitmap and truetype) have a font size attribute that describes what the internal

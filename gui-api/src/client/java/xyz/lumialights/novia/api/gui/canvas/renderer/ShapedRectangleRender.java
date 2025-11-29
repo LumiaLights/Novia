@@ -52,6 +52,7 @@ public abstract class ShapedRectangleRender
     implements IShapedRender
 {
     //******************************************************************************************************************
+    /// Provides a shaped renderer that outlines a rectangular area.
     public static class Border
         extends ShapedRectangleRender
     {
@@ -63,6 +64,12 @@ public abstract class ShapedRectangleRender
         private final float thickness;
         
         //**************************************************************************************************************
+        /// Constructs a new border renderer.
+        /// @param x1        The x coordinate of where the rectangle starts
+        /// @param y1        The y coordinate of where the rectangle starts
+        /// @param x2        The x coordinate of where the rectangle ends
+        /// @param y2        The y coordinate of where the rectangle ends
+        /// @param thickness The thickness of the border rectangle
         public Border(final float x1, final float y1, final float x2, final float y2, final float thickness)
         {
             this.x1        = x1;
@@ -72,6 +79,9 @@ public abstract class ShapedRectangleRender
             this.thickness = thickness;
         }
         
+        /// Constructs a new border renderer.
+        /// @param rectangle The rectangle to draw
+        /// @param thickness The thickness of the border rectangle
         public Border(final @NotNull Rectangle rectangle, final float thickness)
         {
             this(rectangle.x(), rectangle.y(), rectangle.getRight(), rectangle.getBottom(), thickness);
@@ -88,6 +98,7 @@ public abstract class ShapedRectangleRender
         }
     }
     
+    /// Provides a shaped renderer that fill a rectangular area.
     public static class Fill
         extends ShapedRectangleRender
     {
@@ -98,6 +109,11 @@ public abstract class ShapedRectangleRender
         private final float y2;
         
         //**************************************************************************************************************
+        /// Constructs a new fill renderer.
+        /// @param x1 The x coordinate of where the rectangle starts
+        /// @param y1 The y coordinate of where the rectangle starts
+        /// @param x2 The x coordinate of where the rectangle ends
+        /// @param y2 The y coordinate of where the rectangle ends
         public Fill(final float x1, final float y1, final float x2, final float y2)
         {
             this.x1 = x1;
@@ -106,6 +122,8 @@ public abstract class ShapedRectangleRender
             this.y2 = y2;
         }
         
+        /// Constructs a new fill renderer.
+        /// @param rectangle The rectangle to fill
         public Fill(final @NotNull Rectangle rectangle)
         {
             this(rectangle.x(), rectangle.y(), rectangle.getRight(), rectangle.getBottom());
@@ -120,6 +138,7 @@ public abstract class ShapedRectangleRender
         }
     }
     
+    /// Provides a shaped renderer that fills a rectangular area with a texture.
     public static class Texture
         extends ShapedRectangleRender
     {
@@ -134,6 +153,15 @@ public abstract class ShapedRectangleRender
         private final float v2;
         
         //**************************************************************************************************************
+        /// Constructs a new fill renderer.
+        /// @param x1 The x coordinate of where the rectangle starts
+        /// @param y1 The y coordinate of where the rectangle starts
+        /// @param x2 The x coordinate of where the rectangle ends
+        /// @param y2 The y coordinate of where the rectangle ends
+        /// @param u1 The u texture start coordinate
+        /// @param v1 The v texture start coordinate
+        /// @param u2 The u texture end coordinate
+        /// @param v2 The v texture end coordinate
         public Texture(final float x1, final float y1, final float x2, final float y2,
                        final float u1, final float v1, final float u2, final float v2)
         {
@@ -147,17 +175,32 @@ public abstract class ShapedRectangleRender
             this.v2 = v2;
         }
         
+        /// Constructs a new fill renderer.
+        /// @param rectangle The rectangle to fill
+        /// @param u1        The u texture start coordinate
+        /// @param v1        The v texture start coordinate
+        /// @param u2        The u texture end coordinate
+        /// @param v2        The v texture end coordinate
         public Texture(final @NotNull Rectangle rectangle,
                        final float u1, final float v1, final float u2, final float v2)
         {
             this(rectangle.x(), rectangle.y(), rectangle.getRight(), rectangle.getBottom(), u1, v1, u2, v2);
         }
         
+        /// Constructs a new fill renderer.
+        /// @param x1 The x coordinate of where the rectangle starts
+        /// @param y1 The y coordinate of where the rectangle starts
+        /// @param x2 The x coordinate of where the rectangle ends
+        /// @param y2 The y coordinate of where the rectangle ends
+        /// @param uv The [UvMapping] of the texture to fill
         public Texture(final float x1, final float y1, final float x2, final float y2, final @NotNull UvMapping uv)
         {
             this(x1, y1, x2, y2, uv.minU(), uv.minV(), uv.maxU(), uv.maxV());
         }
         
+        /// Constructs a new fill renderer.
+        /// @param rectangle The rectangle to fill
+        /// @param uv        The [UvMapping] of the texture to fill
         public Texture(final @NotNull Rectangle rectangle, final @NotNull UvMapping uv)
         {
             this(rectangle.x(), rectangle.y(), rectangle.getRight(), rectangle.getBottom(), uv);
@@ -198,5 +241,7 @@ public abstract class ShapedRectangleRender
         this.palette.accept((tl, tr, bl, br) -> this.draw(vertices, matrix, tl, tr, bl, br));
     }
     
-    abstract void draw(@NotNull VertexConsumer vertices, @NotNull Matrix4f matrix, int tl, int tr, int bl, int br);
+    //------------------------------------------------------------------------------------------------------------------
+    protected abstract void draw(@NotNull VertexConsumer vertices, @NotNull Matrix4f matrix, int tl, int tr, int bl,
+                                 int br);
 }

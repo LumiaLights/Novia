@@ -81,8 +81,8 @@ public class ServerConfigManagerHandler
     //******************************************************************************************************************
     public ServerConfigManagerHandler()
     {
-        ServerConfigurationConnectionEvents.CONFIGURE.register(this::processConfigTask);
-        ServerPlayConnectionEvents         .JOIN     .register(this::processRollingUpdates);
+        ServerConfigurationConnectionEvents.CONFIGURE       .register(this::processConfigTask);
+        ServerPlayConnectionEvents         .JOIN            .register(this::processRollingUpdates);
         ServerConfigurationConnectionEvents.BEFORE_CONFIGURE.register((handler, server) ->
             ServerConfigurationNetworking.registerReceiver(
                 handler,
@@ -92,13 +92,14 @@ public class ServerConfigManagerHandler
 
     //==================================================================================================================
     @Override
-    public void onRegistryFrozen(@NotNull final ConfigRegistry registry)
+    public void onRegistryFrozen(final @NotNull ConfigRegistry registry)
     {
         if (this.originCache != null)
         {
             throw new IllegalStateException("Providers had already been initialised");
         }
         
+        //noinspection DataFlowIssue
         this.providers = registry
             .entries()
             .stream()
@@ -111,13 +112,14 @@ public class ServerConfigManagerHandler
             return;
         }
         
+        //noinspection DataFlowIssue
         this.originCache = SnapshotCache.from(this.providers.entrySet()
             .stream()
             .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue)));
     }
 
     @Override
-    public void sendUpdates(@NotNull final Identifier configId, @NotNull final List<Pair<JsonPointer, Value>> updates)
+    public void sendUpdates(final @NotNull Identifier configId, final @NotNull List<Pair<JsonPointer, Value>> updates)
     {
         if (this.originCache == null)
         {
@@ -129,16 +131,16 @@ public class ServerConfigManagerHandler
             return;
         }
         
-        updateRollingCache(configId, updates);
+        this.updateRollingCache(configId, updates);
         
         final MinecraftServer server = Novia.getInstance().getServer();
         Objects.requireNonNull(server);
         
-        sendPacket(configId, PlayerLookup.all(server), updates);
+        this.sendPacket(configId, PlayerLookup.all(server), updates);
     }
     
     @Override
-    public @Nullable ProviderOverride getRegistryOverride(@NotNull final Identifier providerId)
+    public @Nullable ProviderOverride getRegistryOverride(final @NotNull Identifier providerId)
     {
         final MinecraftServer server = Novia.getInstance().getServer();
         
@@ -152,8 +154,8 @@ public class ServerConfigManagerHandler
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    protected void updateRollingCache(@NotNull final Identifier                     configId,
-                                      @NotNull final List<Pair<JsonPointer, Value>> updates)
+    protected void updateRollingCache(final @NotNull Identifier                     configId,
+                                      final @NotNull List<Pair<JsonPointer, Value>> updates)
     {
         final SnapshotCache.SnapshotGroup orig_config_cache = this.originCache.getGroup(configId);
         Objects.requireNonNull(orig_config_cache, "Origin cache was null for id '" + configId + "'");
@@ -265,18 +267,18 @@ public class ServerConfigManagerHandler
             {
                 synchronized (this.rollingCache)
                 {
-                    final List<SnapshotCache.SnapshotGroup> namespace_groups = this.rollingCache
+                    this.rollingCache
                         .namespaces()
-                        .computeIfAbsent(configId.getNamespace(), (s -> new ArrayList<>()));
-                    namespace_groups.add(roll_config_cache);
+                        .computeIfAbsent(configId.getNamespace(), (s -> new ArrayList<>()))
+                        .add(roll_config_cache);
                 }
             }
         }
     }
     
-    protected void sendPacket(@NotNull final Identifier                     configId,
-                              @NotNull final Collection<ServerPlayerEntity> players,
-                              @NotNull final List<Pair<JsonPointer, Value>> updates)
+    protected void sendPacket(final @NotNull Identifier                     configId,
+                              final @NotNull Collection<ServerPlayerEntity> players,
+                              final @NotNull List<Pair<JsonPointer, Value>> updates)
     {
         CustomPayload payload;
         
@@ -299,7 +301,8 @@ public class ServerConfigManagerHandler
     }
     
     //==================================================================================================================
-    protected void processConfigTask(final ServerConfigurationNetworkHandler handler, final MinecraftServer server)
+    protected void processConfigTask(final @NotNull ServerConfigurationNetworkHandler handler,
+                                     final @NotNull MinecraftServer                   server)
     {
         if (ServerConfigurationNetworking.canSend(handler, ConfigS2CConfigSyncPayload.ID))
         {
@@ -310,15 +313,15 @@ public class ServerConfigManagerHandler
             handler.disconnect(Text.literal("Configuration providers out of sync"));
         }
     }
-
-    protected void processRollingUpdates(final ServerPlayNetworkHandler handler,
-                                         final PacketSender             sender,
-                                         final MinecraftServer          ignored)
+    
+    protected void processRollingUpdates(final @NotNull ServerPlayNetworkHandler handler,
+                                         final @NotNull PacketSender             sender,
+                                         final @NotNull MinecraftServer          ignored)
     {
         synchronized (this.rollingCache)
         {
-            final SynchroniseServerConfigurationsTask task
-                = new SynchroniseServerConfigurationsTask(this.rollingCache, this.providers);
+            final SynchroniseServerConfigurationsTask task = new SynchroniseServerConfigurationsTask(this.rollingCache,
+                                                                                                     this.providers);
             task.sendPlayPacket(sender::sendPacket);
         }
     }

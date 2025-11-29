@@ -46,6 +46,7 @@ import java.util.Objects;
 
 
 //**********************************************************************************************************************
+/// Specifies a colour gradient that can be used to apply a colour interpolation curve onto a shape.
 public class Gradient
 {
     //******************************************************************************************************************
@@ -55,6 +56,11 @@ public class Gradient
     private final Direction direction;
 
     //******************************************************************************************************************
+    /// Constructs a new gradient.
+    /// @param startColour The colour the gradient starts at
+    /// @param endColour   The colour the gradient ends at
+    /// @param direction   The direction the gradient interpolates in, either vertical or horizontal
+    /// @param skew        The skew of the interpolation
     public Gradient(final int startColour, final int endColour, final @NotNull Direction direction, final float skew)
     {
         this.startColour = startColour;
@@ -67,7 +73,12 @@ public class Gradient
             throw new IllegalArgumentException("skew value must not be equal or less than 0");
         }
     }
-
+    
+    /// Constructs a new gradient.
+    /// @param startColour The colour the gradient starts at
+    /// @param endColour   The colour the gradient ends at
+    /// @param direction   The direction the gradient interpolates in, either vertical or horizontal
+    /// @param skew        The skew of the interpolation
     public Gradient(final @NotNull Colour    startColour,
                     final @NotNull Colour    endColour,
                     final @NotNull Direction direction,
@@ -76,29 +87,45 @@ public class Gradient
         this(startColour.colour(), endColour.colour(), direction, skew);
     }
 
+    /// Constructs a new gradient with a skew of 1.0f.
+    /// @param startColour The colour the gradient starts at
+    /// @param endColour   The colour the gradient ends at
+    /// @param direction   The direction the gradient interpolates in, either vertical or horizontal
+    public Gradient(final int startColour, final int endColour, final @NotNull Direction direction)
+    {
+        this(startColour, endColour, direction, 1.0f);
+    }
+    
+    /// Constructs a new gradient with a skew of 1.0f.
+    /// @param startColour The colour the gradient starts at
+    /// @param endColour   The colour the gradient ends at
+    /// @param direction   The direction the gradient interpolates in, either vertical or horizontal
     public Gradient(final @NotNull Colour    startColour,
                     final @NotNull Colour    endColour,
                     final @NotNull Direction direction)
     {
         this(startColour, endColour, direction, 1.0f);
     }
-
-    public Gradient(final int startColour, final int endColour, final @NotNull Direction direction)
-    {
-        this(startColour, endColour, direction, 1.0f);
-    }
     
     //==================================================================================================================
+    /// Clones the current gradient with the given colours replaced.
+    /// @param startColour The start colour to replace
+    /// @param endColour   The end colour to replace
     public @NotNull Gradient withColours(final int startColour, final int endColour)
     {
         return new Gradient(startColour, endColour, this.direction, this.skew);
     }
 
+    /// Clones the current gradient with the given colours replaced.
+    /// @param startColour The start colour to replace
+    /// @param endColour   The end colour to replace
     public @NotNull Gradient withColours(final @NotNull Colour startColour, final @NotNull Colour endColour)
     {
         return new Gradient(startColour, endColour, this.direction, this.skew);
     }
 
+    /// Clones the current gradient with the given opacity level applied to the colour interpolation.
+    /// @param opacity The opacity level to apply to the gradients colours
     public @NotNull Gradient withOpacity(final float opacity)
     {
         return this.withColours(
@@ -107,12 +134,21 @@ public class Gradient
     }
 
     //==================================================================================================================
+    /// {@return the start colour the interpolation starts with}
     public int startColour() { return this.startColour; }
+    
+    /// {@return the end colour the interpolation ends with}
     public int endColour() { return this.endColour; }
+    
+    /// {@return the skew that is applied to the distribution of the colour interpolation}
     public float skew() { return this.skew; }
+    
+    /// {@return the direction the interpolation flows in}
     public @NotNull Direction direction() { return this.direction; }
 
     //==================================================================================================================
+    /// Gets the colour at the given delta value, where 0 is [#startColour()] and 1 is [#endColour].
+    /// @param delta The interpolation delta value
     public int getColour(float delta)
     {
         delta = Math.clamp(delta, 0f, 1f);
@@ -125,6 +161,7 @@ public class Gradient
         return ColorHelper.lerp(delta, this.startColour, this.endColour);
     }
     
+    /// {@return the gradient as a 4 vertex [VertexPalette]}
     public @NotNull VertexPalette getPalette()
     {
         return switch (this.direction)
@@ -135,6 +172,17 @@ public class Gradient
     }
     
     //==================================================================================================================
+    /// Partitions the gradient to only a portion of the gradient where the start and end colour become a colour on
+    /// the colour interpolation curve of the gradient.
+    /// @param x           The x coordinate of area the gradient applies to
+    /// @param y           The y coordinate of area the gradient applies to
+    /// @param width       The width of area the gradient applies to
+    /// @param height      The height of area the gradient applies to
+    /// @param deltaXStart The x coordinate of the start of the partition area
+    /// @param deltaYStart The y coordinate of the start of the partition area
+    /// @param deltaXEnd   The x coordinate of the end of the partition area
+    /// @param deltaYEnd   The y coordinate of the end of the partition area
+    /// @return The partitioned [Gradient]
     public @NotNull Gradient partition(final int x,
                                        final int y,
                                        final int width,
@@ -151,6 +199,14 @@ public class Gradient
         };
     }
     
+    /// Partitions the gradient to only a portion of the gradient where the start and end colour become a colour on
+    /// the colour interpolation curve of the gradient.
+    /// @param area        The area the gradient applies to
+    /// @param deltaXStart The x coordinate of the start of the partition area
+    /// @param deltaYStart The y coordinate of the start of the partition area
+    /// @param deltaXEnd   The x coordinate of the end of the partition area
+    /// @param deltaYEnd   The y coordinate of the end of the partition area
+    /// @return The partitioned [Gradient]
     public @NotNull Gradient partition(final @NotNull Rectangle area,
                                        final          int       deltaXStart,
                                        final          int       deltaXEnd,
@@ -161,6 +217,11 @@ public class Gradient
             this.partition(x, y, w, h, deltaXStart, deltaXEnd, deltaYStart, deltaYEnd));
     }
     
+    /// Partitions the gradient to only a portion of the gradient where the start and end colour become a colour on
+    /// the colour interpolation curve of the gradient.
+    /// @param area    The area the gradient applies to
+    /// @param subArea The area inside `subArea` that should be partitioned
+    /// @return The partitioned [Gradient]
     public @NotNull Gradient partition(final @NotNull Rectangle area, final @NotNull Rectangle subArea)
     {
         return area.transform((x, y, w, h) ->

@@ -43,34 +43,25 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
-/** Describes how a component should react to focus navigation events. */
+/// Describes how a component should react to focus navigation events.
 public interface IComponentNavigator
 {
     //******************************************************************************************************************
-    /**
-     * Gets the next component to focus in the navigator's specified traversal order, if there is a focused component.
-     *
-     * @param container The container to search for focusable components
-     * @param nav       The type and direction of navigation to use when navigating
-     * @return The next component to focus, or an empty {@link Optional} if no focusable component could be found
-     */
+    /// Gets the next component to focus in the navigator's specified traversal order, if there is a focused component.
+    /// @param container The container to search for focusable components
+    /// @param nav       The type and direction of navigation to use when navigating
+    /// @return The next component to focus, or an empty {@link Optional} if no focusable component could be found
     @NotNull Optional<GuiComponent> findNext(@NotNull GuiComponent container, @NotNull GuiNavigation nav);
     
-    /**
-     * Gets the first component to focus in the navigator's specified traversal order.
-     *
-     * @param container The container to search for focusable components
-     * @param nav       The type and direction of navigation to use when navigating
-     * @return The first component to focus, or an empty {@link Optional} if no focusable component could be found
-     */
+    /// Gets the first component to focus in the navigator's specified traversal order.
+    /// @param container The container to search for focusable components
+    /// @param nav       The type and direction of navigation to use when navigating
+    /// @return The first component to focus, or an empty {@link Optional} if no focusable component could be found
     @NotNull Optional<GuiComponent> findFirst(@NotNull GuiComponent container, @NotNull GuiNavigation nav);
     
-    /**
-     * Gets all components that want focus in the navigator's specified traversal order.
-     *
-     * @param container The container to search for focusable components
-     * @param nav       The type and direction of navigation to use when navigating
-     * @return The list of components
-     */
+    /// Gets all components that want focus in the navigator's specified traversal order.
+    /// @param container The container to search for focusable components
+    /// @param nav       The type and direction of navigation to use when navigating
+    /// @return The list of components
     @NotNull List<GuiComponent> getAll(@NotNull GuiComponent container, @NotNull GuiNavigation nav);
 }

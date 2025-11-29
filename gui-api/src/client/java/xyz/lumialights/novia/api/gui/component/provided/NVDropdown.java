@@ -44,7 +44,6 @@ import net.minecraft.text.Text;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import xyz.lumialights.novia.api.GuiApiLang;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.Pair;
 import xyz.lumialights.novia.api.gui.GuiApiId;
@@ -70,13 +69,11 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A text-box with a button that can only contain a pre-determined set of options, and a menu that lists the possible
- * options that can be selected.
- * <p>
- * This is a stateful GUI component, the value it contains represents the value of the option that is currently
- * selected, it can be converted between {@link Value} objects.
- */
+/// A text-box with a button that can only contain a pre-determined set of options, and a menu that lists the possible
+/// options that can be selected.
+///
+/// This is a stateful GUI component, the value it contains represents the value of the option that is currently
+/// selected, it can be converted between [Value] objects.
 public class NVDropdown
     extends StatefulGuiComponent
 {
@@ -141,38 +138,32 @@ public class NVDropdown
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the background of the dropdown.
-         * @param canvas   The {@link Canvas}
-         * @param dropdown The {@link NVDropdown}
-         * @param width    The width of the dropdown
-         * @param height   The height of the dropdown
-         */
+        /// Draws the background of the dropdown.
+        /// @param canvas   The [Canvas]
+        /// @param dropdown The [NVDropdown]
+        /// @param width    The width of the dropdown
+        /// @param height   The height of the dropdown
         void nvDropdownDrawMenuBackground(@NotNull Canvas canvas, @NotNull NVDropdown dropdown, int width, int height);
         
-        /**
-         * Draws a single option inside the dropdown menu.
-         * @param canvas   The {@link Canvas}
-         * @param dropdown The {@link NVDropdown}
-         * @param title    The text of the option
-         * @param width    The width of the dropdown
-         * @param height   The height of the dropdown
-         * @param index    The index of the option in the option list
-         * @param selected Whether the option is selected
-         * @param hovered  Whether the option is hovered
-         * @param focused  Whether the option is focused
-         */
+        /// Draws a single option inside the dropdown menu.
+        /// @param canvas   The [Canvas]
+        /// @param dropdown The [NVDropdown]
+        /// @param title    The text of the option
+        /// @param width    The width of the dropdown
+        /// @param height   The height of the dropdown
+        /// @param index    The index of the option in the option list
+        /// @param selected Whether the option is selected
+        /// @param hovered  Whether the option is hovered
+        /// @param focused  Whether the option is focused
         void nvDropdownDrawMenuOption(@NotNull Canvas canvas, @NotNull NVDropdown dropdown, @NotNull Text title,
                                       int width, int height, int index, boolean selected, boolean hovered,
                                       boolean focused);
         
-        /**
-         * Draws the arrow button of the dropdown.
-         * @param canvas   The {@link Canvas}
-         * @param dropdown The {@link NVDropdown}
-         * @param button   The {@link NVAbstractButton} component
-         * @param isOpen   Whether the menu is currently open
-         */
+        /// Draws the arrow button of the dropdown.
+        /// @param canvas   The [Canvas]
+        /// @param dropdown The [NVDropdown]
+        /// @param button   The [NVAbstractButton] component
+        /// @param isOpen   Whether the menu is currently open
         void nvDropdownDrawButton(@NotNull Canvas canvas, @NotNull NVDropdown dropdown,
                                   @NotNull NVAbstractButton button, boolean isOpen);
     }
@@ -254,20 +245,20 @@ public class NVDropdown
     }
     
     //******************************************************************************************************************
-    /** The colour used for drawing the text in the drop-down menu. */
+    /// The colour used for drawing the text in the drop-down menu.
     public static final ColourId COLOUR_OPTION_TEXT = ColourId.reserve();
     
-    /** The colour used for drawing the highlight beneath the text in the drop-down menu. */
+    /// The colour used for drawing the highlight beneath the text in the drop-down menu.
     public static final ColourId COLOUR_OPTION_BACKGROUND_HIGHLIGHT = ColourId.reserve();
     
-    /** The colour used for drawing the selection highlight beneath the text in the drop-down menu. */
+    /// The colour used for drawing the selection highlight beneath the text in the drop-down menu.
     public static final ColourId COLOUR_OPTION_BACKGROUND_SELECTED = ColourId.reserve();
     
     //==================================================================================================================
-    /** See {@link NVDropdown#showSuggestion}. */
+    /// See [NVDropdown#showSuggestion].
     public static final boolean DEFAULT_SHOW_SUGGESTION = true;
     
-    /** See {@link NVDropdown#optionAlignment}. */
+    /// See [NVDropdown#optionAlignment].
     public static final Alignment DEFAULT_OPTION_ALIGNMENT = Alignment.MIDDLE_LEFT;
     
     //==================================================================================================================
@@ -275,30 +266,23 @@ public class NVDropdown
     private static final int MIN_LIST_HEIGHT = (ITEM_HEIGHT * 3);
     
     //******************************************************************************************************************
-    /**
-     * Describes the ID of the option, which should be automatically selected.
-     * <p>
-     * If this property is set and has an empty string, or an ID not referring to a valid option, it will always
-     * select the first option. If it is not set, the drop-down can be in an empty state.
-     * <p>
-     * If no options are in the list, none will be selected.
-     */
+    /// Describes the ID of the option, which should be automatically selected. If this property is set and has an empty
+    /// string, or an ID not referring to a valid option, it will always select the first option. If it is not set,
+    /// the drop-down can be in an empty state. If no options are in the list, none will be selected.
     public final GuiProperty<String> defaultOption;
     
-    /**
-     * Describes whether the text box should show the first closest match to the given input if it doesn't match any
-     * option at that point.
-     */
+    /// Describes whether the text box should show the first closest match to the given input if it doesn't match any
+    /// option at that point.
     public final GuiProperty.NonNull<Boolean> showSuggestion;
     
-    /** Describes the alignment of options inside the drop-down list. */
+    /// Describes the alignment of options inside the drop-down list.
     public final GuiProperty.NonNull<Alignment> optionAlignment;
     
     //==================================================================================================================
-    /** Triggered whenever a new option has been added to the drop-down. */
+    /// Triggered whenever a new option has been added to the drop-down.
     public final GuiEvent<OptionEventArgs> optionAdded = new GuiEvent<>();
     
-    /** Triggered whenever an option has been removed from the drop-down. */
+    /// Triggered whenever an option has been removed from the drop-down.
     public final GuiEvent<OptionEventArgs> optionRemoved = new GuiEvent<>();
     
     //==================================================================================================================
@@ -310,11 +294,9 @@ public class NVDropdown
     private boolean isOpen   = false;
     
     //******************************************************************************************************************
-    /**
-     * Creates new drop-down with the given options pre-initialised.
-     * @param values  The pre-initialised options
-     * @param message The component message
-     */
+    /// Creates new drop-down with the given options pre-initialised.
+    /// @param values  The pre-initialised options
+    /// @param message The component message
     public NVDropdown(final @NotNull Collection<Pair<Text, Value>> values, final @NotNull Text message)
     {
         super(message);
@@ -343,26 +325,18 @@ public class NVDropdown
         this.setDefaultSelectedOption();
     }
     
-    /**
-     * Creates new drop-down with the given options pre-initialised.
-     * @param values The pre-initialised options
-     */
+    /// Creates new drop-down with the given options pre-initialised.
+    /// @param values The pre-initialised options
     public NVDropdown(final @NotNull Collection<Pair<Text, Value>> values) { this(values, ScreenTexts.EMPTY); }
     
-    /** Creates new empty drop-down. */
+    /// Creates new empty drop-down.
     public NVDropdown() { this(Collections.emptyList()); }
     
     //==================================================================================================================
-    
-    /**
-     * Gets the currently selected value from the drop-down.
-     * <p>
-     * If there is no selected option, this will throw a {@link UndefinedComponentStateException},
-     * so make sure to test with {@link #hasSelectedOption()} first.
-     *
-     * @return The currently selected {@link Value}
-     * @throws UndefinedComponentStateException If there is no selected option
-     */
+    /// Gets the currently selected value from the drop-down. If there is no selected option, this will throw a
+    /// [UndefinedComponentStateException], so make sure to test with [#hasSelectedOption()] first.
+    /// @return The currently selected [Value]
+    /// @throws UndefinedComponentStateException If there is no selected option
     @Override
     public @NotNull Value getValue()
     {
@@ -374,23 +348,17 @@ public class NVDropdown
         return this.options.get(this.selected).value;
     }
     
-    /**
-     * Gets the internal text box, this should only be used for styling purposes.
-     * @return The internal {@link NVTextBox}
-     */
+    /// Gets the internal text box, this should only be used for styling purposes.
+    /// @return The internal [NVTextBox]
     public @NotNull NVTextBox getTextBox() {return this.input;}
     
-    /**
-     * Gets the text of the currently selected option as string.
-     * @return The selected text
-     */
+    /// Gets the text of the currently selected option as string.
+    /// @return The selected text
     public @NotNull Optional<Option> getSelectedOption() { return this.getOption(this.selected); }
     
-    /**
-     * Gets the option at the specified index, or an empty optional if the index is out of bounds.
-     * @param index The index of the option
-     * @return An {@link Optional} containing the {@link Option}
-     */
+    /// Gets the option at the specified index, or an empty optional if the index is out of bounds.
+    /// @param index The index of the option
+    /// @return An [Optional] containing the [Option]
     public @NotNull Optional<Option> getOption(final int index)
     {
         if (index < 0 || index > this.getOptionCount())
@@ -401,11 +369,9 @@ public class NVDropdown
         return Optional.of(this.options.get(index));
     }
     
-    /**
-     * Gets the option with the specified index, or an empty optional if there is none.
-     * @param optionName The name of the option
-     * @return An {@link Optional} containing the {@link Option}
-     */
+    /// Gets the option with the specified index, or an empty optional if there is none.
+    /// @param optionName The name of the option
+    /// @return An [Optional] containing the [Option]
     public @NotNull Optional<Option> getOption(final @NotNull String optionName)
     {
         return Optional
@@ -413,11 +379,9 @@ public class NVDropdown
             .map(Pair::second);
     }
     
-    /**
-     * Gets the first option that is found containing the given value, or an empty optional if there is none.
-     * @param value The value of the option
-     * @return An {@link Optional} containing the {@link Option}
-     */
+    /// Gets the first option that is found containing the given value, or an empty optional if there is none.
+    /// @param value The value of the option
+    /// @return An [Optional] containing the [Option]
     public @NotNull Optional<Option> getOption(final @NotNull Value value)
     {
         return Optional
@@ -425,10 +389,7 @@ public class NVDropdown
             .map(Pair::second);
     }
     
-    /**
-     * Gets the number of options in the drop-down.
-     * @return The number of options
-     */
+    /// {@return the number of options in the drop-down}
     public int getOptionCount() { return this.options.size(); }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -464,44 +425,32 @@ public class NVDropdown
     }
     
     //==================================================================================================================
-    /**
-     * Determines whether this drop-down contains an option with the given name.
-     * @param optionName The unique name of the option
-     * @return {@code true} if an option with that name exists
-     */
+    /// Determines whether this drop-down contains an option with the given name.
+    /// @param optionName The unique name of the option
+    /// @return `true` if an option with that name exists
     public boolean hasOption(final @NotNull String optionName) { return (this.getOption(optionName).isPresent()); }
     
-    /**
-     * Determines whether this drop-down contains an option with the given name.
-     * @param option The {@link Option} to check the name of
-     * @return {@code true} if the option exists
-     */
+    /// Determines whether this drop-down contains an option with the given name.
+    /// @param option The [Option] to check the name of
+    /// @return `true` if the option exists
     public boolean hasOption(final @NotNull Option option) { return this.hasOption(option.name); }
     
-    /**
-     * Determines whether this drop-down contains an option with the given value.
-     * @param value The {@link Value} the option has to contain
-     * @return {@code true} if an option with that {@link Value} exists
-     */
+    /// Determines whether this drop-down contains an option with the given value.
+    /// @param value The [Value] the option has to contain
+    /// @return `true` if an option with that [Value] exists
     public boolean hasOption(final @NotNull Value value) { return (this.getOption(value).isPresent()); }
     
-    /**
-     * Determines whether the drop-down has any options to pick from.
-     * @return {@code true} if there is at least one option
-     */
+    /// Determines whether the drop-down has any options to pick from.
+    /// @return `true` if there is at least one option
     public boolean hasAnyOptions() { return !this.options.isEmpty(); }
     
-    /**
-     * Whether this drop down currently has an option selected or not.
-     * @return {@code true} if there is an option selected
-     */
+    /// Whether this drop down currently has an option selected or not.
+    /// @return `true` if there is an option selected
     public boolean hasSelectedOption() { return (this.selected > -1); }
     
     //==================================================================================================================
-    /**
-     * Sets the option to be selected based on its associated value.
-     * @param value The {@link Value} the option to be selected has
-     */
+    /// Sets the option to be selected based on its associated value.
+    /// @param value The [Value] the option to be selected has
     @Override
     public void setValue(final @NotNull Value value)
     {
@@ -509,10 +458,8 @@ public class NVDropdown
         this.setSelectedOption(value);
     }
     
-    /**
-     * Sets the selected option from its unique name.
-     * @param optionName The name of the option
-     */
+    /// Sets the selected option from its unique name.
+    /// @param optionName The name of the option
     public void setSelectedOption(final @NotNull String optionName)
     {
         Objects.requireNonNull(optionName, "option name must not be null");
@@ -527,16 +474,12 @@ public class NVDropdown
         this.setSelectedOption(opt.first());
     }
     
-    /**
-     * Sets the selected option by its given name.
-     * @param option The option to get the name of
-     */
+    /// Sets the selected option by its given name.
+    /// @param option The option to get the name of
     public void setSelectedOption(final @NotNull Option option) { this.setSelectedOption(option.name); }
     
-    /**
-     * Sets the selected option to the first one with the given value.
-     * @param value The value of the option to select
-     */
+    /// Sets the selected option to the first one with the given value.
+    /// @param value The value of the option to select
     public void setSelectedOption(final @NotNull Value value)
     {
         Optional
@@ -544,10 +487,8 @@ public class NVDropdown
             .ifPresent(p -> this.setSelectedOption(p.first()));
     }
     
-    /**
-     * Sets the selected option by its index in the option list.
-     * @param index The index of the option to select
-     */
+    /// Sets the selected option by its index in the option list.
+    /// @param index The index of the option to select
     private void setSelectedOption(final int index)
     {
         if (index < 0 || index >= this.getOptionCount() || index == this.selected)
@@ -576,13 +517,11 @@ public class NVDropdown
     }
     
     //==================================================================================================================
-    /**
-     * Inserts the given option with the given value and text to the drop-down list at the specified index.
-     * @param index  The index to insert the option at
-     * @param option The option to add
-     * @return {@code true} if the option was added, {@code false} if an option by that name already existed
-     * @throws IndexOutOfBoundsException If the insertion index is out of bounds (i < 0 or i > size)
-     */
+    /// Inserts the given option with the given value and text to the drop-down list at the specified index.
+    /// @param index  The index to insert the option at
+    /// @param option The option to add
+    /// @return `true` if the option was added, `false` if an option by that name already existed
+    /// @throws IndexOutOfBoundsException If the insertion index is out of bounds (i < 0 or i > size)
     public boolean addOption(final int index, final @NotNull Option option)
     {
         if (this.hasOption(option.name))
@@ -597,18 +536,14 @@ public class NVDropdown
         return true;
     }
     
-    /**
-     * Adds the given option with the given value and text to the end of the drop-down list.
-     * @param option The option to add
-     * @return {@code true} if the option was added, {@code false} if an option by that name already existed
-     */
+    /// Adds the given option with the given value and text to the end of the drop-down list.
+    /// @param option The option to add
+    /// @return `true` if the option was added, `false` if an option by that name already existed
     public boolean addOption(final @NotNull Option option) { return this.addOption(this.getOptionCount(), option); }
     
-    /**
-     * Adds the given options to the end of the drop-down list if options with the given names don't already exist.
-     * @param options The options to add
-     * @return The number of options that have been added
-     */
+    /// Adds the given options to the end of the drop-down list if options with the given names don't already exist.
+    /// @param options The options to add
+    /// @return The number of options that have been added
     public int addAllOptions(final @NotNull Collection<Option> options)
     {
         final List<Option> new_options = options
@@ -624,11 +559,9 @@ public class NVDropdown
         return new_options.size();
     }
     
-    /**
-     * Removes the option with the given name from the drop-down list.
-     * @param optionName The unique name of the option
-     * @return {@code true} if the option was removed, {@code false} if no option by that name existed
-     */
+    /// Removes the option with the given name from the drop-down list.
+    /// @param optionName The unique name of the option
+    /// @return `true` if the option was removed, `false` if no option by that name existed
     public boolean removeOption(final @NotNull String optionName)
     {
         return Optional
@@ -637,11 +570,9 @@ public class NVDropdown
             .orElse(false);
     }
     
-    /**
-     * Removes the option at the given index from the drop-down list.
-     * @param index The index of the option
-     * @return {@code true} if the option was removed, {@code false} if no option existed at that index
-     */
+    /// Removes the option at the given index from the drop-down list.
+    /// @param index The index of the option
+    /// @return `true` if the option was removed, `false` if no option existed at that index
     public boolean removeOption(final int index)
     {
         if (index < 0 || index >= this.getOptionCount())
@@ -662,18 +593,14 @@ public class NVDropdown
         return true;
     }
     
-    /**
-     * Removes the given option from the drop-down list if it existed.
-     * @param option The option to remove
-     * @return {@code true} if the option was removed, {@code false} if no option existed
-     */
+    /// Removes the given option from the drop-down list if it existed.
+    /// @param option The option to remove
+    /// @return `true` if the option was removed, `false` if no option existed
     public boolean removeOption(final @NotNull Option option) { return this.removeOption(option.name); }
     
-    /**
-     * Removes all options that contain the given value.
-     * @param value The {@link Value} to check the options against
-     * @return The number of options that were removed
-     */
+    /// Removes all options that contain the given value.
+    /// @param value The [Value] to check the options against
+    /// @return The number of options that were removed
     public int removeAllOptions(final @NotNull Value value)
     {
         int count = 0;
@@ -690,7 +617,7 @@ public class NVDropdown
         return count;
     }
     
-    /** Clears all options in the drop-down list. */
+    /// Clears all options in the drop-down list.
     public void clearOptions()
     {
         final List<Option> temp_options = new ArrayList<>(this.options);
@@ -707,7 +634,7 @@ public class NVDropdown
         }
     }
     
-    /** Clears the selected option in the drop-down if {@link #defaultOption} is not set, otherwise does nothing. */
+    /// Clears the selected option in the drop-down if [#defaultOption] is not set, otherwise does nothing.
     public void clearSelectedOption()
     {
         if (this.defaultOption.isSet() || this.selected < 0)

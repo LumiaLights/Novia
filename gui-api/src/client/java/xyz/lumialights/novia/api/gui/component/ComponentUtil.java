@@ -47,16 +47,14 @@ import org.jetbrains.annotations.NotNull;
 public final class ComponentUtil
 {
     //******************************************************************************************************************
-    /**
-     * Plays the button click sound event.
-     * @param soundManager The {@link SoundManager} used to play back the sound
-     */
+    /// Plays the button click sound event.
+    /// @param soundManager The [SoundManager] used to play back the sound
     public static void playClickSound(final @NotNull SoundManager soundManager)
     {
         soundManager.play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
     }
     
-    /** Plays the button click sound event. */
+    /// Plays the button click sound event.
     public static void playClickSound()
     {
         ComponentUtil.playClickSound(MinecraftClient.getInstance().getSoundManager());

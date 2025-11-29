@@ -45,50 +45,39 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
-/**
- * Objects inheriting this interface provide the gui API with the information that the overriding class is an interface
- * that provides a set of colours for use internally.
- */
+/// Objects inheriting this interface provide the gui API with the information that the overriding class is an interface
+/// that provides a set of colours for use internally.
 public interface IPaletteProvider
 {
     //******************************************************************************************************************
-    /**
-     * Gets the full colour palette currently held by this object.
-     * @return The colour map
-     */
+    /// {@return the full colour palette currently held by this object}
     @Contract(pure = true)
     @NotNull Palette getPalette();
     
-    /**
-     * Gets the colour for the given ID.
-     * @param id The {@link ColourId}
-     * @return The {@link Colour} or an empty {@link Optional}.
-     */
+    /// Gets the colour for the given ID.
+    /// @param id The [ColourId]
+    /// @return The [Colour] or an empty [Optional].
     @Contract(pure = true)
     default @NotNull Optional<Colour> getColour(final @NotNull ColourId id)
     {
         return this.getPalette().getColour(id);
     }
     
-    /**
-     * Sets or unsets the given colour for the palette.
-     * @param id     The {@link ColourId}
-     * @param colour The new {@link Colour} or {@code null} to unset the colour
-     * @return The previously associated colour for that ID, if no such colour was found {@code null} or the specified
-     *         default colour
-     */
+    /// Sets or unsets the given colour for the palette.
+    /// @param id     The [ColourId]
+    /// @param colour The new [Colour] or `null` to unset the colour
+    /// @return The previously associated colour for that ID, if no such colour was found `null` or the specified
+    ///         default colour
     default @Nullable Colour setColour(final @NotNull ColourId id, final @Nullable Colour colour)
     {
         return this.getPalette().setColour(id, colour);
     }
     
-    /**
-     * Sets or unsets the given colour for the palette.
-     * @param id     The {@link ColourId}
-     * @param colour The colour value
-     * @return The previously associated colour for that ID, if no such colour was found {@code null} or the specified
-     *         default colour
-     */
+    /// Sets or unsets the given colour for the palette.
+    /// @param id     The [ColourId]
+    /// @param colour The colour value
+    /// @return The previously associated colour for that ID, if no such colour was found `null` or the specified
+    ///         default colour
     default @Nullable Colour setColour(final @NotNull ColourId id, final int colour)
     {
         return this.getPalette().setColour(id, new  Colour(colour));

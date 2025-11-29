@@ -72,7 +72,8 @@ public record ConfigSpec<Container>(
     @NotNull GroupSpec<Container>       rootGroupSpec,
     @NotNull Class<Container>           containerClass,
     @NotNull Identifier                 id,
-    @NotNull Supplier<Container>        generator)
+    @NotNull Supplier<Container>        generator
+)
 {
     //******************************************************************************************************************
     public static final SchemaStore SCHEMA_STORE = new SchemaStore(ConfigManager.REGISTRY);
@@ -219,7 +220,7 @@ public record ConfigSpec<Container>(
     {
         try
         {
-            final DataResult<T> node = createCodec(container).encodeStart(ops, container);
+            final DataResult<T> node = this.createCodec(container).encodeStart(ops, container);
             
             if (node.isError())
             {

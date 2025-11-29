@@ -55,33 +55,29 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * An abstract base class for widgets that can be pressed.
- * <p>
- * Buttons using this base class will be rendered with the default Minecraft button texture as background,
- * custom implementations can implement this class to render custom things on top of the button texture
- * (e.g. {@link NVSimpleButton} for buttons providing rendering text on top).
- */
+/// An abstract base class for widgets that can be pressed.
+///
+/// Buttons using this base class will be rendered with the default Minecraft button texture as background, custom
+/// implementations can implement this class to render custom things on top of the button texture (e.g. [NVSimpleButton]
+/// for buttons providing rendering text on top).
 public abstract class NVAbstractButton
     extends GuiComponent
 {
     //******************************************************************************************************************
-    /** See {@link NVAbstractButton#playClickSound}. */
+    /// See [NVAbstractButton#playClickSound].
     public static final boolean DEFAULT_SHOULD_PLAY_SOUND = true;
     
     //******************************************************************************************************************
-    /** Describes whether the iconic click sound should play upon clicking the button. */
+    /// Describes whether the iconic click sound should play upon clicking the button.
     public final GuiProperty.NonNull<Boolean> playClickSound;
     
     //==================================================================================================================
-    /** Triggered whenever the button was clicked. */
+    /// Triggered whenever the button was clicked.
     public final GuiEvent.Simple clicked = new GuiEvent.Simple();
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new abstract button.
-     * @param message The component message
-     */
+    /// Constructs a new abstract button.
+    /// @param message The component message
     public NVAbstractButton(final @NotNull Text message)
     {
         super(message);
@@ -107,7 +103,7 @@ public abstract class NVAbstractButton
     }
     
     //==================================================================================================================
-    /** Explicitly executes the button's associated click handler. */
+    /// Explicitly executes the button's associated click handler.
     public void makePress()
     {
         if (this.playClickSound.get())
@@ -145,6 +141,6 @@ public abstract class NVAbstractButton
     }
     
     //==================================================================================================================
-    /** Can be overridden to let child implementations also listen to click events internally. */
+    /// Can be overridden to let child implementations also listen to click events internally.
     public void onPress() {}
 }

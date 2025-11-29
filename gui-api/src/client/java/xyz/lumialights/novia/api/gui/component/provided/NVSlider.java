@@ -66,15 +66,13 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A slider implementation modelled after Minecraft's {@link SliderWidget}, adjusted to the Novia GUI system.
- * <p>
- * A slider is a component, which can be used to gradually interpolate a number range, where the value will be between
- * the given minimum and maximum values (both inclusive).
- * <p>
- * This is a stateful GUI component, the value it contains represents the value of the slider,
- * it can be converted between number qualified {@link Value} objects.
- */
+/// A slider implementation modelled after Minecraft's [SliderWidget], adjusted to the Novia GUI system.
+///
+/// A slider is a component, which can be used to gradually interpolate a number range, where the value will be between
+/// the given minimum and maximum values (both inclusive).
+///
+/// This is a stateful GUI component, the value it contains represents the value of the slider,
+/// it can be converted between number qualified [Value] objects.
 public class NVSlider
     extends StatefulGuiComponent
 {
@@ -82,27 +80,21 @@ public class NVSlider
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the slider's background.
-         * @param canvas The {@link Canvas}
-         * @param slider The {@link NVSlider}
-         */
+        /// Draws the slider's background.
+        /// @param canvas The [Canvas]
+        /// @param slider The [NVSlider]
         void nvSliderDrawBackground(@NotNull Canvas canvas, @NotNull NVSlider slider);
         
-        /**
-         * Draws the slider's thumb.
-         * @param canvas      The {@link Canvas}
-         * @param slider      The {@link NVSlider}
-         * @param thumbBounds The bounds of the thumb
-         */
+        /// Draws the slider's thumb.
+        /// @param canvas      The [Canvas]
+        /// @param slider      The [NVSlider]
+        /// @param thumbBounds The bounds of the thumb
         void nvSliderDrawThumb(@NotNull Canvas canvas, @NotNull NVSlider slider, @NotNull Rectangle thumbBounds);
         
-        /**
-         * Draws the slider's text.
-         * @param canvas The {@link Canvas}
-         * @param slider The {@link NVSlider}
-         * @param text   The text
-         */
+        /// Draws the slider's text.
+        /// @param canvas The [Canvas]
+        /// @param slider The [NVSlider]
+        /// @param text   The text
         void nvSliderDrawText(@NotNull Canvas canvas, @NotNull NVSlider slider, @NotNull Text text);
     }
     
@@ -114,33 +106,31 @@ public class NVSlider
     }
     
     //******************************************************************************************************************
-    /** The colour of the slider text when the component is active. */
+    /// The colour of the slider text when the component is active.
     public static final ColourId COLOUR_TEXT = ColourId.reserve();
     
-    /** The colour of the slider text when the component is inactive. */
+    /// The colour of the slider text when the component is inactive.
     public static final ColourId COLOUR_TEXT_INACTIVE = ColourId.reserve();
     
     //==================================================================================================================
-    /** See {@link NVSlider#displayTextProvider}. */
+    /// See [NVSlider#displayTextProvider].
     public static final TextProvider DEFAULT_DISPLAY_TEXT_PROVIDER;
     
-    /**
-     * Ranges from 0 to 100 with a step size of {@code 1.0}.
-     * @see NVSlider#range
-     */
+    /// Ranges from 0 to 100 with a step size of `1.0`.
+    /// @see NVSlider#range
     public static final NormalisedRange DEFAULT_RANGE;
     
     //==================================================================================================================
-    /** The textures used for the slider's background (unfocused). */
+    /// The textures used for the slider's background (unfocused).
     public static final Identifier TEXTURE;
     
-    /** The textures used for the slider's background (focused). */
+    /// The textures used for the slider's background (focused).
     public static final Identifier TEXTURE_HIGHLIGHTED;
     
-    /** The textures used for the slider's handle (unfocused). */
+    /// The textures used for the slider's handle (unfocused).
     public static final Identifier TEXTURE_HANDLE;
     
-    /** The textures used for the slider's handle (focused). */
+    /// The textures used for the slider's handle (focused).
     public static final Identifier TEXTURE_HANDLE_HIGHLIGHT;
     
     //==================================================================================================================
@@ -165,16 +155,12 @@ public class NVSlider
     }
     
     //******************************************************************************************************************
-    /**
-     * Describes the range the slider can slide between.
-     * @see NormalisedRange
-     */
+    /// Describes the range the slider can slide between.
+    /// @see NormalisedRange
     public final GuiProperty.NonNull<NormalisedRange> range;
     
-    /**
-     * The text provider that provides the text to be displayed on the slider,
-     * where the given parameter is the value currently held by the slider.
-     */
+    /// The text provider that provides the text to be displayed on the slider,
+    /// where the given parameter is the value currently held by the slider.
     public final GuiProperty<TextProvider> displayTextProvider;
     
     //------------------------------------------------------------------------------------------------------------------
@@ -185,11 +171,9 @@ public class NVSlider
     private Text   text;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new slider with the given initial value.
-     * @param value   The initial slider value (will be clamped to the slider range)
-     * @param message The component message
-     */
+    /// Constructs a new slider with the given initial value.
+    /// @param value   The initial slider value (will be clamped to the slider range)
+    /// @param message The component message
     public NVSlider(final @NotNull Number value, final @NotNull Text message)
     {
         super(message);
@@ -208,34 +192,26 @@ public class NVSlider
         this.updateText();
     }
     
-    /**
-     * Constructs a new slider with the given initial value.
-     * @param value The initial slider value (will be clamped to the slider range)
-     */
+    /// Constructs a new slider with the given initial value.
+    /// @param value The initial slider value (will be clamped to the slider range)
     public NVSlider(final @NotNull Number value) { this(value, ScreenTexts.EMPTY); }
     
-    /** Constructs a new slider with value {@link NormalisedRange#min()} of {@link NVSlider#DEFAULT_RANGE}. */
+    /// Constructs a new slider with value [NormalisedRange#min()] of [NVSlider#DEFAULT_RANGE].
     public NVSlider() { this(NVSlider.DEFAULT_RANGE.min(), ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the current slider value as a number qualified {@link Value} object (see {@link #getValueAsDouble()}).
-     * @return The current slider {@link Value}
-     */
+    /// Gets the current slider value as a number qualified [Value] object (see [#getValueAsDouble()]).
+    /// @return The current slider [Value]
     @Override public @NotNull Value getValue() { return new Value(this.value); }
     
-    /**
-     * Gets the slider's current value as double. The number returned is any valid value that complies with the given
-     * range {@link #range}.
-     * @return The slider value
-     */
+    /// Gets the slider's current value as double. The number returned is any valid value that complies with the given
+    /// range [#range].
+    /// @return The slider value
     public double getValueAsDouble() { return this.value; }
     
-    /**
-     * Gets the slider's value in normalised range between 0 (including) and 1 (including), where 0 is the start of the
-     * slider and 1 is the end.
-     * @return The normalised slider value
-     */
+    /// Gets the slider's value in normalised range between 0 (including) and 1 (including), where 0 is the start of the
+    /// slider and 1 is the end.
+    /// @return The normalised slider value
     public float getValueNormalised() { return this.range.get().normalise(this.value); }
     
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
@@ -260,24 +236,22 @@ public class NVSlider
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    /** Track start X pos. */
+    /// Track start X pos.
     protected int getTrackStart() { return 0; }
     
-    /** Track end X pos. */
+    /// Track end X pos.
     protected int getTrackEnd() { return this.getWidth(); }
     
-    /** Track length. */
+    /// Track length.
     protected int getTrackLength() { return (this.getTrackEnd() - this.getTrackStart()); }
     
-    /** Thumb width. */
+    /// Thumb width.
     protected int getThumbSize() { return 8; }
     
     //==================================================================================================================
-    /**
-     * Sets the value of this slider as a number qualified {@link Value} object. If the value is not a number value,
-     * this does nothing and if the value is outside the specified range, it will be clamped to fit.
-     * @param value The new boolean {@link Value}
-     */
+    /// Sets the value of this slider as a number qualified [Value] object. If the value is not a number value,
+    /// this does nothing and if the value is outside the specified range, it will be clamped to fit.
+    /// @param value The new boolean [Value]
     @Override
     public void setValue(final @NotNull Value value)
     {
@@ -289,10 +263,8 @@ public class NVSlider
         this.setValue(value.getNumber().doubleValue());
     }
     
-    /**
-     * Sets the value of this slider to the new value. If the value is outside the range, it will be clamped to fit.
-     * @param value The new value to set
-     */
+    /// Sets the value of this slider to the new value. If the value is outside the range, it will be clamped to fit.
+    /// @param value The new value to set
     public void setValue(final @NotNull Number value)
     {
         if (this.setValueInternal(value.doubleValue()))
@@ -301,10 +273,8 @@ public class NVSlider
         }
     }
     
-    /**
-     * Sets the slider's value in normalised range (see {@link #getValueNormalised()}).
-     * @param normalisedValue The normalised value
-     */
+    /// Sets the slider's value in normalised range (see [#getValueNormalised()]).
+    /// @param normalisedValue The normalised value
     public void setValueNormalised(final float normalisedValue) { this.setValueNormalisedInternal(normalisedValue); }
     
     //------------------------------------------------------------------------------------------------------------------

@@ -43,43 +43,36 @@ import xyz.lumialights.novia.api.gui.event.GuiEvent;
 
 
 //**********************************************************************************************************************
-/**
- * A {@link GuiComponent} that provides (usually) mutable state, which can be set and read.
- * <p>
- * This class is not a requirement for components that handle state but is recommended for API compatibility.
- *
- * @see GuiComponent
- * @see IStatefulComponent
- */
+/// A [GuiComponent] that provides (usually) mutable state, which can be set and read.
+///
+/// This class is not a requirement for components that handle state but is recommended for API compatibility.
+/// @see GuiComponent
+/// @see IStatefulComponent
 public abstract class StatefulGuiComponent
     extends GuiComponent
     implements IStatefulComponent
 {
     //******************************************************************************************************************
-    /** Triggered whenever the state of a stateful component changed. */
+    /// Triggered whenever the state of a stateful component changed.
     public final GuiEvent.Simple valueChanged = new GuiEvent.Simple();
     
     //==================================================================================================================
     private boolean muted = false;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new stateful GUI component.
-     * @param message The component's initial message
-     */
+    /// Constructs a new stateful GUI component.
+    /// @param message The component's initial message
     public StatefulGuiComponent(@NotNull final Text message) { super(message); }
     
-    /** Constructs a new stateful GUI component with an empty message. */
+    /// Constructs a new stateful GUI component with an empty message.
     public StatefulGuiComponent() {}
     
     //==================================================================================================================
     @Override public @NotNull GuiEvent.Simple getChangeEvent() { return this.valueChanged; }
     
     //==================================================================================================================
-    /**
-     * Gets whether this component's change listeners are muted.
-     * @return {@code true} if this component is muted
-     */
+    /// Gets whether this component's change listeners are muted.
+    /// @return [true] if this component is muted
     public final boolean isMuted() { return this.muted; }
     
     //==================================================================================================================
@@ -87,11 +80,8 @@ public abstract class StatefulGuiComponent
     @Override public final void unmute() { this.muted = false; }
     
     //==================================================================================================================
-    /**
-     * Triggers change notifications for all change listeners attached to this component.
-     * <p>
-     * If this component is currently muted, this doesn't do anything.
-     */
+    /// Triggers change notifications for all change listeners attached to this component. If this component is
+    /// currently muted, this doesn't do anything.
     public final void sendChangeNotification()
     {
         if (this.muted)
@@ -104,6 +94,6 @@ public abstract class StatefulGuiComponent
     }
     
     //==================================================================================================================
-    /** Called whenever the component is notified of a state change. */
+    /// Called whenever the component is notified of a state change.
     public void onValueChanged() {}
 }

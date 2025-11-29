@@ -104,10 +104,10 @@ public class Point
     /// Constructs a new [Point].
     /// @param x The coordinate of the point on the left-axis
     /// @param y The coordinate of the point on the y-axis
-    public Point(final @NotNull Number x, final @NotNull Number y)
+    public Point(final int x, final int y)
     {
-        this.x = x.intValue();
-        this.y = y.intValue();
+        this.x = x;
+        this.y = y;
     }
     
     /// Constructs a copy from `other`.
@@ -155,15 +155,6 @@ public class Point
     }
     
     /// Converts an absolute point into a point relative to this point's origin.
-    /// @param absoluteX The absolute left coordinate
-    /// @param absoluteY The absolute y coordinate
-    /// @return The relative [Point]
-    public @NotNull Point toRelativePoint(final double absoluteX, final double absoluteY)
-    {
-        return new Point(this.toRelativeX(absoluteX), this.toRelativeY(absoluteY));
-    }
-    
-    /// Converts an absolute point into a point relative to this point's origin.
     /// @param absolutePoint The absolute [Point]
     /// @return The relative [Point]
     public @NotNull Point toRelativePoint(final @NotNull Point absolutePoint)
@@ -175,18 +166,18 @@ public class Point
     /// Sets the left position of this point.
     /// @param x The new left position
     /// @return `this`
-    public @NotNull Point setX(final @NotNull Number x)
+    public @NotNull Point setX(final int x)
     {
-        this.x = x.intValue();
+        this.x = x;
         return this;
     }
     
     /// Sets the left position of this point.
     /// @param y The new left position
     /// @return `this`
-    public @NotNull Point setY(final @NotNull Number y)
+    public @NotNull Point setY(final int y)
     {
-        this.y = y.intValue();
+        this.y = y;
         return this;
     }
     
@@ -194,10 +185,10 @@ public class Point
     /// @param x The new left position
     /// @param y The new y position
     /// @return `this`
-    public @NotNull Point setPosition(final @NotNull Number x, final @NotNull Number y)
+    public @NotNull Point setPosition(final int x, final int y)
     {
-        this.x = x.intValue();
-        this.y = y.intValue();
+        this.x = x;
+        this.y = y;
         return this;
     }
     
@@ -208,13 +199,10 @@ public class Point
     /// @param width  The width of the constraining area
     /// @param height The height of the constraining area
     /// @return `this`
-    public @NotNull Point constrainToArea(final @NotNull Number x,
-                                          final @NotNull Number y,
-                                          final @NotNull Number width,
-                                          final @NotNull Number height)
+    public @NotNull Point constrainToArea(final int x, final int y, final int width, final int height)
     {
-        this.x = Math.clamp(this.x, x.intValue(), (x.intValue() + width.intValue()));
-        this.y = Math.clamp(this.y, y.intValue(), (y.intValue() + height.intValue()));
+        this.x = Math.clamp(this.x, x, (x + width));
+        this.y = Math.clamp(this.y, y, (y + height));
         return this;
     }
     
@@ -241,28 +229,28 @@ public class Point
     /// @param xOffset The offset on the left-axis
     /// @param yOffset The offset on the y-axis
     /// @return `this`
-    public @NotNull Point translate(final @NotNull Number xOffset, final @NotNull Number yOffset)
+    public @NotNull Point translate(final int xOffset, final int yOffset)
     {
-        this.x += xOffset.intValue();
-        this.y += yOffset.intValue();
+        this.x += xOffset;
+        this.y += yOffset;
         return this;
     }
     
     /// Translates this point's left-axis by the given offset.
     /// @param offset The offset on the left-axis
     /// @return `this`
-    public @NotNull Point translateX(final @NotNull Number offset)
+    public @NotNull Point translateX(final int offset)
     {
-        this.x += offset.intValue();
+        this.x += offset;
         return this;
     }
     
     /// Translates this point's y-axis by the given offset.
     /// @param offset The offset on the y-axis
     /// @return `this`
-    public @NotNull Point translateY(final @NotNull Number offset)
+    public @NotNull Point translateY(final int offset)
     {
-        this.y += offset.intValue();
+        this.y += offset;
         return this;
     }
     
@@ -270,37 +258,31 @@ public class Point
     /// Returns a new point with the given left coordinate.
     /// @param x The new left coordinate
     /// @return The new [Point]
-    public @NotNull Point withX(final @NotNull Number x) { return new Point(x, this.y); }
+    public @NotNull Point withX(final int x) { return new Point(x, this.y); }
     
     /// Returns a new point with the given y coordinate.
     /// @param y The new y coordinate
     /// @return The new [Point]
-    public @NotNull Point withY(final @NotNull Number y) { return new Point(this.x, y); }
+    public @NotNull Point withY(final int y) { return new Point(this.x, y); }
     
     /// Returns a new point with the given translation applied.
     /// @param offsetX The left translation to apply
     /// @param offsetY The y translation to apply
     /// @return The new [Point]
-    public @NotNull Point withTranslation(final @NotNull Number offsetX, final @NotNull Number offsetY)
+    public @NotNull Point withTranslation(final int offsetX, final int offsetY)
     {
-        return new Point((this.x + offsetX.intValue()), (this.y + offsetY.intValue()));
+        return new Point((this.x + offsetX), (this.y + offsetY));
     }
     
     /// Returns a new point with the given translation on the left-axis applied.
     /// @param offset The left translation to apply
     /// @return The new [Point]
-    public @NotNull Point withTranslationX(final @NotNull Number offset)
-    {
-        return new Point((this.x + offset.intValue()), this.y);
-    }
+    public @NotNull Point withTranslationX(final int offset) { return new Point((this.x + offset), this.y); }
     
     /// Returns a new point with the given translation on the y-axis applied.
     /// @param offset The y translation to apply
     /// @return The new [Point]
-    public @NotNull Point withTranslationY(final @NotNull Number offset)
-    {
-        return new Point(this.x, (this.y + offset.intValue()));
-    }
+    public @NotNull Point withTranslationY(final int offset) { return new Point(this.x, (this.y + offset)); }
     
     /// Returns a new point with the given area constraints, the point will be clamped to the given area.
     /// @param x      The minimum left position it can have
@@ -309,10 +291,7 @@ public class Point
     /// @param height The height of the area the point can't escape
     /// @return The new constrained [Point]
     /// @throws IllegalArgumentException If `width` or `height` is negative
-    public @NotNull Point withAreaConstraint(final @NotNull Number x,
-                                             final @NotNull Number y,
-                                             final @NotNull Number width,
-                                             final @NotNull Number height)
+    public @NotNull Point withAreaConstraint(final int x, final int y, final int width, final int height)
     {
         return (new Point(this)).constrainToArea(x, y, width, height);
     }

@@ -62,10 +62,8 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * An {@link NVAbstractButton} implementation that can render a given text, and an optional icon on top of the button
- * background.
- */
+/// An [NVAbstractButton] implementation that can render a given text, and an optional icon on top of the button
+/// background.
 public class NVSimpleButton
     extends NVAbstractButton
 {
@@ -73,16 +71,16 @@ public class NVSimpleButton
     public enum IconPlacement
         implements StringIdentifiable
     {
-        /** Places the icon left of the text. */
+        /// Places the icon left of the text.
         LEFT,
         
-        /** Places the icon right of the text. */
+        /// Places the icon right of the text.
         RIGHT,
         
-        /** Places the icon above the text. */
+        /// Places the icon above the text.
         ABOVE,
         
-        /** Places the icon below the text. */
+        /// Places the icon below the text.
         BELOW,
         ;
         
@@ -96,27 +94,21 @@ public class NVSimpleButton
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the button's background.
-         * @param canvas The {@link Canvas}
-         * @param button The {@link NVSimpleButton}
-         */
+        /// Draws the button's background.
+        /// @param canvas The [Canvas]
+        /// @param button The [NVSimpleButton]
         void nvSimpleButtonDrawBackground(@NotNull Canvas canvas, @NotNull NVSimpleButton button);
         
-        /**
-         * Draws the button's icon
-         * @param canvas The {@link Canvas}
-         * @param button The {@link NVSimpleButton}
-         * @param bounds The available space for the icon
-         */
+        /// Draws the button's icon
+        /// @param canvas The [Canvas]
+        /// @param button The [NVSimpleButton]
+        /// @param bounds The available space for the icon
         void nvSimpleButtonDrawIcon(@NotNull Canvas canvas, @NotNull NVSimpleButton button, @NotNull Rectangle bounds);
         
-        /**
-         * Draws the button's text.
-         * @param canvas The {@link Canvas}
-         * @param button The {@link NVSimpleButton}
-         * @param bounds The available space for the text
-         */
+        /// Draws the button's text.
+        /// @param canvas The [Canvas]
+        /// @param button The [NVSimpleButton]
+        /// @param bounds The available space for the text
         void nvSimpleButtonDrawText(@NotNull Canvas canvas, @NotNull NVSimpleButton button, @NotNull Rectangle bounds);
     }
     
@@ -125,7 +117,7 @@ public class NVSimpleButton
     public static final ColourId COLOUR_TEXT_INACTIVE = ColourId.reserve();
     
     //==================================================================================================================
-    /** The textures used to render the button. */
+    /// The textures used to render the button.
     public static final ButtonTextures BACKGROUND_TEXTURE = new ButtonTextures(
         Identifier.ofVanilla("widget/button"),
         Identifier.ofVanilla("widget/button_disabled"),
@@ -133,30 +125,30 @@ public class NVSimpleButton
 	);
     
     //==================================================================================================================
-    /** See {@link NVSimpleButton#iconPlacement}. */
+    /// See [NVSimpleButton#iconPlacement].
     public static final IconPlacement DEFAULT_PLACEMENT = IconPlacement.LEFT;
     
-    /** See {@link NVSimpleButton#iconSize}. */
-    public static final int DEFAULT_ICON_SIZE = 18;
+    /// See [NVSimpleButton#iconSize].
+    public static final int DEFAULT_ICON_SIZE = 16;
     
-    /** See {@link NVSimpleButton#iconMargin}. */
+    /// See [NVSimpleButton#iconMargin].
     public static final int DEFAULT_ICON_MARGIN = 2;
     
     //******************************************************************************************************************
-    /** Describes the placement of the icon next to the button text. (if both are set) */
+    /// Describes the placement of the icon next to the button text. (if both are set)
     public final GuiProperty.NonNull<IconPlacement> iconPlacement;
     
-    /** Describes the size of the icon texture that should be rendered on the button. */
+    /// Describes the size of the icon texture that should be rendered on the button.
     public final GuiProperty.NonNull<Integer> iconSize;
     
-    /** Describes the margin between the icon and text if both are set. */
+    /// Describes the margin between the icon and text if both are set.
     public final GuiProperty.NonNull<Integer> iconMargin;
     
     //==================================================================================================================
-    /** Triggered whenever the displayed icon changes. */
+    /// Triggered whenever the displayed icon changes.
     public final GuiEvent.Simple iconChangedEvent = new GuiEvent.Simple();
     
-    /** Triggered whenever the displayed text changes. */
+    /// Triggered whenever the displayed text changes.
     public final GuiEvent.Simple textChangedEvent = new GuiEvent.Simple();
     
     //==================================================================================================================
@@ -166,11 +158,9 @@ public class NVSimpleButton
     private Text       text       = null;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new button with the given text and action.
-     * @param text    The text displayed on the button
-     * @param message The component message
-     */
+    /// Constructs a new button with the given text and action.
+    /// @param text    The text displayed on the button
+    /// @param message The component message
     public NVSimpleButton(final @Nullable Text text, final @NotNull Text message)
     {
         super(message);
@@ -189,29 +179,23 @@ public class NVSimpleButton
         this.text = text;
     }
     
-    /**
-     * Constructs a new button with the given text and action.
-     * @param text The text displayed on the button
-     */
+    /// Constructs a new button with the given text and action.
+    /// @param text The text displayed on the button
     public NVSimpleButton(final @NotNull Text text)
     {
         this(text, ScreenTexts.EMPTY);
     }
     
-    /** Constructs a new button without an action and no text. */
+    /// Constructs a new button without an action and no text.
     public NVSimpleButton() { this(null, ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the display icon texture for this button
-     * @return The texture {@link Identifier} or {@code null} if none was set
-     */
+    /// Gets the display icon texture for this button
+    /// @return The texture [Identifier] or `null` if none was set
     public @Nullable Identifier getIcon() { return this.textureId; }
     
-    /**
-     * Gets the text displayed on the button.
-     * @return The button {@link Text} or {@code null} if none was set
-     */
+    /// Gets the text displayed on the button.
+    /// @return The button [Text] or `null` if none was set
     public @Nullable Text getText() { return this.text; }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -236,10 +220,8 @@ public class NVSimpleButton
     }
     
     //==================================================================================================================
-    /**
-     * Sets the icon textures to draw on the button.
-     * @param textureId The texture {@link Identifier}
-     */
+    /// Sets the icon textures to draw on the button.
+    /// @param textureId The texture [Identifier]
     public void setIcon(final @Nullable Identifier textureId)
     {
         if (!Objects.equals(this.textureId, textureId))
@@ -257,10 +239,8 @@ public class NVSimpleButton
         }
     }
     
-    /**
-     * Sets the text displayed on the button.
-     * @param text The button {@link Text}
-     */
+    /// Sets the text displayed on the button.
+    /// @param text The button [Text]
     public void setText(final @Nullable Text text)
     {
         if (!Objects.equals(this.text, text))
@@ -301,14 +281,14 @@ public class NVSimpleButton
         this.updateContentBounds(Objects.requireNonNullElseGet(font, this::getFont));
     }
     
-    // If the component's parents change, we might also get a different font
+    /// If the component's parents change, we might also get a different font
     @Override public void onHierarchyChanged() { this.onFontChanged(this.getFont()); }
     
     //==================================================================================================================
-    /** Called when the displayed icon changed. */
+    /// Called when the displayed icon changed.
     public void onIconChanged() {}
     
-    /** Called when the displayed text changed. */
+    /// Called when the displayed text changed.
     public void onTextChanged() {}
     
     //==================================================================================================================

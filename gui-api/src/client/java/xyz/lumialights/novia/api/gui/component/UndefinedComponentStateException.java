@@ -43,20 +43,20 @@ import xyz.lumialights.novia.api.gui.component.provided.NVTextBox;
 
 
 //**********************************************************************************************************************
-/**
- * This exception is used for {@link IStatefulComponent}'s that provide a {@link IValueConvertible#getValue()}
- * implementation, to let the caller know the stateful component cannot return a meaningful {@link Value} in its
- * current state.
- * <p>
- * As an example: {@link NVTextBox} will throw this exception if the text in the text box does not meet
- * its set predicate and {@link IValueConvertible#getValue()} is called.
- */
+/// This exception is used for [IStatefulComponent]'s that provide a [IValueConvertible#getValue()] implementation, to
+/// let the caller know the stateful component cannot return a meaningful [Value] in its current state.
+///
+/// As an example: [NVTextBox] will throw this exception if the text in the text box does not meet its set predicate and
+/// [IValueConvertible#getValue()] is called.
 public class UndefinedComponentStateException
     extends RuntimeException
 {
     //******************************************************************************************************************
     public UndefinedComponentStateException(final String message) { super(message); }
     public UndefinedComponentStateException(final Throwable throwable) { super(throwable); }
+    
     public UndefinedComponentStateException(final String message, final Throwable throwable)
-    { super(message, throwable); }
+    {
+        super(message, throwable);
+    }
 }

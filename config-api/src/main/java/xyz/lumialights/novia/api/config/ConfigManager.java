@@ -62,7 +62,7 @@ public final class ConfigManager
     public static final ConfigRegistry REGISTRY;
 
     //------------------------------------------------------------------------------------------------------------------
-    private static final String DEFAULTS_FILE_NAME = "%s.config.%s";
+    private static final String DEFAULTS_FILE_NAME = ".config.";
     
     private static ConfigManager INSTANCE = null;
     
@@ -75,12 +75,12 @@ public final class ConfigManager
     //******************************************************************************************************************
     public static @NotNull ConfigManager getInstance()
     {
-        if (INSTANCE == null)
+        if (ConfigManager.INSTANCE == null)
         {
             throw new IllegalStateException("Config manager has not yet been initialized");
         }
         
-        return INSTANCE;
+        return ConfigManager.INSTANCE;
     }
     
     //******************************************************************************************************************
@@ -90,23 +90,23 @@ public final class ConfigManager
     //******************************************************************************************************************
     public ConfigManager(@NotNull final Path configDir, @NotNull final IConfigHandler handler)
     {
-        if (INSTANCE != null)
+        if (ConfigManager.INSTANCE != null)
         {
             throw new IllegalStateException("Config manager had already been initialized");
         }
         
-        INSTANCE = this;
+        ConfigManager.INSTANCE = this;
         
         this.configDir = configDir;
         this.handler   = handler;
         
-        REGISTRY
+        ConfigManager.REGISTRY
             .freeze()
             .parallelStream()
             .forEach(p -> initialiseProvider(p.first(), p.second()));
-        this.handler.onRegistryFrozen(REGISTRY);
-        
         System.gc();
+        
+        this.handler.onRegistryFrozen(ConfigManager.REGISTRY);
     }
     
     //==================================================================================================================
@@ -123,14 +123,19 @@ public final class ConfigManager
      */
     public @NotNull Path getFileForId(@NotNull final Identifier id)
     {
-        final IConfigProvider<?> provider = REGISTRY.get(id);
+        final IConfigProvider<?> provider = ConfigManager.REGISTRY.get(id);
         return this.getFileForId(id, provider);
+    }
+    
+    public @NotNull Path getFileForProvider(final @NotNull IConfigProvider<?> provider)
+    {
+        return this.getFileForId(provider.getId(), provider);
     }
     
     //------------------------------------------------------------------------------------------------------------------
     private @NotNull Path getFileForId(@NotNull final Identifier id, @Nullable final IConfigProvider<?> provider)
     {
-        return this.configDir.resolve(id.getNamespace()).resolve(id.getPath() + '.' + getFileExtension(provider));
+        return this.configDir.resolve(id.getNamespace()).resolve(id.getPath() + '.' + this.getFileExtension(provider));
     }
     
     private @NotNull String getFileExtension(@Nullable final IConfigProvider<?> provider)
@@ -160,13 +165,15 @@ public final class ConfigManager
     private <Container> void initialiseProvider(@NotNull final Identifier                 id,
                                                 @NotNull final IConfigProvider<Container> provider)
     {
-        final Path file = getFileForId(id, provider);
+        final Path file = this.getFileForId(id, provider);
         
         if (!Files.exists(file))
         {
-            final String template = DEFAULTS_FILE_NAME.formatted(
-                id.toTranslationKey().replace('/', '.'),
-                this.getFileExtension(provider));
+            final String template = (
+                id.toTranslationKey().replace('/', '.')
+                + ConfigManager.DEFAULTS_FILE_NAME
+                + this.getFileExtension(provider)
+            );
             
             try
             {
@@ -177,6 +184,8 @@ public final class ConfigManager
                 if (template_url != null)
                 {
                     IOUtils.copy(template_url, file.toFile());
+                    provider.load();
+                    
                     return;
                 }
                 
@@ -187,32 +196,15 @@ public final class ConfigManager
             catch (final IOException ex)
             {
                 Novia.LOGGER.error(
-                    "Could not copy configuration template '{}' for '{}')",
+                    "Could not copy configuration template '{}' for '{}'",
                     template, id, ex);
             }
             
-            try
-            {
-                provider.getSpec().write(provider.getOps(), file, provider.getManagedContainer());
-            }
-            catch (final ConfigSerialisationException ex)
-            {
-                Novia.LOGGER.error(
-                    "Could not save default configuration file '{}' for '{}'",
-                    file, id, ex);
-            }
+            provider.save();
+            return;
         }
         
-        try
-        {
-            provider.getSpec().read(provider.getOps(), file, provider.getManagedContainer());
-        }
-        catch (final ConfigSerialisationException ex)
-        {
-            Novia.LOGGER.error(
-                "Could not read configuration file '{}' for '{}'",
-                file, id, ex);
-        }
+        provider.load();
     }
     
     //==================================================================================================================

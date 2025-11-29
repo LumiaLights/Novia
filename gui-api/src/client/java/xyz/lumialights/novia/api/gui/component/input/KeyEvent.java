@@ -46,36 +46,32 @@ import java.util.*;
 
 
 //**********************************************************************************************************************
-/**
- * Provides data about the action of a keyboard input event, such as the key code, when available the pressed character,
- * and the given inputs. This is used for component events in the {@link GuiComponent} class such as for
- * {@link GuiComponent#onKeyDown(KeyEvent)}.
- */
+/// Provides data about the action of a keyboard input event, such as the key code, when available the pressed character,
+/// and the given inputs. This is used for component events in the [GuiComponent] class such as for
+/// [GuiComponent#onKeyDown(KeyEvent)].
 public final class KeyEvent
     extends AbstractInputEvent<KeyEvent>
 {
     //******************************************************************************************************************
-    /** The keyboard device that has triggered this event. */
+    /// The keyboard device that has triggered this event.
     public final @NotNull Keyboard device = MinecraftClient.getInstance().keyboard;
     
-    /** Either the key code of the key, which has been pressed, or the character that has been typed. */
+    /// Either the key code of the key, which has been pressed, or the character that has been typed.
     public final int input;
     
-    /** The modifiers that have been pressed when this event has been triggered. */
+    /// The modifiers that have been pressed when this event has been triggered.
     public final int modifiers;
     
-    /** The scan code of the key, which has been pressed, or empty. */
+    /// The scan code of the key, which has been pressed, or empty.
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public final @NotNull Optional<Integer> scanCode;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new non-character key keyboard event.
-     * @param source    The {@link GuiComponent} that originally triggered the event
-     * @param input     The key code of the key that was pressed (see {@link org.lwjgl.glfw.GLFW}
-     * @param scanCode  The scan code of the key being pressed
-     * @param modifiers The additional modifier flags of the modifier keys that have been pressed in addition
-     */
+    /// Constructs a new non-character key keyboard event.
+    /// @param source    The [GuiComponent] that originally triggered the event
+    /// @param input     The key code of the key that was pressed (see [org.lwjgl.glfw.GLFW]
+    /// @param scanCode  The scan code of the key being pressed
+    /// @param modifiers The additional modifier flags of the modifier keys that have been pressed in addition
     public KeyEvent(final @NotNull GuiComponent source, final int input, final int scanCode, final int modifiers)
     {
         super(source);
@@ -85,12 +81,10 @@ public final class KeyEvent
         this.scanCode  = Optional.of(scanCode);
     }
 
-    /**
-     * Constructs a new character key keyboard event.
-     * @param source    The {@link GuiComponent} that originally triggered the event
-     * @param character The character code of the key that was pressed
-     * @param modifiers The additional modifier flags of the modifier keys that have been pressed in addition
-     */
+    /// Constructs a new character key keyboard event.
+    /// @param source    The [GuiComponent] that originally triggered the event
+    /// @param character The character code of the key that was pressed
+    /// @param modifiers The additional modifier flags of the modifier keys that have been pressed in addition
     public KeyEvent(final @NotNull GuiComponent source, final char character, final int modifiers)
     {
         super(source);
@@ -101,11 +95,8 @@ public final class KeyEvent
     }
     
     //==================================================================================================================
-    /**
-     * Gets the character represented by {@link #input}.
-     * <p>
-     * If this is not part of a char input event, using this might overflow the original input.
-     * @return A character
-     */
+    /// Gets the character represented by [#input]. If this is not part of a char input event, using this might overflow
+    /// the original input.
+    /// @return A character
     public char character() { return (char) this.input; }
 }

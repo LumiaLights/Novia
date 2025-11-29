@@ -61,27 +61,25 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A container component, which allows its content to be scrolled by two scroll-bars if it is too big to be fully
- * contained.
- * <p>
- * When hovered over the viewport and no child wants scroll events, this will scroll the content inside the viewport.
- * Using shift while scrolling allows scrolling horizontally.
- * <p>
- * The scroll-bars can be selectively disabled or enabled and set to be shown automatically or always.
- */
+/// A container component, which allows its content to be scrolled by two scroll-bars if it is too big to be fully
+/// contained.
+///
+/// When hovered over the viewport and no child wants scroll events, this will scroll the content inside the viewport.
+/// Using shift while scrolling allows scrolling horizontally.
+///
+/// The scroll-bars can be selectively disabled or enabled and set to be shown automatically or always.
 public class NVViewport
     extends GuiComponent
 {
     //******************************************************************************************************************
-    /** The display behaviour of the scroll-bars inside the viewport. */
+    /// The display behaviour of the scroll-bars inside the viewport.
     public enum ScrollbarBehaviour
         implements StringIdentifiable
     {
-        /** Always show the scroll-bar, even if the content fits into the viewport or if nothing is being contained. */
+        /// Always show the scroll-bar, even if the content fits into the viewport or if nothing is being contained.
         ALWAYS,
         
-        /** Only show the scroll-bar when there is content, which overflows the viewport. */
+        /// Only show the scroll-bar when there is content, which overflows the viewport.
         AUTO,
         
         /**
@@ -119,26 +117,22 @@ public class NVViewport
     }
     
     //******************************************************************************************************************
-    /** See {@link NVViewport#behaviourHorizontal} and {@link NVViewport#behaviourVertical}. */
+    /// See [NVViewport#behaviourHorizontal] and [NVViewport#behaviourVertical].
     public static final ScrollbarBehaviour DEFAULT_SCROLLBAR_BEHAVIOUR = ScrollbarBehaviour.AUTO;
     
-    /** See {@link NVViewport#scrollbarThickness}. */
+    /// See [NVViewport#scrollbarThickness].
     public static final int DEFAULT_SCROLLBAR_THICKNESS = 6;
     
     //******************************************************************************************************************
-    /**
-     * Describes the behaviour of the horizontal scroll bar (on the bottom).
-     * @see ScrollbarBehaviour
-     */
+    /// Describes the behaviour of the horizontal scroll bar (on the bottom).
+    /// @see ScrollbarBehaviour
     public final GuiProperty.NonNull<ScrollbarBehaviour> behaviourHorizontal;
     
-    /**
-     * Describes the behaviour of the vertical scroll bar (on the right).
-     * @see ScrollbarBehaviour
-     */
+    /// Describes the behaviour of the vertical scroll bar (on the right).
+    /// @see ScrollbarBehaviour
     public final GuiProperty.NonNull<ScrollbarBehaviour> behaviourVertical;
     
-    /** Describes the thickness of the scroll bars on the bottom and on the right in pixels. */
+    /// Describes the thickness of the scroll bars on the bottom and on the right in pixels.
     public final GuiProperty.NonNull<Integer> scrollbarThickness;
     
     //------------------------------------------------------------------------------------------------------------------
@@ -152,11 +146,9 @@ public class NVViewport
     private GuiComponent content      = null;
     
     //******************************************************************************************************************
-    /**
-     * Creates a new viewport with the given content component and message.
-     * @param content The content component of the viewport
-     * @param message The component's message
-     */
+    /// Creates a new viewport with the given content component and message.
+    /// @param content The content component of the viewport
+    /// @param message The component's message
     public NVViewport(final @Nullable GuiComponent content, final @NotNull Text message)
     {
         super(message);
@@ -194,54 +186,39 @@ public class NVViewport
         this.setContent(content);
     }
     
-    /**
-     * Creates a new viewport with the given content component and empty message.
-     * @param content The content component of the viewport
-     */
+    /// Creates a new viewport with the given content component and empty message.
+    /// @param content The content component of the viewport
     public NVViewport(final @Nullable GuiComponent content) { this(content, ScreenTexts.EMPTY); }
     
-    /** Creates a new empty viewport with an empty message. */
+    /// Creates a new empty viewport with an empty message.
     public NVViewport() { this(null, ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the content component currently associated with this viewport.
-     * @return The associated {@link GuiComponent}, or {@code null} if there is no content
-     */
+    /// Gets the content component currently associated with this viewport.
+    /// @return The associated [GuiComponent], or `null` if there is no content
     public @Nullable GuiComponent getContent() { return this.content; }
     
-    /**
-     * Gets the current horizontal offset of the viewport content.
-     * @return The offset or 0 if there is no content
-     */
+    /// Gets the current horizontal offset of the viewport content.
+    /// @return The offset or 0 if there is no content
     public int getHorizontalOffset() { return (this.content != null ? (this.content.getX() * -1) : 0); }
     
-    /**
-     * Gets the current vertical offset of the viewport content.
-     * @return The offset or 0 if there is no content
-     */
+    /// Gets the current vertical offset of the viewport content.
+    /// @return The offset or 0 if there is no content
     public int getVerticalOffset() { return (this.content != null ? (this.content.getY() * -1) : 0); }
     
-    /**
-     * Gets the content overflow of the content on the left-axis.
-     * @return The overflow
-     * @see NVScrollbar#getOverflow()
-     */
+    /// Gets the content overflow of the content on the left-axis.
+    /// @return The overflow
+    /// @see NVScrollbar#getOverflow()
     public int getHorizontalOverflow() { return this.horizontalScrollbar.getOverflow(); }
     
-    /**
-     * Gets the content overflow of the content on the y-axis.
-     * @return The overflow
-     * @see NVScrollbar#getOverflow()
-     */
+    /// Gets the content overflow of the content on the y-axis.
+    /// @return The overflow
+    /// @see NVScrollbar#getOverflow()
     public int getVerticalOverflow() { return this.verticalScrollbar.getOverflow(); }
     
-    /**
-     * Gets the width of the view area for the content, this is the width of the viewport minus the thickness
-     * of the scrollbar (if it is shown).
-     *
-     * @return The view area width
-     */
+    /// Gets the width of the view area for the content, this is the width of the viewport minus the thickness
+    /// of the scrollbar (if it is shown).
+    /// @return The view area width
     public int getViewWidth()
     {
         return Math.max(
@@ -249,12 +226,9 @@ public class NVViewport
             (this.getWidth() - (this.verticalScrollbar.isVisible() ? this.scrollbarThickness.get() : 0)));
     }
     
-    /**
-     * Gets the height of the view area for the content, this is the height of the viewport minus the thickness
-     * of the scrollbar (if it is shown).
-     *
-     * @return The view area height
-     */
+    /// Gets the height of the view area for the content, this is the height of the viewport minus the thickness
+    /// of the scrollbar (if it is shown).
+    /// @return The view area height
     public int getViewHeight()
     {
         return Math.max(
@@ -262,18 +236,13 @@ public class NVViewport
             (this.getHeight() - (this.horizontalScrollbar.isVisible() ? this.scrollbarThickness.get() : 0)));
     }
     
-    /**
-     * Gets the bounds of the view area for the viewport.
-     * @return The view bounds
-     */
+    /// Gets the bounds of the view area for the viewport.
+    /// @return The view bounds
     public @NotNull Rectangle getViewRect() { return new Rectangle(0, 0, this.getViewWidth(), this.getViewHeight()); }
     
-    /**
-     * Gets the area of the content component currently visible inside the viewport's view area, relative to
-     * the content's local bounds.
-     *
-     * @return The visible area of the content, or an empty {@link Rectangle} if there is no content
-     */
+    /// Gets the area of the content component currently visible inside the viewport's view area, relative to
+    /// the content's local bounds.
+    /// @return The visible area of the content, or an empty [Rectangle] if there is no content
     public @NotNull Rectangle getVisibleRect()
     {
         if (this.content == null)
@@ -296,24 +265,18 @@ public class NVViewport
         return (this.content != null ? this.content.getNavigator() : null);
     }
     
-    /**
-     * Gets the horizontal scroll bar component for the viewport.
-     * <p>
-     * This should REALLY only be used for customising the scrollbar's appearance or delta value, everything else
-     * should remain managed by this viewport.
-     *
-     * @return The horizontal {@link NVScrollbar}
-     */
+    /// Gets the horizontal scroll bar component for the viewport.
+    ///
+    /// This should REALLY only be used for customising the scrollbar's appearance or delta value, everything else
+    /// should remain managed by this viewport.
+    /// @return The horizontal [NVScrollbar]
     public @NotNull NVScrollbar getHorizontalScrollbar() { return this.horizontalScrollbar; }
     
-    /**
-     * Gets the vertical scroll bar component for the viewport.
-     * <p>
-     * This should REALLY only be used for customising the scrollbar's appearance or delta value, everything else
-     * should remain managed by this viewport.
-     *
-     * @return The vertical {@link NVScrollbar}
-     */
+    /// Gets the vertical scroll bar component for the viewport.
+    ///
+    /// This should REALLY only be used for customising the scrollbar's appearance or delta value, everything else
+    /// should remain managed by this viewport.
+    /// @return The vertical [NVScrollbar]
     public @NotNull NVScrollbar getVerticalScrollbar() { return this.verticalScrollbar; }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -336,40 +299,30 @@ public class NVViewport
     }
     
     //==================================================================================================================
-    /**
-     * Gets whether the horizontal scroll bar is currently shown.
-     * @return {@code true} if the horizontal scroll bar is shown
-     */
+    /// Gets whether the horizontal scroll bar is currently shown.
+    /// @return `true` if the horizontal scroll bar is shown
     public boolean isHorizontalScrollbarShown() { return this.horizontalScrollbar.isVisible(); }
     
-    /**
-     * Gets whether the vertical scroll bar is currently shown.
-     * @return {@code true} if the vertical scroll bar is shown
-     */
+    /// Gets whether the vertical scroll bar is currently shown.
+    /// @return `true` if the vertical scroll bar is shown
     public boolean isVerticalScrollbarShown() { return this.verticalScrollbar.isVisible(); }
     
-    /**
-     * Gets whether the content width is greater than the view width.
-     * @return {@code true} if the content is overflowing horizontally
-     */
+    /// Gets whether the content width is greater than the view width.
+    /// @return `true` if the content is overflowing horizontally
     public boolean isOverflowingHorizontally()
     {
         return (this.content != null && this.content.getWidth() > this.getViewWidth());
     }
     
-    /**
-     * Gets whether the content height is greater than the view height.
-     * @return {@code true} if the content is overflowing vertically
-     */
+    /// Gets whether the content height is greater than the view height.
+    /// @return `true` if the content is overflowing vertically
     public boolean isOverflowingVertically()
     {
         return (this.content != null && this.content.getHeight() > this.getViewHeight());
     }
     
-    /**
-     * Gets whether the content is overflowing either vertically or horizontally.
-     * @return {@code true} if the content is overflowing
-     */
+    /// Gets whether the content is overflowing either vertically or horizontally.
+    /// @return `true` if the content is overflowing
     public boolean isOverflowing() { return (this.isOverflowingHorizontally() || this.isOverflowingVertically()); }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -382,14 +335,9 @@ public class NVViewport
     @Override public boolean isAutoPositioningAllowed(@NotNull GuiComponent child) { return false; }
     
     //==================================================================================================================
-    /**
-     * Sets the viewports current content component.
-     * <p>
-     * If this viewport currently holds a different content-component,
-     * the old one will be removed, and the new one added.
-     *
-     * @param content The component to set as content
-     */
+    /// Sets the viewports current content component. If this viewport currently holds a different content-component,
+    /// the old one will be removed, and the new one added.
+    /// @param content The component to set as content
     public void setContent(final @Nullable GuiComponent content)
     {
         if (this.content == content)
@@ -418,20 +366,16 @@ public class NVViewport
         this.updateScrollbars(true);
     }
     
-    /**
-     * Sets the scroll bar behaviour for both the horizontal and vertical scroll bars.
-     * @param behaviour The new {@link ScrollbarBehaviour}
-     */
+    /// Sets the scroll bar behaviour for both the horizontal and vertical scroll bars.
+    /// @param behaviour The new [ScrollbarBehaviour]
     public void setScrollbarBehaviour(final @NotNull ScrollbarBehaviour behaviour)
     {
         this.setScrollbarBehaviour(behaviour, behaviour);
     }
     
-    /**
-     * Sets the scroll bar behaviour for both the horizontal and vertical scroll bars.
-     * @param horizontalBehaviour The new horizontal {@link ScrollbarBehaviour}
-     * @param verticalBehaviour   The new vertical {@link ScrollbarBehaviour}
-     */
+    /// Sets the scroll bar behaviour for both the horizontal and vertical scroll bars.
+    /// @param horizontalBehaviour The new horizontal [ScrollbarBehaviour]
+    /// @param verticalBehaviour   The new vertical [ScrollbarBehaviour]
     public void setScrollbarBehaviour(final @NotNull ScrollbarBehaviour horizontalBehaviour,
                                       final @NotNull ScrollbarBehaviour verticalBehaviour)
     {
@@ -441,68 +385,55 @@ public class NVViewport
         this.updateScrollbars(false);
     }
     
-    /**
-     * Sets the horizontal scroll offset of the content component (see {@link NVScrollbar#setOffset(Number)}).
-     * @param offset The offset
-     */
+    /// Sets the horizontal scroll offset of the content component (see [NVScrollbar#setOffset(Number)]).
+    /// @param offset The offset
     public void setHorizontalOffset(final int offset) { this.horizontalScrollbar.setOffset(offset); }
     
-    /**
-     * Sets the vertical scroll offset of the content component (see {@link NVScrollbar#setOffset(Number)}).
-     * @param offset The offset
-     */
+    /// Sets the vertical scroll offset of the content component (see [NVScrollbar#setOffset(Number)]).
+    /// @param offset The offset
     public void setVerticalOffset(final int offset) { this.verticalScrollbar.setOffset(offset); }
     
     //==================================================================================================================
-    /**
-     * Moves the viewport content by the given offset amount in pixels. If the offset is negative, this will scroll
-     * backwards.
-     *
-     * @param offsetX The offset to scroll horizontally
-     * @param offsetY The offset to scroll vertically
-     */
+    /// Moves the viewport content by the given offset amount in pixels. If the offset is negative, this will scroll
+    /// backwards.
+    /// @param offsetX The offset to scroll horizontally
+    /// @param offsetY The offset to scroll vertically
     public void move(final int offsetX, final int offsetY)
     {
         this.horizontalScrollbar.move(offsetX);
         this.verticalScrollbar  .move(offsetY);
     }
     
-    /**
-     * Moves the viewport content by the given scroll delta applied {@code steps} times. If {@code steps} is
-     * negative, this will scroll backwards.
-     *
-     * @param stepsX The number of times delta should be applied to the current horizontal scroll offset
-     * @param stepsY The number of times delta should be applied to the current vertical scroll offset
-     */
+    /// Moves the viewport content by the given scroll delta applied `steps` times. If `steps` is negative, this will
+    /// scroll backwards.
+    /// @param stepsX The number of times delta should be applied to the current horizontal scroll offset
+    /// @param stepsY The number of times delta should be applied to the current vertical scroll offset
     public void moveSteps(final int stepsX, final int stepsY)
     {
         this.horizontalScrollbar.movePages(stepsX);
         this.verticalScrollbar  .movePages(stepsY);
     }
     
-    /**
-     * Moves the viewport content by the given page amount, by that means, {@code pages} times the view size.
-     * If {@code pages} is negative, this will scroll backwards.
-     *
-     * @param pagesX The number of pages to scroll horizontally
-     * @param pagesY The number of pages to scroll vertically
-     */
+    /// Moves the viewport content by the given page amount, by that means, `pages` times the view size. If `pages` is
+    /// negative, this will scroll backwards.
+    /// @param pagesX The number of pages to scroll horizontally
+    /// @param pagesY The number of pages to scroll vertically
     public void movePages(final int pagesX, final int pagesY)
     {
         this.horizontalScrollbar.movePages(pagesX);
         this.verticalScrollbar  .movePages(pagesY);
     }
     
-    /** Scrolls the viewport all the way to the left. */
+    /// Scrolls the viewport all the way to the left.
     public void moveToLeft() { this.horizontalScrollbar.moveToStart(); }
     
-    /** Scrolls the viewport all the way to the top. */
+    /// Scrolls the viewport all the way to the top.
     public void moveToTop() { this.verticalScrollbar.moveToStart(); }
     
-    /** Scrolls the viewport all the way to the right. */
+    /// Scrolls the viewport all the way to the right.
     public void moveToRight() { this.horizontalScrollbar.moveToEnd(); }
     
-    /** Scrolls the viewport all the way to the bottom. */
+    /// Scrolls the viewport all the way to the bottom.
     public void moveToBottom() { this.verticalScrollbar.moveToEnd(); }
     
     //==================================================================================================================

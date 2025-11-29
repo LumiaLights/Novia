@@ -37,16 +37,29 @@ package xyz.lumialights.novia.api.gui.canvas.renderer;
 
 import org.jetbrains.annotations.NotNull;
 import xyz.lumialights.novia.api.gui.canvas.ICanvasState;
+import xyz.lumialights.novia.api.gui.canvas.brush.Brush;
 import xyz.lumialights.novia.api.gui.canvas.brush.gradient.Gradient;
 
 
 
 //**********************************************************************************************************************
+/// Provides a renderer interface for shapes that paint differently based on the specified [Brush]
 public interface IShapedRender
     extends ICanvasState.Renderer
 {
     //******************************************************************************************************************
+    /// Applies a solid [Brush] to the renderer.
+    /// @param colour The colour to apply to all vertices
+    /// @param opacity The opacity level to apply to the colour
     void applySolid(int colour, float opacity);
+    
+    /// Applies a gradient [Brush] to the renderer.
+    /// @param gradient The [Gradient] to apply to all vertices
+    /// @param opacity The opacity level to apply to the gradient
     void applyGradient(@NotNull Gradient gradient, float opacity);
+    
+    /// Applies a texture [Brush] to the renderer.
+    /// @param colour The base colour to apply to the texture vertices
+    /// @param opacity The opacity level to apply to the texture colour
     default void appplyTextured(int colour, float opacity) { this.applySolid(colour, opacity); }
 }

@@ -62,17 +62,15 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/**
- * A slider like component, which can be used to modify the position of other components upon scrolling.
- * <p>
- * Scroll bars provide input listeners for drag events where the mouse can pull the thumb around to scroll as well as
- * mouse wheel listeners that allow scrolling upon rotating the wheel when it is hovered.
- * <p>
- * By default, this component does not participate in the focus chain of the component hierarchy.
- * <p>
- * This is a stateful GUI component, the value it contains represents the normalised scroll offset of the specified
- * overflow area, it can be converted between number qualified {@link Value} objects.
- */
+/// A slider like component, which can be used to modify the position of other components upon scrolling.
+///
+/// Scroll bars provide input listeners for drag events where the mouse can pull the thumb around to scroll as well as
+/// mouse wheel listeners that allow scrolling upon rotating the wheel when it is hovered.
+///
+/// By default, this component does not participate in the focus chain of the component hierarchy.
+///
+/// This is a stateful GUI component, the value it contains represents the normalised scroll offset of the specified
+/// overflow area, it can be converted between number qualified [Value] objects.
 public class NVScrollbar
     extends StatefulGuiComponent
 {
@@ -80,29 +78,23 @@ public class NVScrollbar
     public interface Template
     {
         //**************************************************************************************************************
-        /**
-         * Draws the scroll bar's background.
-         * @param canvas      The {@link Canvas}
-         * @param scrollbar   The {@link NVScrollbar}
-         * @param trackBounds The bounds of the track that the thumb can slide in
-         */
+        /// Draws the scroll bar's background.
+        /// @param canvas      The [Canvas]
+        /// @param scrollbar   The [NVScrollbar]
+        /// @param trackBounds The bounds of the track that the thumb can slide in
         void nvScrollbarDrawBackground(@NotNull Canvas canvas, @NotNull NVScrollbar scrollbar,
                                        @NotNull Rectangle trackBounds);
         
-        /**
-         * Draws the scroll bar's thumb.
-         * @param canvas    The {@link Canvas}
-         * @param scrollbar The {@link NVScrollbar}
-         * @param bounds    The bounds of the thumb
-         */
+        /// Draws the scroll bar's thumb.
+        /// @param canvas    The [Canvas]
+        /// @param scrollbar The [NVScrollbar]
+        /// @param bounds    The bounds of the thumb
         void nvScrollbarDrawThumb(@NotNull Canvas canvas, @NotNull NVScrollbar scrollbar, @NotNull Rectangle bounds);
     }
     
-    /**
-     * Represents the scroll space handler.
-     * @param view    The minimised size (in pixels) that is being viewed
-     * @param content The content size (in pixels) of the area that can be scrolled
-     */
+    /// Represents the scroll space handler.
+    /// @param view    The minimised size (in pixels) that is being viewed
+    /// @param content The content size (in pixels) of the area that can be scrolled
     public record ScrollSpace(int view, int content)
     {
         //**************************************************************************************************************
@@ -147,52 +139,46 @@ public class NVScrollbar
     }
     
     //******************************************************************************************************************
-    /** See {@link NVScrollbar#delta}. */
+    /// See [NVScrollbar#delta].
     public static final int DEFAULT_DELTA = 10;
     
-    /** See {@link NVScrollbar#vertical}. */
+    /// See [NVScrollbar#vertical].
     public static final boolean DEFAULT_IS_VERTICAL = true;
     
-    /** See {@link NVScrollbar#minThumbSize}. */
+    /// See [NVScrollbar#minThumbSize].
     public static final int DEFAULT_MIN_THUMB_SIZE = 32;
     
     //==================================================================================================================
-    /** The texture used for the scroll bar thumb. */
+    /// The texture used for the scroll bar thumb.
     public static final Identifier TEXTURE_SCROLLBAR_THUMB = Identifier.ofVanilla("widget/scroller");
     
-    /** The texture used for the background of the scroll bar. */
+    /// The texture used for the background of the scroll bar.
 	public static final Identifier TEXTURE_SCROLLBAR_BACKGROUND = Identifier.ofVanilla("widget/scroller_background");
     
     public static final int PULL_START_DELAY_MS = 500;
     public static final int PULL_APPLY_DELAY_MS = 100;
     
     //******************************************************************************************************************
-    /**
-     * Describes the scroll delta used to scroll with the mouse wheel or the keyboard.
-     * <p>
-     * The scroll delta is a value that determines how much the scroll bar thumb will jump upon scrolling
-     * with the mouse wheel or the keyboard, based on the given height of the content to scroll.
-     * <p>
-     * A value of 0 means no scrolling at all with these devices.
-     */
+    /// Describes the scroll delta used to scroll with the mouse wheel or the keyboard.
+    ///
+    /// The scroll delta is a value that determines how much the scroll bar thumb will jump upon scrolling
+    /// with the mouse wheel or the keyboard, based on the given height of the content to scroll.
+    ///
+    /// A value of 0 means no scrolling at all with these devices.
     public final GuiProperty.NonNull<Integer> delta;
     
-    /**
-     * Describes the orientation of the scrollbar, if {@code true} this is a vertical scrollbar (top to bottom),
-     * or {@code false} if horizontal (left to right).
-     */
+    /// Describes the orientation of the scrollbar, if `true` this is a vertical scrollbar (top to bottom),
+    /// or `false` if horizontal (left to right).
     public final GuiProperty.NonNull<Boolean> vertical;
     
-    /**
-     * Describes the minimum size the thumb should have if the scroll space gets too big. This value can only take
-     * positive values starting at 1.
-     * <p>
-     * It is best to leave this at the specified default; however, for exceptional cases it is provided.
-     */
+    /// Describes the minimum size the thumb should have if the scroll space gets too big. This value can only take
+    /// positive values starting at 1.
+    ///
+    /// It is best to leave this at the specified default; however, for exceptional cases it is provided.
     public final GuiProperty.NonNull<Integer> minThumbSize;
     
     //==================================================================================================================
-    /** Triggered whenever the available scroll space of the scroll-bar changed. */
+    /// Triggered whenever the available scroll space of the scroll-bar changed.
     public final GuiEvent.Simple scrollSpaceChanged = new GuiEvent.Simple();
     
     //==================================================================================================================
@@ -209,11 +195,9 @@ public class NVScrollbar
     private ScrollSpace space;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new vertical scroll bar.
-     * @param scrollSpace The initial {@link ScrollSpace}
-     * @param message The scrollbar message
-     */
+    /// Constructs a new vertical scroll bar.
+    /// @param scrollSpace The initial [ScrollSpace]
+    /// @param message The scrollbar message
     public NVScrollbar(final @NotNull ScrollSpace scrollSpace, final @NotNull Text message)
     {
         super(message);
@@ -230,43 +214,33 @@ public class NVScrollbar
         this.space = Objects.requireNonNull(scrollSpace, "scroll space must not be null");
     }
     
-    /**
-     * Constructs a new vertical scroll bar.
-     * @param scrollSpace The initial {@link ScrollSpace}
-     */
+    /// Constructs a new vertical scroll bar.
+    /// @param scrollSpace The initial [ScrollSpace]
     public NVScrollbar(final @NotNull ScrollSpace scrollSpace) { this(scrollSpace, ScreenTexts.EMPTY); }
     
-    /** Constructs a new vertical scrollbar with an empty scroll space. */
+    /// Constructs a new vertical scrollbar with an empty scroll space.
     public NVScrollbar() { this(new ScrollSpace(0, 0), ScreenTexts.EMPTY); }
     
     //==================================================================================================================
-    /**
-     * Gets the current scroll offset as number qualified {@link Value} object. The value returned is a
-     * normalised float (see {@link #getOffsetNormalised()}).
-     * @return The current scroll offset {@link Value}
-     */
+    /// Gets the current scroll offset as number qualified [Value] object. The value returned is a
+    /// normalised float (see [#getOffsetNormalised()]).
+    /// @return The current scroll offset [Value]
     @Override public @NotNull Value getValue() { return new Value(this.getOffsetNormalised()); }
     
-    /**
-     * Gets the current offset from the target's origin point.
-     * <p>
-     * If the scroll bar's thumb is all the way on the top this will return 0, if it is all the way on the bottom
-     * this will return {@link #getOverflow()}.
-     * @return The offset of the overflow
-     */
+    /// Gets the current offset from the target's origin point.
+    ///
+    /// If the scroll bar's thumb is all the way on the top this will return 0, if it is all the way on the bottom
+    /// this will return [#getOverflow()].
+    /// @return The offset of the overflow
     public int getOffset() { return this.offset; }
     
-    /**
-     * Gets the current offset as normalised number with values ranging between 0 (included) and 1 (included), where
-     * 0 means the start of the scroll bar and 1 means the end.
-     * @return The normalised scroll bar offset
-     */
+    /// Gets the current offset as normalised number with values ranging between 0 (included) and 1 (included), where
+    /// 0 means the start of the scroll bar and 1 means the end.
+    /// @return The normalised scroll bar offset
     public float getOffsetNormalised() { return (this.overflow > 0 ? (this.offset / (float) this.overflow) : 0f); }
     
-    /**
-     * Gets the maximum overflow the scroll bar can scroll to.
-     * @return The maximum overflow
-     */
+    /// Gets the maximum overflow the scroll bar can scroll to.
+    /// @return The maximum overflow
     public int getOverflow() { return this.overflow; }
     
     @Override public @Nullable IComponentNavigator getNavigator() { return null; }
@@ -291,21 +265,19 @@ public class NVScrollbar
     }
     
     //------------------------------------------------------------------------------------------------------------------
-    /** Track start position. */
+    /// Track start position.
     protected int getTrackStart() { return 0; }
     
-    /** Track end position. */
+    /// Track end position.
     protected int getTrackEnd() { return (this.vertical.get() ? this.getHeight() : this.getWidth()); }
     
-    /** Track size. */
+    /// Track size.
     protected int getTrackSize() { return Math.max(0, (this.getTrackEnd() - this.getTrackStart())); }
     
     //==================================================================================================================
-    /**
-     * Sets the scroll offset from the given {@link Value} object (see {@link #getOffsetNormalised()}). If the
-     * {@link Value} object is not a number this will do nothing.
-     * @param value The scroll offset value
-     */
+    /// Sets the scroll offset from the given [Value] object (see [#getOffsetNormalised()]). If the
+    /// [Value] object is not a number this will do nothing.
+    /// @param value The scroll offset value
     @Override
     public void setValue(final @NotNull Value value)
     {
@@ -317,11 +289,9 @@ public class NVScrollbar
         this.setOffsetNormalised(value.getNumber().floatValue());
     }
     
-    /**
-     * Sets the scroll offset of the target on this scrollbar. The value is between 0 and {@link #getOverflow()};
-     * anything above or below will be clamped.
-     * @param offset The scroll offset
-     */
+    /// Sets the scroll offset of the target on this scrollbar. The value is between 0 and [#getOverflow()];
+    /// anything above or below will be clamped.
+    /// @param offset The scroll offset
     public void setOffset(final @NotNull Number offset)
     {
         final int new_offset = Math.clamp(offset.intValue(), 0, this.overflow);
@@ -335,38 +305,30 @@ public class NVScrollbar
         }
     }
     
-    /**
-     * Sets the scroll offset of the target on this scrollbar to the given normalised value
-     * (see {@link #getOffsetNormalised()}).
-     * @param offsetNormalised The normalised scroll offset
-     */
+    /// Sets the scroll offset of the target on this scrollbar to the given normalised value
+    /// (see [#getOffsetNormalised()]).
+    /// @param offsetNormalised The normalised scroll offset
     public void setOffsetNormalised(final float offsetNormalised)
     {
         this.setOffset(this.overflow * Math.clamp(offsetNormalised, 0f, 1f));
     }
     
-    /**
-     * Updates the overflow based on the given view and content space, where view space is the container of the content
-     * and content space is the space of the content.
-     * <p>
-     * This will not be automatically determined upon resizing, the developer is responsible to update this manually.
-     *
-     * @param viewSpace    The maximum size of the area that is visible of the clipped content
-     * @param contentSpace The maximum size of the content
-     */
+    /// Updates the overflow based on the given view and content space, where view space is the container of the content
+    /// and content space is the space of the content.
+    ///
+    /// This will not be automatically determined upon resizing, the developer is responsible to update this manually.
+    /// @param viewSpace    The maximum size of the area that is visible of the clipped content
+    /// @param contentSpace The maximum size of the content
     public void setOverflow(final int viewSpace, final int contentSpace)
     {
         this.setOverflow(new ScrollSpace(viewSpace, contentSpace));
     }
     
-    /**
-     * Updates the overflow based on the given view and content space, where view space is the container of the content
-     * and content space is the space of the content.
-     * <p>
-     * This will not be automatically determined upon resizing, the developer is responsible to update this manually.
-     *
-     * @param scrollSpace The {@link ScrollSpace}
-     */
+    /// Updates the overflow based on the given view and content space, where view space is the container of the content
+    /// and content space is the space of the content.
+    ///
+    /// This will not be automatically determined upon resizing, the developer is responsible to update this manually.
+    /// @param scrollSpace The [ScrollSpace]
     public void setOverflow(final @NotNull ScrollSpace scrollSpace)
     {
         if (scrollSpace.equals(this.space))
@@ -391,34 +353,24 @@ public class NVScrollbar
     }
     
     //==================================================================================================================
-    /**
-     * Moves the offset by the given offset amount in pixels.
-     * If {@code offset} is negative, this will scroll backwards.
-     *
-     * @param offset The offset to scroll
-     */
+    /// Moves the offset by the given offset amount in pixels. If `offset` is negative, this will scroll backwards.
+    /// @param offset The offset to scroll
     public void move(final int offset) { this.setOffset(this.offset + offset); }
     
-    /**
-     * Moves the offset by the given number of {@link #delta} applied {@code steps} times.
-     * If {@code steps} is negative, this will scroll backwards.
-     *
-     * @param steps The number of times delta should be applied to the current scroll offset
-     */
+    /// Moves the offset by the given number of [#delta] applied `steps` times.
+    /// If `steps` is negative, this will scroll backwards.
+    /// @param steps The number of times delta should be applied to the current scroll offset
     public void moveSteps(final int steps) { this.move(this.delta.get() * steps); }
     
-    /**
-     * Moves the offset by the given page amount, by that means, {@code pages} times the view size.
-     * If {@code pages} is negative, this will scroll backwards.
-     *
-     * @param pages The number of pages to scroll
-     */
+    /// Moves the offset by the given page amount, by that means, `pages` times the view size.
+    /// If `pages` is negative, this will scroll backwards.
+    /// @param pages The number of pages to scroll
     public void movePages(final int pages) { this.move(this.space.view * pages); }
     
-    /** Scrolls all the way to the start. */
+    /// Scrolls all the way to the start.
     public void moveToStart() { this.setOffset(0); }
     
-    /** Scrolls all the way to the end. */
+    /// Scrolls all the way to the end.
     public void moveToEnd() { this.setOffset(this.overflow); }
     
     //==================================================================================================================
@@ -630,7 +582,7 @@ public class NVScrollbar
     }
     
     //==================================================================================================================
-    /** Called whenever the available scroll space of the scroll-bar changed. */
+    /// Called whenever the available scroll space of the scroll-bar changed.
     public void onScrollSpaceChanged() {}
     
     //==================================================================================================================

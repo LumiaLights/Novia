@@ -44,34 +44,30 @@ import java.util.function.Consumer;
 
 
 //**********************************************************************************************************************
-/**
- * A result for a modal component operation (with {@link GuiScreen#showModal(GuiComponent, ModalArgs)} or
- * {@link GuiComponent#showModal(ModalArgs)}), containing either an error {@link Code} or, if successfully opened,
- * represents a completed future, completed when the modal was closed again.
- * <p>
- * The future represented by this class is completed on the main render thread of Minecraft, hence it would be advisable
- * not to block on that thread.
- */
+/// A result for a modal component operation (with [GuiScreen#showModal(GuiComponent, ModalArgs)] or
+/// [GuiComponent#showModal(ModalArgs)]), containing either an error [Code] or, if successfully opened, represents a
+/// completed future, completed when the modal was closed again.
+///
+/// The future represented by this class is completed on the main render thread of Minecraft, hence it would be
+/// advisable not to block on that thread.
 public class ModalResult
     extends CompletableFuture<GuiComponent>
 {
     //******************************************************************************************************************
     public enum Code
     {
-        /** When the modal is already open on screen. */
+        /// When the modal is already open on screen.
         ALREADY_SHOWING,
         
-        /** When trying to add a modal to a non-opened screen. */
+        /// When trying to add a modal to a non-opened screen.
         SCREEN_NOT_OPEN,
         
-        /**
-         * When trying to open an unsupported {@link GuiComponent}
-         * that overrides {@link GuiComponent#isModalPromotionAllowed()} returning {@code false}.
-         * @see GuiScreen#isModalPromotionAllowed()
-         */
+        /// When trying to open an unsupported [GuiComponent] that overrides [GuiComponent#isModalPromotionAllowed()]
+        ///returning `false`.
+        /// @see GuiScreen#isModalPromotionAllowed()
         NOT_SUPPORTED,
         
-        /** The given associated component is either not on screen or invisible. */
+        /// The given associated component is either not on screen or invisible.
         ASSOCIATED_MISSING,
         ;
     }
@@ -89,23 +85,17 @@ public class ModalResult
     public ModalResult() { this.code = null; }
     
     //==================================================================================================================
-    /**
-     * Gets the result code associated with the layer opening operation.
-     * <p>
-     * If this returns a non-empty optional, this {@link CompletableFuture} will never be completed as the operation
-     * failed, which makes an early bailing out possible if desired.
-     *
-     * @return The result code or {@link Optional#empty()} if there was no issue opening the layer
-     */
+    /// Gets the result code associated with the layer opening operation.
+    ///
+    /// If this returns a non-empty optional, this [CompletableFuture] will never be completed as the operation
+    /// failed, which makes an early bailing out possible if desired.
+    /// @return The result code or [Optional#empty()] if there was no issue opening the layer
     public @NotNull Optional<Code> getCode() { return Optional.ofNullable(this.code); }
     
     //==================================================================================================================
-    /**
-     * If the modal was opened successfully, immediately runs the given {@code handler}.
-     *
-     * @param handler The handler to run
-     * @return {@code this}
-     */
+    /// If the modal was opened successfully, immediately runs the given `handler`.
+    /// @param handler The handler to run
+    /// @return `this`
     public @NotNull ModalResult onOpened(final @NotNull Runnable handler)
     {
         if (this.code == null)
@@ -116,12 +106,9 @@ public class ModalResult
         return this;
     }
     
-    /**
-     * If the modal could not be opened, immediately runs the given {@code consumer} with the error code.
-     *
-     * @param consumer The consumer to run on error
-     * @return {@code this}
-     */
+    /// If the modal could not be opened, immediately runs the given `consumer` with the error code.
+    /// @param consumer The consumer to run on error
+    /// @return `this`
     public @NotNull ModalResult onError(final @NotNull Consumer<Code> consumer)
     {
         Optional.ofNullable(this.code).ifPresent(consumer);

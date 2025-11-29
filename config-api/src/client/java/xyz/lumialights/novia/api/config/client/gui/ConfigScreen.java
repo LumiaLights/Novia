@@ -56,7 +56,6 @@ import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 import xyz.lumialights.novia.api.core.util.JsonPointer;
 import xyz.lumialights.novia.api.gui.component.GuiScreen;
-import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 import xyz.lumialights.novia.api.gui.component.input.KeyEvent;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVLabel;
@@ -90,7 +89,7 @@ public class ConfigScreen
     private final NVSimpleButton             viewButton;
     private final NVLabel                    title;
     private final TreeMap<PropertyId, Value> cache;
-    //private final EditScreen                 editScreen;
+    private final EditPanel                  editPanel;
 
     private boolean isCategorised = true;
 
@@ -123,8 +122,6 @@ public class ConfigScreen
             tab.colour().orElse(new Colour(0xFF3C8527))));
         this.tabList.refreshList();
         
-        //this.editScreen = new EditScreen(this, this.lookAndFeel, this::valueChanged);
-
         this.viewButton = this.addChild(new NVSimpleButton());
         this.viewButton.setIcon(this.isCategorised
             ? ConfigScreen.TEXTURE_CATEGORISED
@@ -151,15 +148,18 @@ public class ConfigScreen
             Comparator.comparing(Text::getString),
             this.isCategorised));
 
+        this.editPanel = this.addChild(new EditPanel(lookAndFeel));
+        this.editPanel.setVisible(false);
+        
         this.setFont(lookAndFeel.getDefaultFont());
     }
     
     //==================================================================================================================
-    public void showEditScreen(@Nullable final PropertyId         propertyId,
-                               @NotNull  final Text               title,
-                               @NotNull  final IStatefulComponent content)
+    public void showEditScreen(final @Nullable PropertyId         propertyId,
+                               final @NotNull  Text               title,
+                               final @NotNull  IStatefulComponent content)
     {
-        //this.editScreen.setContent(propertyId, title, content);
+        this.editPanel.setProperty(propertyId, );
     }
     
     //==================================================================================================================
@@ -181,6 +181,8 @@ public class ConfigScreen
             .withSize(16, 16)
             .align(Alignment.BOTTOM_RIGHT, button_area)
             .translateY(-5));
+        
+        this.editPanel.setBounds(this.getBounds());
     }
     
     //==================================================================================================================
@@ -199,7 +201,7 @@ public class ConfigScreen
         this.optList.refreshList();
     }
     
-    private void addGroup(@NotNull final TabManager.FactoryGroup group)
+    private void addGroup(final @NotNull TabManager.FactoryGroup group)
     {
         final OptionList.Group option = this.optList.addGroup(group.title().orElse(null));
         group.entries().forEach(property ->
@@ -228,7 +230,7 @@ public class ConfigScreen
     }
 
     //==================================================================================================================
-    private void valueChanged(@NotNull final PropertyId id, @Nullable final Value value)
+    private void valueChanged(final @NotNull PropertyId id, final @Nullable Value value)
     {
         if (value == null)
         {
@@ -250,14 +252,28 @@ public class ConfigScreen
         }
     }
     
-    private <Container> @NotNull Property getProperty(@NotNull final JsonPointer                pointer,
-                                                      @NotNull final IConfigProvider<Container> provider)
+    private <Container> @NotNull Property getProperty(final @NotNull JsonPointer                pointer,
+                                                      final @NotNull IConfigProvider<Container> provider)
     {
         final Container container = (provider instanceof BaseNetworkProvider<Container> bnp
             ? bnp.getClientContainer()
             : provider.getManagedContainer());
-        assert (container != null);
-        
-        return provider.getSpec().flatPropertySpecs().get(pointer).get(container);
+        return provider.getSpec().flatPropertySpecs().get(pointer).get(Objects.requireNonNull(container));
+    }
+    
+    //==================================================================================================================
+    @Override
+    protected void onScreenClosed()
+    {
+        this.cache
+            .keySet()
+            .stream()
+            .map(PropertyId::providerId)
+            .distinct()
+            .forEach(id ->
+            {
+                final IConfigProvider<?> provider = ConfigManager.REGISTRY.get(id);
+                provider.getSpec().write();
+            });
     }
 }

@@ -43,7 +43,7 @@ import xyz.lumialights.novia.api.GuiApiLang;
 import xyz.lumialights.novia.api.config.PropertyId;
 import xyz.lumialights.novia.api.gui.canvas.Canvas;
 import xyz.lumialights.novia.api.gui.component.GuiComponent;
-import xyz.lumialights.novia.api.gui.component.GuiScreen;
+import xyz.lumialights.novia.api.gui.component.StatefulGuiComponent;
 import xyz.lumialights.novia.api.gui.component.integration.IStatefulComponent;
 import xyz.lumialights.novia.api.gui.component.provided.NVLabelButton;
 import xyz.lumialights.novia.api.gui.geometry.Alignment;
@@ -51,13 +51,12 @@ import xyz.lumialights.novia.api.gui.component.provided.NVLabel;
 import xyz.lumialights.novia.api.core.serialisation.Value;
 
 import java.util.*;
-import java.util.function.BiConsumer;
 
 
 
 //**********************************************************************************************************************
-public class EditScreen
-    extends GuiScreen
+public class EditPanel
+    extends StatefulGuiComponent
 {
     //******************************************************************************************************************
     private record Content(@NotNull IStatefulComponent content) {}
@@ -65,23 +64,21 @@ public class EditScreen
     private record StackFrame(@NotNull Text title, @NotNull Content content) {}
     
     //******************************************************************************************************************
-    private final NVLabel                       titleLabel;
-    private final NVLabelButton                 backButton;
-    private final ConfigScreenLookAndFeel       lookAndFeel;
-    private final BiConsumer<PropertyId, Value> valueChangeHandler;
-    private final Deque<StackFrame>             contentStack = new LinkedList<>();
+    private final NVLabel                 titleLabel;
+    private final NVLabelButton           backButton;
+    private final ConfigScreenLookAndFeel lookAndFeel;
+    private final Deque<StackFrame>       contentStack = new LinkedList<>();
     
+    private Value      value      = new Value();
     private Content    content    = null;
     private PropertyId propertyId = null;
     
     //******************************************************************************************************************
-    public EditScreen(final @NotNull ConfigScreenLookAndFeel       lookAndFeel,
-                      final @NotNull BiConsumer<PropertyId, Value> valueChangeHandler)
+    public EditPanel(final @NotNull ConfigScreenLookAndFeel lookAndFeel)
     {
         super(ScreenTexts.EMPTY);
         
-        this.lookAndFeel        = lookAndFeel;
-        this.valueChangeHandler = valueChangeHandler;
+        this.lookAndFeel = lookAndFeel;
         
         this.titleLabel = new NVLabel(ScreenTexts.EMPTY);
         this.titleLabel.textAlign.set(Alignment.MIDDLE_CENTRE);
@@ -93,20 +90,24 @@ public class EditScreen
     }
     
     //==================================================================================================================
-    void setContent(final @Nullable PropertyId         propertyId,
-                    final @NotNull  Text               title,
-                    final @NotNull  IStatefulComponent content)
+    @Override public @NotNull Value getValue() { return this.value; }
+    
+    //==================================================================================================================
+    @Override
+    public void setValue(final @NotNull Value value)
     {
-        if (this.content != null)
+        if (!value.isList() && !value.isMap())
         {
-            this.pushFrame(this.titleLabel.getMessage(), this.content.content);
-            return;
+            throw new IllegalArgumentException("Value is not a list or a Map");
         }
         
+        this.value = value;
+    }
+    
+    public void setProperty(final @NotNull PropertyId propertyId, final @NotNull Value value)
+    {
         this.propertyId = propertyId;
-        this.contentStack.clear();
-        this.updateContent(title, content);
-        this.showScreen();
+        this.value      = value;
     }
     
     //------------------------------------------------------------------------------------------------------------------
@@ -144,11 +145,7 @@ public class EditScreen
     }
     
     //==================================================================================================================
-    @Override
-    public void draw(final @NotNull Canvas canvas)
-    {
-        this.lookAndFeel.drawEditPanelBackground(canvas);
-    }
+    @Override public void draw(final @NotNull Canvas canvas) { this.lookAndFeel.drawEditPanelBackground(canvas); }
     
     //==================================================================================================================
     private void updateContent(final @NotNull Text title, final @NotNull IStatefulComponent content)
@@ -170,16 +167,5 @@ public class EditScreen
         this.contentStack.clear();
         this.content    = null;
         this.propertyId = null;
-    }
-    
-    //==================================================================================================================
-    @Override
-    protected void onScreenClosed()
-    {
-        final Content root = (!this.contentStack.isEmpty()
-            ? this.contentStack.getFirst().content()
-            : this.content);
-        this.valueChangeHandler.accept(this.propertyId, root.content.getValue());
-        this.reset();
     }
 }

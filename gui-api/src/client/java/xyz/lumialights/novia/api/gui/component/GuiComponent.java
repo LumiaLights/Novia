@@ -81,26 +81,64 @@ import java.util.stream.Stream;
 
 
 //**********************************************************************************************************************
-/// Represents a (usually) rectangular area that draws onto the screen and can receive mouse events, this is the
+/// Represents a (usually) rectangular area on screen that can receive mouse events, this is the
 /// replacement for Minecraft's [ClickableWidget] class.
-/// <p>
-/// A gui component has bounds, properties and state (such as visibility, enablement, focus etc.), which all define
-/// how the component will be rendered and how it behaves. Other than Minecraft's widgets, components draw in a relative
-/// coordinate space, by that means drawing code does not declare render actions in absolute screen coordinates but
-/// start at [0, 0], which represents the top-left corner of the current component. This is also the case for setting
-/// a components position inside its parent (see [GuiComponent#setBounds(Rectangle)]).
-/// Additionally, every component is also a parent component so that each of them can be infinitely nested;
-/// though this should be done in moderation as every level introduces additional indirections such as for mouse
-/// events and drawing.
-/// <p>
-/// Each component has a [GuiFont] and [IGuiTemplate] that aid components in instructing how they should
-/// be rendered, a component can either be a font/template inheritor or declarator. If a font/template is explicitly set
-/// for component, it and all its children (that do not explicitly themselves declare any) will use that font/template
-/// for rendering; otherwise if it is an inheritor, the font/template applied will be inherited from its closest
-/// explicitly declaring parent. If, however, no parent is a font/template declarator, the used fonts and templates will
-/// resort to its defaults (namely [GuiFont#DEFAULT)] and [IGuiTemplate#DEFAULT]).
-/// <p>
-/// For mouse and keyboard events, every component has a set of functions that can be overridden on demand:
+///
+/// ## Hierarchy
+/// In this library, every component is laid out in a hierarchical structure, that means that every component
+/// potentially has a component that is its parent and has other components that function as its children. This relation
+/// allows for a more fine-grained workflow in putting components together, such as a drop-down that has a text box and
+/// an arrow button. It also allows reasoning about event handling (such as mouse events, focusing etc.) in a more
+/// predictable manner, as the order of command is clearly defined.
+///
+/// A component can ever only have one parent but possibly infinite children components; this makes the screen component
+/// hierarchy act like a tree of components. There is one common root among all children at any level from which the
+/// rest of the GUI builds upon.
+///
+/// ## Positioning
+/// Gui components are positioned relative to their parent components, if the parent changes position the child
+/// component will as well. This system allows a more robust solution at laying out the single parts of a GUI with a
+/// more predictive output. Drawing happens in the same domain (in [#draw(Canvas)] and [#drawOnTop(Canvas)]). In both
+/// cases the coordination starts at \[0, 0], for positioning this is the top-left corner of the parent component;
+/// for drawing this is the top-left corner of the component to be drawn.
+///
+/// Despite this relative positioning behaviour, components will still keep track of their absolute coordinates on
+/// screen, this will be needed internally for event handling for example. These screen coordinates are updated every
+/// render pass and can be fetched via [#getScreenX()] and [#getScreenY()] respectively. There's also plenty of
+/// conversion utility methods that allow converting relative coordinates to screen coordinates and vice versa.
+///
+/// ## Templating & Fonts
+/// Usually drawing code goes into either [#draw(Canvas)] or [#drawOnTop(Canvas)], however, since this does not allow
+/// customisation of the drawing code for single instances of a component this library introduces [IGuiTemplate], which
+/// neatly integrates with [Canvas] to allow the component to dedicate their drawing to a separate source. This separate
+/// source can be overridden with custom drawing code and then assigned to the component in question to allow it to
+/// draw differently than others (via [#setTemplate(IGuiTemplate)]). Components can be in two different template states,
+/// that is, "explicitly templated" and "implicitly templated", where explicit means that a component directly defines
+/// its own template and implicit means that it has no explicitly set template, but inherits the template from its
+/// closest "explicitly templated" parent.
+///
+/// The same rules apply to fonts, each component has its own attached [GuiFont] object that will be used to draw text
+/// inside a component (if there is any text to draw). Both of these are passed on by the given [Canvas] object so that
+/// the library doesn't have to browse the entire component hierarchy until it finds one of them. However, needing
+/// a template or a font outside of drawing code will require searching through this hierarchy, for which
+/// [#getTemplate()] and [#getFont()] can be used.
+///
+/// ## Event Handling
+/// The component hierarchy will handle mouse and keyboard events globally, by which it will traverse the hierarchy
+/// to find the component upon which the event applies first (for mouse events the component the mouse is currently over
+/// and for keyboard events the component that is currently being focused). Upon finding a component that events can
+/// be applied to, it will hand over control to the component to decide whether it wants to handle the event or not;
+/// if handling is successful, control will be handed back to the framework and no further component will get the chance
+/// to handle that event (unless a parent is an event monitor; see [#isMonitoringChildren()]). If, however, a component
+/// rejects handling an event, the event will continue propagating up the hierarchy until a component is found that
+/// wants to actually handle the event, this process is also known as "event bubbling".
+///
+/// For mouse events, it is worth noting that even when the component the mouse is interacting with is a child of a
+/// component, this parent component will not receive the event as long as either the child is not rejecting the event
+/// or monitoring is disabled for that parent.
+///
+/// Here is a table of all mouse and keyboard events that a component provides, these can be overridden and used to
+/// handle events:
 /// <table>
 ///     <tr>
 ///         <th>Name</th>
@@ -151,6 +189,60 @@ import java.util.stream.Stream;
 /// responsibility to let the hierarchy know an event was successfully handled by returning `true`, in which case
 /// the event is finished. If, however, a component returns `false`, this means that an event was not handled and
 /// that any of the parents gets the chance of handling the event itself until one returns `true`.
+///
+/// ## Visibility & Activity
+/// Another concept is the visibility and activity state of a component, visibility refers to whether a component should
+/// be drawn or not, setting a component to be invisible effectively removes it from the component hierarchy until it
+/// is set to be visible again. This means that it is not rendered and also can not receive any input events from either
+/// the mouse or the keyboard.
+///
+/// The activity state is more manual than visibility, while an inactive component usually means it is not interactive
+/// it can still receive events, it's the developer's responsibility to make sure to not handle events in an inactive
+/// state as well as rendering it differently. The reason for this design decision is that there are scenarios in which
+/// a component should still be able to be interacted with if it is inactive. However, focus behaviour will be affected
+/// by this flag in that, that a component becomes unfocusable once it is set to be inactive.
+///
+/// ## Focus Behaviour
+/// By default, components are said to be "not wanting focus", that means that a component is not focusable. This
+/// behaviour can be changed explicitly by setting [#setWantsFocus(boolean)] to `true`, in which case the component
+/// becomes visible to the focus traverser (if it is visible, active and part of the active focus hierarchy).
+///
+/// The focus traverser is part of the root screen object and combines all component's navigators that take part
+/// in focus resolution. The navigator of a component is defined by [#getNavigator()] and [#getNavigationOrder()],
+/// which can both be overridden to alter the way that a component is ordered and what children it exposes upon focus
+/// resolution. By default, this navigator is using [NaturalNavigator], which uses a combination of HTML and Minecraft's
+/// internal focus resolution.
+///
+/// ## Modals
+/// A modal component is a component that is not part of the main component hierarchy, but still part of the active
+/// screen. If a component is in a modal state, it will be drawn above any other component that is not a modal, and it
+/// is also the first to receive input events. Every modal will become its own layer on the screen, and each layer
+/// defines its own component hierarchy. This allows for doing things like context menus or dialogue boxes that are not
+/// part of the main hierarchy, but still need to be part of the screen.
+/// For more information see [#showModal(ModalArgs)].
+///
+/// ## GUI Events & Properties
+/// A GUI component can also define its own events and properties. A GUI property describes the behaviour of a component
+/// that can be changed during its lifetime, these properties should not be used to store data however, such as text
+/// in a textbox/label, or items in a list box but purely be defined for purposes that alter its appearance or policies.
+/// To define properties, a utility class [GuiProperty] is provided. GUI events on the other hand allow a component to
+/// describe an interface for outsiders to respond to certain events that happen inside a component (such as a component
+/// changing its bounds or message). An outsider can then subscribe to such an event to get notified when something
+/// happens internally. The interface to do this is provided via the [GuiEvent] class.
+///
+/// It is worth noting that GUI events as well as GUI properties are purely a conventional API for the Novia GUI
+/// framework, properties and events can be implemented however desired and do not need to make use of these utility
+/// classes, however, for consistency it is recommended to use what is provided. It also allows making use of some other
+/// features, as [GuiProperty] integrates with [GuiComponent] via [#getGuiProperties()], such as the GUI developer
+/// console providing an overview of a component's properties.
+///
+/// ## Accessibility
+/// Since Minecraft is big on accessibility features, the component class as well integrates with these features.
+/// The accessibility API of the Novia GUI framework does not alter much of the way Minecraft deals with accessibility.
+/// Components, just as Minecraft's widgets ([ClickableWidget#getMessage()]), come with a message property
+/// ([GuiComponent#getMessage()]) that can be used to tell the accessibility manager what a component represents.
+/// And just like with widgets, components as well provide a [#getNarrationMessage()] and
+/// [#appendNarrations(NarrationMessageBuilder)] method to fine-tune the narration system.
 public class GuiComponent
     implements
         IPaletteProvider,
@@ -342,26 +434,26 @@ public class GuiComponent
     private final Rectangle               bounds             = new Rectangle();
     private final Palette                 palette            = new Palette(null);
     
-    private Positioner    positioner   = null;
-    private Restrainer    restrainer   = null;
-    private Tooltip       tooltip      = null;
-    private Duration      tooltipDelay = Duration.ZERO;
-    private int           screenX      = 0;
-    private int           screenY      = 0;
-    private int           numPinned    = 0;
-    private float         opacity      = 1.0f;
-    private int           focusOrder   = 0;
-    private Text          message;
+    private Positioner positioner   = null;
+    private Restrainer restrainer   = null;
+    private Tooltip    tooltip      = null;
+    private Duration   tooltipDelay = Duration.ZERO;
+    private int        screenX      = 0;
+    private int        screenY      = 0;
+    private int        numPinned    = 0;
+    private float      opacity      = 1.0f;
+    private int        focusOrder   = 0;
+    private Text       message;
     
     //******************************************************************************************************************
-    /// Constructs a new gui component.
+    /// Constructs a new GUI component.
     /// @param message The initial message of the component
     public GuiComponent(final @NotNull Text message)
     {
         this.message = Objects.requireNonNull(message, "message must not be null");
     }
     
-    /// Constructs a new gui component with an empty message.
+    /// Constructs a new GUI component with an empty message.
     public GuiComponent() { this(ScreenTexts.EMPTY); }
     
     //==================================================================================================================
@@ -591,7 +683,7 @@ public class GuiComponent
         return Objects.requireNonNullElse(this.findParentObject(comp -> comp.template), IGuiTemplate.DEFAULT);
     }
     
-    /// Finds the first gui font that can be applied to this component. This will search all the way up the component
+    /// Finds the first GUI font that can be applied to this component. This will search all the way up the component
     /// hierarchy until a font could be found, if none was found this will return [GuiFont#DEFAULT].
     ///
     /// For [GuiScreen] objects that have their own explicit font specified, all modal layers of that screen
@@ -612,7 +704,7 @@ public class GuiComponent
     
     @Override public @NotNull Palette getPalette() { return this.palette; }
     
-    /// Can be overridden to let the component system know that the component provides a few gui properties.
+    /// Can be overridden to let the component system know that the component provides a few GUI properties.
     ///
     /// This is not strictly necessary for the component to function but allows some additional features such as
     /// serialisation and advanced integration for development utils, or anything related to property management.
@@ -947,6 +1039,7 @@ public class GuiComponent
     /// Can be overridden to determine if a child can be removed.
     /// @param child The component to remove
     /// @return `true` if the parent allows removing this child
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public boolean isRemovingChildAllowed(final @NotNull GuiComponent child) { return true; }
     
     /// Can be overridden to determine whether children of this component are allowed to use [Positioner] to
@@ -1264,7 +1357,7 @@ public class GuiComponent
             
             final GuiComponent top_level = this.getTopLevelComponent();
             
-            if (top_level.isScreenContainer() && top_level.screen.isShowing())
+            if (top_level.isScreenContainer() && Objects.requireNonNull(top_level.screen).isShowing())
             {
                 top_level.screen.updateTooltip(this);
             }
@@ -1465,6 +1558,7 @@ public class GuiComponent
     /// otherwise the monitoring component will get it as an ordinary event. If a component got a monitored event,
     /// then [MouseEvent#target()] will return the component, which handled it and not the monitoring component.
     /// @param shouldMonitor If this is `true`, this component will be monitoring mouse events from children
+    @SuppressWarnings("SameParameterValue")
     protected final void setMonitorChildren(final boolean shouldMonitor)
     {
         ComponentFlag.MONITOR.set(this, shouldMonitor);

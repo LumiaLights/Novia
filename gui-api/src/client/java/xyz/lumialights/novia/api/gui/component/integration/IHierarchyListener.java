@@ -40,22 +40,16 @@ import xyz.lumialights.novia.api.gui.component.GuiComponent;
 
 
 //**********************************************************************************************************************
-/**
- * Listens to changes in the component parent hierarchy, such as hierarchy changes, visibility changes.
- */
+/// Listens to changes in the component parent hierarchy, such as hierarchy changes, visibility changes.
 public interface IHierarchyListener
 {
     //******************************************************************************************************************
-    /**
-     * Called whenever the parent hierarchy changed, this will be called for any parent component that changed up to
-     * the component root.
-     * @param component The component that is currently handling this listener
-     */
+    /// Called whenever the parent hierarchy changed, this will be called for any parent component that changed up to
+    /// the component root.
+    /// @param component The component that is currently handling this listener
     default void hierarchyChanged(final GuiComponent component) {}
     
-    /**
-     * Called whenever any of the parent component's changed their visibility.
-     * @param component The component that is currently handling this listener
-     */
+    /// Called whenever any of the parent component's changed their visibility.
+    /// @param component The component that is currently handling this listener
     default void visibilityChanged(final GuiComponent component) {}
 }

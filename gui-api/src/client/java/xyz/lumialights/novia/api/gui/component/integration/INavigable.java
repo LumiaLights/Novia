@@ -44,21 +44,17 @@ import xyz.lumialights.novia.api.gui.component.IComponentNavigator;
 public interface INavigable
 {
     //******************************************************************************************************************
-    /**
-     * Gets the {@link IComponentNavigator} for the component's children, or {@code null} if the component's children
-     * should not be navigated to.
-     * @return The {@link IComponentNavigator}
-     */
+    /// Gets the [IComponentNavigator] for the component's children, or `null` if the component's children
+    /// should not be navigated to.
+    /// @return The [IComponentNavigator]
     @Nullable IComponentNavigator getNavigator();
     
-    /**
-     * Gets the navigation order.
-     * <p>
-     * A negative value means not being discoverable by navigation, a positive value indicates the navigation priority,
-     * by that means, a navigation order of 0 will be navigated to first and then to all the others with higher orders.
-     * <p>
-     * Among equal navigation orders, navigation follows order of appearance.
-     * @return The navigation order
-     */
+    /// Gets the navigation order.
+    ///
+    /// A negative value means not being discoverable by navigation, a positive value indicates the navigation priority,
+    /// by that means, a navigation order of 0 will be navigated to first and then to all the others with higher orders.
+    ///
+    /// Among equal navigation orders, navigation follows order of appearance.
+    /// @return The navigation order
     int getNavigationOrder();
 }

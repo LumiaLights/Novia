@@ -35,6 +35,7 @@ import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.navigation.NavigationAxis;
 import net.minecraft.client.gui.navigation.NavigationDirection;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.util.math.MathHelper;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -234,24 +235,16 @@ public class Rectangle
         /// @param width  The width of the initial rectangle to start building on
         /// @param height The height of the initial rectangle to start building on
         /// @return The built [Rectangle]
-        public @NotNull Rectangle build(final @NotNull Number x, final @NotNull Number y, final @NotNull Number width,
-                                        final @NotNull Number height)
+        public @NotNull Rectangle build(final int x, final int y, final int width, final int height)
         {
             return this.build(new Rectangle(x, y, width, height));
         }
     }
     
     //******************************************************************************************************************
-    public static @NotNull Rectangle fromPoints(final @NotNull Number x1,
-                                                final @NotNull Number y1,
-                                                final @NotNull Number x2,
-                                                final @NotNull Number y2)
+    public static @NotNull Rectangle fromPoints(final int x1, final int y1, final int x2, final int y2)
     {
-        final int x1v = x1.intValue();
-        final int y1v = y1.intValue();
-        final int x2v = x2.intValue();
-        final int y2v = y2.intValue();
-        return new Rectangle(Math.min(x1v, x2v), Math.min(y1v, y2v), Math.abs(x1v - x2v), Math.abs(y1v - y2v));
+        return new Rectangle(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x1 - x2), Math.abs(y1 - y2));
     }
     
     public static @NotNull Rectangle fromPoints(final @NotNull Point p1, final @NotNull Point p2)
@@ -313,11 +306,11 @@ public class Rectangle
     /// @param pos    The position of the rectangle
     /// @param width  The width of the rectangle
     /// @param height The height of the rectangle
-    public Rectangle(final @NotNull Point pos, final @NotNull Number width, final @NotNull Number height)
+    public Rectangle(final @NotNull Point pos, final int width, final int height)
     {
         this.pos    = Objects.requireNonNull(pos, "pos must not be null");
-        this.width  = width .intValue();
-        this.height = height.intValue();
+        this.width  = width;
+        this.height = height;
     }
     
     /// Constructs a new [Rectangle].
@@ -325,10 +318,7 @@ public class Rectangle
     /// @param y      The position of the rectangle on the y-axis
     /// @param width  The width of the rectangle
     /// @param height The height of the rectangle
-    public Rectangle(final @NotNull Number x,
-                     final @NotNull Number y,
-                     final @NotNull Number width,
-                     final @NotNull Number height)
+    public Rectangle(final int x, final int y, final int width, final int height)
     {
         this(new Point(x, y), width, height);
     }
@@ -336,7 +326,7 @@ public class Rectangle
     /// Constructs a new [Rectangle] with the given size and position zero.
     /// @param width  The width of the rectangle
     /// @param height The height of the rectangle
-    public Rectangle(final @NotNull Number width, final @NotNull Number height) { this(0, 0, width, height); }
+    public Rectangle(final int width, final int height) { this(0, 0, width, height); }
     
     /// Constructs a copy from `other`.
     /// @param other The other [Rectangle] to copy from
@@ -463,12 +453,9 @@ public class Rectangle
     /// @return `true` if the given coordinates are inside this rectangle
     public boolean contains(final @NotNull Number x, final @NotNull Number y)
     {
-        return (
-            x.intValue() >= this.x()
-            && x.intValue() < getRight()
-            && y.intValue() >= this.y()
-            && y.intValue() < getBottom()
-        );
+        final double xv = x.doubleValue();
+        final double yv = y.doubleValue();
+        return (xv >= this.x() && xv < getRight() && yv >= this.y() && yv < getBottom());
     }
     
     /// Gets whether the given point lies within this rectangle.
@@ -486,9 +473,16 @@ public class Rectangle
     /// @param width  The width of the region
     /// @param height The height of the region
     /// @return `true` if the given region is fully contained
-    public boolean contains(final int x, final int y, final int width, final int height)
+    public boolean contains(final @NotNull Number x,
+                            final @NotNull Number y,
+                            final @NotNull Number width,
+                            final @NotNull Number height)
     {
-        return (this.x() <= x && this.y() <= y && this.getRight() >= (x + width) && this.getBottom() >= (y + height));
+        final double x1 = x.doubleValue();
+        final double y1 = y.doubleValue();
+        final double x2 = (x1 + width .doubleValue());
+        final double y2 = (y1 + height.doubleValue());
+        return (this.x() <= x1 && this.y() <= y1 && this.getRight() >= x2 && this.getBottom() >= y2);
     }
     
     /// Gets whether the given [Rectangle] is fully contained within this rectangle.
@@ -510,12 +504,20 @@ public class Rectangle
     /// Gets whether the given left coordinate lies within the bounds of this rect.
     /// @param x The left coordinate to test
     /// @return `true` if the coordinate is contained
-    public boolean containsX(final int x) { return (this.x() <= x && this.getRight() > x); }
+    public boolean containsX(final @NotNull Number x)
+    {
+        final double xv = x.doubleValue();
+        return (this.x() <= xv && this.getRight() > xv);
+    }
     
     /// Gets whether the given y coordinate lies within the bounds of this rect.
     /// @param y The y coordinate to test
     /// @return `true` if the coordinate is contained
-    public boolean containsY(final int y) { return (this.y() <= y && this.getBottom() > y); }
+    public boolean containsY(final @NotNull Number y)
+    {
+        final double yv = y.doubleValue();
+        return (this.y() <= yv && this.getBottom() > yv);
+    }
     
     /// Gets whether this rectangle intersects with the given region.
     /// @param x      The left coordinate of the region
@@ -523,14 +525,16 @@ public class Rectangle
     /// @param width  The width of the region
     /// @param height The height of the region
     /// @return `true` if the given region intersects with this rectangle
-    public boolean intersects(final int x, final int y, final int width, final int height)
+    public boolean intersects(final @NotNull Number x,
+                              final @NotNull Number y,
+                              final @NotNull Number width,
+                              final @NotNull Number height)
     {
-        return (
-            this.x() < (x + width)
-            && x < this.getRight()
-            && this.y() < (y + height)
-            && y < this.getBottom()
-        );
+        final double x1 = x.doubleValue();
+        final double y1 = y.doubleValue();
+        final double x2 = (x1 + width .doubleValue());
+        final double y2 = (y1 + height.doubleValue());
+        return (this.x() < x2 && x1 < this.getRight() && this.y() < y2 && y1 < this.getBottom());
     }
     
     /// Gets whether this rectangle intersects with the given [Rectangle].
@@ -586,15 +590,6 @@ public class Rectangle
     }
     
     /// Converts an absolute point into a point relative to this rectangle's origin.
-    /// @param absoluteX The absolute left coordinate
-    /// @param absoluteY The absolute y coordinate
-    /// @return The relative [Point]
-    public @NotNull Point toRelativePoint(final double absoluteX, final double absoluteY)
-    {
-        return this.getPosition().toRelativePoint(absoluteX, absoluteY);
-    }
-    
-    /// Converts an absolute point into a point relative to this rectangle's origin.
     /// @param absolutePoint The absolute [Point]
     /// @return The relative [Point]
     public @NotNull Point toRelativePoint(final @NotNull Point absolutePoint)
@@ -606,7 +601,7 @@ public class Rectangle
     /// Sets the left position of this rectangle.
     /// @param x The new left position
     /// @return `this`
-    public @NotNull Rectangle setX(final @NotNull Number x)
+    public @NotNull Rectangle setX(final int x)
     {
         this.pos.setX(x);
         return this;
@@ -615,7 +610,7 @@ public class Rectangle
     /// Sets the y position of this rectangle.
     /// @param y The new y position
     /// @return `this`
-    public @NotNull Rectangle setY(final @NotNull Number y)
+    public @NotNull Rectangle setY(final int y)
     {
         this.pos.setY(y);
         return this;
@@ -624,18 +619,18 @@ public class Rectangle
     /// Sets the width of this rectangle.
     /// @param width The new width
     /// @return `this`
-    public @NotNull Rectangle setWidth(final @NotNull Number width)
+    public @NotNull Rectangle setWidth(final int width)
     {
-        this.width = width.intValue();
+        this.width = width;
         return this;
     }
     
     /// Sets the height of this rectangle.
     /// @param height The new height
     /// @return `this`
-    public @NotNull Rectangle setHeight(final @NotNull Number height)
+    public @NotNull Rectangle setHeight(final int height)
     {
-        this.height = height.intValue();
+        this.height = height;
         return this;
     }
     
@@ -643,7 +638,7 @@ public class Rectangle
     /// @param x The new left position
     /// @param y The new y position
     /// @return `this`
-    public @NotNull Rectangle setPosition(final @NotNull Number x, final @NotNull Number y)
+    public @NotNull Rectangle setPosition(final int x, final int y)
     {
         this.pos.setPosition(x, y);
         return this;
@@ -671,10 +666,10 @@ public class Rectangle
     /// @param width  The new width
     /// @param height The new height
     /// @return `this`
-    public @NotNull Rectangle setSize(final @NotNull Number width, final @NotNull Number height)
+    public @NotNull Rectangle setSize(final int width, final int height)
     {
-        this.width  = width.intValue();
-        this.height = height.intValue();
+        this.width  = width;
+        this.height = height;
         return this;
     }
     
@@ -685,7 +680,6 @@ public class Rectangle
     {
         this.width  = rect.width();
         this.height = rect.height();
-        
         return this;
     }
     
@@ -695,8 +689,7 @@ public class Rectangle
     /// @param width  The new width
     /// @param height The new height
     /// @return `this`
-    public @NotNull Rectangle setBounds(final @NotNull Number x, final @NotNull Number y, final @NotNull Number width,
-                                        final @NotNull Number height)
+    public @NotNull Rectangle setBounds(final int x, final int y, final int width, final int height)
     {
         this.setPosition(x, y);
         this.setSize(width, height);
@@ -720,11 +713,9 @@ public class Rectangle
     /// @param x The left coordinate to set the centre of this rectangle to
     /// @param y The y coordinate to set the centre of this rectangle to
     /// @return `this`
-    public @NotNull Rectangle setCentre(final @NotNull Number x, final @NotNull Number y)
+    public @NotNull Rectangle setCentre(final int x, final int y)
     {
-        this.setPosition(
-            Math.round(x.doubleValue() - (this.width  / 2.0)),
-            Math.round(y.doubleValue() - (this.height / 2.0)));
+        this.setPosition(MathHelper.floor(x - (this.width / 2.0)), MathHelper.floor(y - (this.height / 2.0)));
         return this;
     }
     
@@ -735,7 +726,6 @@ public class Rectangle
     {
         Objects.requireNonNull(position, "position must not be null");
         this.setCentre(position.x(), position.y());
-        
         return this;
     }
     
@@ -743,7 +733,7 @@ public class Rectangle
     /// of the rectangle stays the same.
     /// @param left The new left position of this rectangle
     /// @return `this`
-    public @NotNull Rectangle setLeft(final @NotNull Number left)
+    public @NotNull Rectangle setLeft(final int left)
     {
         final int right = this.getRight();
         
@@ -757,7 +747,7 @@ public class Rectangle
     /// of the rectangle stays the same.
     /// @param top The new top position of this rectangle
     /// @return `this`
-    public @NotNull Rectangle setTop(final @NotNull Number top)
+    public @NotNull Rectangle setTop(final int top)
     {
         final int bottom = this.getBottom();
         
@@ -771,9 +761,9 @@ public class Rectangle
     /// of the rectangle stays the same.
     /// @param right The new right position of this rectangle
     /// @return `this`
-    public @NotNull Rectangle setRight(final @NotNull Number right)
+    public @NotNull Rectangle setRight(final int right)
     {
-        this.width = Math.max(0, (right.intValue() - this.x()));
+        this.width = Math.max(0, (right - this.x()));
         return this;
     }
     
@@ -781,9 +771,9 @@ public class Rectangle
     /// of the rectangle stays the same.
     /// @param bottom The new bottom position of this rectangle
     /// @return `this`
-    public @NotNull Rectangle setBottom(final @NotNull Number bottom)
+    public @NotNull Rectangle setBottom(final int bottom)
     {
-        this.height = Math.max(0, (bottom.intValue() - this.y()));
+        this.height = Math.max(0, (bottom - this.y()));
         return this;
     }
     
@@ -850,10 +840,10 @@ public class Rectangle
     /// @param maxWidth  The maximum width this rectangle can have
     /// @param maxHeight The maximum height this rectangle can have
     /// @return `this`
-    public @NotNull Rectangle constrainToMax(final @NotNull Number maxWidth, final @NotNull Number maxHeight)
+    public @NotNull Rectangle constrainToMax(final int maxWidth, final int maxHeight)
     {
-        this.width  = Math.min(this.width,  Math.max(0, maxWidth .intValue()));
-        this.height = Math.min(this.height, Math.max(0, maxHeight.intValue()));
+        this.width  = Math.min(this.width,  Math.max(0, maxWidth));
+        this.height = Math.min(this.height, Math.max(0, maxHeight));
         return this;
     }
     
@@ -863,10 +853,10 @@ public class Rectangle
     /// @param minWidth  The minimum width this rectangle can have
     /// @param minHeight The minimum height this rectangle can have
     /// @return `this`
-    public @NotNull Rectangle constrainToMin(final @NotNull Number minWidth, final @NotNull Number minHeight)
+    public @NotNull Rectangle constrainToMin(final int minWidth, final int minHeight)
     {
-        this.width  = Math.max(this.width,  Math.max(0, minWidth .intValue()));
-        this.height = Math.max(this.height, Math.max(0, minHeight.intValue()));
+        this.width  = Math.max(this.width,  Math.max(0, minWidth));
+        this.height = Math.max(this.height, Math.max(0, minHeight));
         return this;
     }
     
@@ -880,13 +870,13 @@ public class Rectangle
     /// @param maxHeight The maximum height this rectangle can have
     /// @return `this`
     /// @throws IllegalArgumentException If minWidth/minHeight is greater than maxWidth/maxHeight
-    public @NotNull Rectangle constrainToMinMax(final @NotNull Number minWidth,
-                                                final @NotNull Number minHeight,
-                                                final @NotNull Number maxWidth,
-                                                final @NotNull Number maxHeight)
+    public @NotNull Rectangle constrainToMinMax(final int minWidth,
+                                                final int minHeight,
+                                                final int maxWidth,
+                                                final int maxHeight)
     {
-        this.width  = Math.clamp(this.width,  Math.max(0, minWidth .intValue()), Math.max(0, maxWidth .intValue()));
-        this.height = Math.clamp(this.height, Math.max(0, minHeight.intValue()), Math.max(0, maxHeight.intValue()));
+        this.width  = Math.clamp(this.width,  Math.max(0, minWidth),  Math.max(0, maxWidth));
+        this.height = Math.clamp(this.height, Math.max(0, minHeight), Math.max(0, maxHeight));
         return this;
     }
     
@@ -895,7 +885,7 @@ public class Rectangle
     /// @param xOffset The offset on the left-axis
     /// @param yOffset The offset on the y-axis
     /// @return `this`
-    public @NotNull Rectangle translate(final @NotNull Number xOffset, final @NotNull Number yOffset)
+    public @NotNull Rectangle translate(final int xOffset, final int yOffset)
     {
         this.pos.translate(xOffset, yOffset);
         return this;
@@ -904,7 +894,7 @@ public class Rectangle
     /// Translates this rectangle's left-axis by the given offset.
     /// @param offset The offset on the left-axis
     /// @return `this`
-    public @NotNull Rectangle translateX(final @NotNull Number offset)
+    public @NotNull Rectangle translateX(final int offset)
     {
         this.pos.translateX(offset);
         return this;
@@ -913,7 +903,7 @@ public class Rectangle
     /// Translates this rectangle's y-axis by the given offset.
     /// @param offset The offset on the y-axis
     /// @return `this`
-    public @NotNull Rectangle translateY(final @NotNull Number offset)
+    public @NotNull Rectangle translateY(final int offset)
     {
         this.pos.translateY(offset);
         return this;
@@ -926,12 +916,12 @@ public class Rectangle
     /// @param right  The amount to pad on the right side
     /// @param bottom The amount to pad on the bottom side
     /// @return `this`
-    public @NotNull Rectangle pad(final @NotNull Number left, final @NotNull Number top, final @NotNull Number right,
-                                  final @NotNull Number bottom)
+    public @NotNull Rectangle pad(final int left, final int top, final int right, final int bottom)
     {
         this.translate(left, top);
-        this.width  -= Math.min(this.width,  (left.intValue() + right.intValue()));
-        this.height -= Math.min(this.height, (top .intValue() + bottom.intValue()));
+        
+        this.width  -= Math.min(this.width,  (left + right));
+        this.height -= Math.min(this.height, (top  + bottom));
         
         return this;
     }
@@ -942,9 +932,7 @@ public class Rectangle
     /// @param leftAndRight The amount to pad on the left and right side
     /// @param bottom       The amount to pad on the bottom side
     /// @return `this`
-    public @NotNull Rectangle pad(final @NotNull Number top,
-                                  final @NotNull Number leftAndRight,
-                                  final @NotNull Number bottom)
+    public @NotNull Rectangle pad(final int top, final int leftAndRight, final int bottom)
     {
         return this.pad(leftAndRight, top, leftAndRight, bottom);
     }
@@ -954,7 +942,7 @@ public class Rectangle
     /// @param leftAndRight The amount to pad on the left and right side
     /// @param topAndBottom The amount to pad on the top and bottom side
     /// @return `this`
-    public @NotNull Rectangle pad(final @NotNull Number leftAndRight, final @NotNull Number topAndBottom)
+    public @NotNull Rectangle pad(final int leftAndRight, final int topAndBottom)
     {
         return this.pad(leftAndRight, topAndBottom, leftAndRight, topAndBottom);
     }
@@ -963,7 +951,7 @@ public class Rectangle
     /// shrink, and if it is negative, the rectangle will grow on that side.
     /// @param allSides The amount to pad on all sides of this rectangle
     /// @return `this`
-    public @NotNull Rectangle pad(final @NotNull Number allSides)
+    public @NotNull Rectangle pad(final int allSides)
     {
         return this.pad(allSides, allSides, allSides, allSides);
     }
@@ -978,34 +966,34 @@ public class Rectangle
     /// and if it is negative, the rectangle will grow on the left.
     /// @param amount The amount to pad on the left side
     /// @return `this`
-    public @NotNull Rectangle padLeft(final @NotNull Number amount) { return this.pad(amount, 0, 0, 0); }
+    public @NotNull Rectangle padLeft(final int amount) { return this.pad(amount, 0, 0, 0); }
     
     /// Pads this rectangle on the top side by the given amount. If the amount is positive, the rectangle will shrink,
     /// and if it is negative, the rectangle will grow on the top.
     /// @param amount The amount to pad on the top side
     /// @return `this`
-    public @NotNull Rectangle padTop(final @NotNull Number amount) { return this.pad(0, amount, 0, 0); }
+    public @NotNull Rectangle padTop(final int amount) { return this.pad(0, amount, 0, 0); }
     
     /// Pads this rectangle on the right side by the given amount. If the amount is positive, the rectangle will shrink,
     /// and if it is negative, the rectangle will grow on the right.
     /// @param amount The amount to pad on the right side
     /// @return `this`
-    public @NotNull Rectangle padRight(final @NotNull Number amount) { return this.pad(0, 0, amount, 0); }
+    public @NotNull Rectangle padRight(final int amount) { return this.pad(0, 0, amount, 0); }
     
     /// Pads this rectangle on the bottom side by the given amount. If the amount is positive, the rectangle will
     /// shrink, and if it is negative, the rectangle will grow on the bottom.
     /// @param amount The amount to pad on the bottom side
     /// @return `this`
-    public @NotNull Rectangle padBottom(final @NotNull Number amount) { return this.pad(0, 0, 0, amount); }
+    public @NotNull Rectangle padBottom(final int amount) { return this.pad(0, 0, 0, amount); }
     
     //==================================================================================================================
     /// Removes the given amount from the left side of this rectangle and returns a new rectangle with the removed
     /// portion.
     /// @param amount The amount to remove from the left side of this rectangle
     /// @return A new rectangle with the removed portion
-    public @NotNull Rectangle removeLeft(@NotNull Number amount)
+    public @NotNull Rectangle removeLeft(int amount)
     {
-        amount = Math.min(this.width, amount.intValue());
+        amount = Math.min(this.width, amount);
         
         final Rectangle result = (new Rectangle(this)).setWidth(amount);
         this.padLeft(amount);
@@ -1017,9 +1005,9 @@ public class Rectangle
     /// portion.
     /// @param amount The amount to remove from the top side of this rectangle
     /// @return A new rectangle with the removed portion
-    public @NotNull Rectangle removeTop(@NotNull Number amount)
+    public @NotNull Rectangle removeTop(int amount)
     {
-        amount = Math.min(this.height, amount.intValue());
+        amount = Math.min(this.height, amount);
         
         final Rectangle result = (new Rectangle(this)).setHeight(amount);
         this.padTop(amount);
@@ -1031,9 +1019,9 @@ public class Rectangle
     /// portion.
     /// @param amount The amount to remove from the right side of this rectangle
     /// @return A new rectangle with the removed portion
-    public @NotNull Rectangle removeRight(@NotNull Number amount)
+    public @NotNull Rectangle removeRight(int amount)
     {
-        amount = Math.min(this.width, amount.intValue());
+        amount = Math.min(this.width, amount);
         
         final Rectangle result = (new Rectangle(this)).setWidth(amount);
         this.padRight(amount);
@@ -1045,9 +1033,9 @@ public class Rectangle
     /// portion.
     /// @param amount The amount to remove from the bottom side of this rectangle
     /// @return A new rectangle with the removed portion
-    public @NotNull Rectangle removeBottom(@NotNull Number amount)
+    public @NotNull Rectangle removeBottom(int amount)
     {
-        amount = Math.min(this.height, amount.intValue());
+        amount = Math.min(this.height, amount);
         
         final Rectangle result = (new Rectangle(this)).setHeight(amount);
         this.padBottom(amount);
@@ -1062,13 +1050,12 @@ public class Rectangle
     /// @param width  The other rectangle's width
     /// @param height The other rectangle's height
     /// @return `this`
-    public @NotNull Rectangle combine(final @NotNull Number x, final @NotNull Number y, final @NotNull Number width,
-                                      final @NotNull Number height)
+    public @NotNull Rectangle combine(final int x, final int y, final int width, final int height)
     {
-        final int min_x = Math.min(this.x(), x.intValue());
-        final int min_y = Math.min(this.y(), y.intValue());
-        final int max_x = Math.max(this.getRight(),  (x.intValue() + width .intValue()));
-        final int max_y = Math.max(this.getBottom(), (y.intValue() + height.intValue()));
+        final int min_x = Math.min(this.x(), x);
+        final int min_y = Math.min(this.y(), y);
+        final int max_x = Math.max(this.getRight(),  (x + width));
+        final int max_y = Math.max(this.getBottom(), (y + height));
 
         return this.setBounds(min_x, min_y, (max_x - min_x), (max_y - min_y));
     }
@@ -1085,14 +1072,13 @@ public class Rectangle
     /// @param width  The width of the area to intersect
     /// @param height The height coordinate of the area to intersect
     /// @return `this`
-    public @NotNull Rectangle intersect(final @NotNull Number x, final @NotNull Number y, final @NotNull Number width,
-                                        final @NotNull Number height)
+    public @NotNull Rectangle intersect(final int x, final int y, final int width, final int height)
     {
-        final int new_x = Math.max(this.x(), x.intValue());
-        final int new_y = Math.max(this.y(), y.intValue());
+        final int new_x = Math.max(this.x(), x);
+        final int new_y = Math.max(this.y(), y);
         
-        this.width  = Math.max(0, (Math.min(this.getRight(),  (x.intValue() + width .intValue())) - new_x));
-        this.height = Math.max(0, (Math.min(this.getBottom(), (y.intValue() + height.intValue())) - new_y));
+        this.width  = Math.max(0, (Math.min(this.getRight(),  (x + width))  - new_x));
+        this.height = Math.max(0, (Math.min(this.getBottom(), (y + height)) - new_y));
         this.setPosition(new_x, new_y);
         
         return this;
@@ -1134,10 +1120,10 @@ public class Rectangle
     /// @param containerHeight The height of the area that the target area should be aligned to
     /// @return `this`
     public @NotNull Rectangle align(final @NotNull Alignment alignment,
-                                    final @NotNull Number    containerX,
-                                    final @NotNull Number    containerY,
-                                    final @NotNull Number    containerWidth,
-                                    final @NotNull Number    containerHeight)
+                                    final          int       containerX,
+                                    final          int       containerY,
+                                    final          int       containerWidth,
+                                    final          int       containerHeight)
     {
         Objects.requireNonNull(alignment, "alignment must not be null");
         this.setBounds(alignment.align(containerX, containerY, containerWidth, containerHeight, this));
@@ -1159,10 +1145,10 @@ public class Rectangle
     /// @param containerWidth  The width of the area that the target area should be aligned to
     /// @param containerHeight The height of the area that the target area should be aligned to
     /// @return `this`
-    public @NotNull Rectangle centre(final @NotNull Number containerX,
-                                     final @NotNull Number containerY,
-                                     final @NotNull Number containerWidth,
-                                     final @NotNull Number containerHeight)
+    public @NotNull Rectangle centre(final int containerX,
+                                     final int containerY,
+                                     final int containerWidth,
+                                     final int containerHeight)
     {
         this.align(Alignment.MIDDLE_CENTRE, containerX, containerY, containerWidth, containerHeight);
         return this;
@@ -1172,7 +1158,7 @@ public class Rectangle
     /// Returns a new rectangle with the given left coordinate.
     /// @param x The new left coordinate
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withX(final @NotNull Number x)
+    public @NotNull Rectangle withX(final int x)
     {
         return new Rectangle(x, this.y(), this.width, this.height);
     }
@@ -1180,7 +1166,7 @@ public class Rectangle
     /// Returns a new rectangle with the given y coordinate.
     /// @param y The new y coordinate
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withY(final @NotNull Number y)
+    public @NotNull Rectangle withY(final int y)
     {
         return new Rectangle(this.x(), y, this.width, this.height);
     }
@@ -1188,7 +1174,7 @@ public class Rectangle
     /// Returns a new rectangle with the given width.
     /// @param width The new width
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withWidth(final @NotNull Number width)
+    public @NotNull Rectangle withWidth(final int width)
     {
         return new Rectangle(this.x(), this.y(), width, this.height);
     }
@@ -1196,7 +1182,7 @@ public class Rectangle
     /// Returns a new rectangle with the given height.
     /// @param height The new height
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withHeight(final @NotNull Number height)
+    public @NotNull Rectangle withHeight(final int height)
     {
         return new Rectangle(this.x(), this.y(), this.width, height);
     }
@@ -1205,43 +1191,43 @@ public class Rectangle
     /// right side stays the same.
     /// @param left The new left position of the rectangle
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withLeft(final @NotNull Number left)
+    public @NotNull Rectangle withLeft(final int left)
     {
-        return new Rectangle(left, this.y(), (this.width + (this.x() - left.intValue())), this.height);
+        return new Rectangle(left, this.y(), (this.width + (this.x() - left)), this.height);
     }
     
     /// Returns a new rectangle with the given position on the top side of the rectangle and adjusted height so the
     /// bottom side stays the same.
     /// @param top The new top position of the rectangle
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withTop(final @NotNull Number top)
+    public @NotNull Rectangle withTop(final int top)
     {
-        return new Rectangle(this.x(), top, this.width, (this.height + (this.y() - top.intValue())));
+        return new Rectangle(this.x(), top, this.width, (this.height + (this.y() - top)));
     }
     
     /// Returns a new rectangle with the given position on the right side of the rectangle and adjusted width so the
     /// right side stays the same.
     /// @param right The new right position of the rectangle
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withRight(final @NotNull Number right)
+    public @NotNull Rectangle withRight(final int right)
     {
-        return new Rectangle(this.x(), this.y(), (this.width - (this.getRight() - right.intValue())), this.height);
+        return new Rectangle(this.x(), this.y(), (this.width - (this.getRight() - right)), this.height);
     }
     
     /// Returns a new rectangle with the given position on the bottom side of the rectangle and adjusted height so the
     /// bottom side stays the same.
     /// @param bottom The new bottom position of the rectangle
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withBottom(final @NotNull Number bottom)
+    public @NotNull Rectangle withBottom(final int bottom)
     {
-        return new Rectangle(this.x(), this.y(), this.width, (this.height - (this.getBottom() - bottom.intValue())));
+        return new Rectangle(this.x(), this.y(), this.width, (this.height - (this.getBottom() - bottom)));
     }
     
     /// Returns a new rectangle with the new position.
     /// @param x The new left position
     /// @param y The new y position
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withPosition(final @NotNull Number x, final @NotNull Number y)
+    public @NotNull Rectangle withPosition(final int x, final int y)
     {
         return new Rectangle(x, y, this.width, this.height);
     }
@@ -1259,7 +1245,7 @@ public class Rectangle
     /// @param width  The new width
     /// @param height The new height
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withSize(final @NotNull Number width, final @NotNull Number height)
+    public @NotNull Rectangle withSize(final int width, final int height)
     {
         return new Rectangle(this.x(), this.y(), width, height);
     }
@@ -1269,7 +1255,7 @@ public class Rectangle
     /// @param minWidth  The minimum width of the new rectangle
     /// @param minHeight The minimum height of the new rectangle
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withMinimumSize(final @NotNull Number minWidth, final @NotNull Number minHeight)
+    public @NotNull Rectangle withMinimumSize(final int minWidth, final int minHeight)
     {
         return new Rectangle(this).constrainToMin(minWidth, minHeight);
     }
@@ -1292,10 +1278,10 @@ public class Rectangle
     /// @param maxHeight The maximum height of the new rectangle
     /// @return The new [Rectangle]
     /// @throws IllegalArgumentException If minWidth/minHeight is greater than maxWidth/maxHeight
-    public @NotNull Rectangle withMinMaxSize(final @NotNull Number minWidth,
-                                             final @NotNull Number minHeight,
-                                             final @NotNull Number maxWidth,
-                                             final @NotNull Number maxHeight)
+    public @NotNull Rectangle withMinMaxSize(final int minWidth,
+                                             final int minHeight,
+                                             final int maxWidth,
+                                             final int maxHeight)
     {
         return new Rectangle(this).constrainToMinMax(minWidth, minHeight, maxWidth, maxHeight);
     }
@@ -1303,13 +1289,13 @@ public class Rectangle
     /// Returns a new [Rectangle] with the given padding applied.
     /// @param padding The padding to apply
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withPadding(final @NotNull Number padding) { return new Rectangle(this).pad(padding); }
+    public @NotNull Rectangle withPadding(final int padding) { return new Rectangle(this).pad(padding); }
     
     /// Returns a new [Rectangle] with the given padding applied.
     /// @param leftAndRight The padding to apply on the left and right side
     /// @param topAndBottom The padding to apply on the top and bottom side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withPadding(final @NotNull Number leftAndRight, final @NotNull Number topAndBottom)
+    public @NotNull Rectangle withPadding(final int leftAndRight, final int topAndBottom)
     {
         return new Rectangle(this).pad(leftAndRight, topAndBottom);
     }
@@ -1320,8 +1306,7 @@ public class Rectangle
     /// @param right  The padding to apply on the right side
     /// @param bottom The padding to apply on the bottom side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withPadding(final @NotNull Number left, final @NotNull Number top,
-                                          final @NotNull Number right, final @NotNull Number bottom)
+    public @NotNull Rectangle withPadding(final int left, final int top, final int right, final int bottom)
     {
         return new Rectangle(this).pad(left, top, right, bottom);
     }
@@ -1334,58 +1319,46 @@ public class Rectangle
     /// Returns a new [Rectangle] with the given padding applied.
     /// @param amount The amount to pad on the left side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withLeftPadding(final @NotNull Number amount)
-    {
-        return new Rectangle(this).padLeft(amount);
-    }
+    public @NotNull Rectangle withLeftPadding(final int amount) { return new Rectangle(this).padLeft(amount); }
     
     /// Returns a new [Rectangle] with the given padding applied.
     /// @param amount The amount to pad on the top side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withTopPadding(final @NotNull Number amount)
-    {
-        return new Rectangle(this).padTop(amount);
-    }
+    public @NotNull Rectangle withTopPadding(final int amount) { return new Rectangle(this).padTop(amount); }
     
     /// Returns a new [Rectangle] with the given padding applied.
     /// @param amount The amount to pad on the right side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withRightPadding(final @NotNull Number amount)
-    {
-        return new Rectangle(this).padRight(amount);
-    }
+    public @NotNull Rectangle withRightPadding(final int amount) { return new Rectangle(this).padRight(amount); }
     
     /// Returns a new [Rectangle] with the given padding applied.
     /// @param amount The amount to pad on the bottom side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withBottomPadding(final @NotNull Number amount)
-    {
-        return new Rectangle(this).padBottom(amount);
-    }
+    public @NotNull Rectangle withBottomPadding(final int amount) { return new Rectangle(this).padBottom(amount); }
     
     /// Returns a new [Rectangle] with the given translation applied.
     /// @param offsetX The left translation to apply
     /// @param offsetY The y translation to apply
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withTranslation(final @NotNull Number offsetX, final @NotNull Number offsetY)
+    public @NotNull Rectangle withTranslation(final int offsetX, final int offsetY)
     {
-        return new Rectangle((this.x() + offsetX.intValue()), (this.y() + offsetY.intValue()), this.width, this.height);
+        return new Rectangle((this.x() + offsetX), (this.y() + offsetY), this.width, this.height);
     }
     
     /// Returns this rectangle as a new rectangle with the translation applied to the left-axis of the new rectangle.
     /// @param offset The left translation to apply
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withTranslationX(final @NotNull Number offset)
+    public @NotNull Rectangle withTranslationX(final int offset)
     {
-        return new Rectangle((this.x() + offset.intValue()), this.y(), this.width, this.height);
+        return new Rectangle((this.x() + offset), this.y(), this.width, this.height);
     }
     
     /// Returns this rectangle as a new rectangle with the translation applied to the y-axis of the new rectangle.
     /// @param offset The y translation to apply
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withTranslationY(final @NotNull Number offset)
+    public @NotNull Rectangle withTranslationY(final int offset)
     {
-        return new Rectangle(this.x(), (this.y() + offset.intValue()), this.width, this.height);
+        return new Rectangle(this.x(), (this.y() + offset), this.width, this.height);
     }
     
     /// Returns this rectangle as a new rectangle with the given alignment applied inside the given parent container
@@ -1414,31 +1387,22 @@ public class Rectangle
     /// Returns this rectangle as a new rectangle with only the portion that was cut from the left side.
     /// @param amount The amount to cut on the left side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withLeftCut(final @NotNull Number amount)
-    {
-        return new Rectangle(this).removeLeft(amount);
-    }
+    public @NotNull Rectangle withLeftCut(final int amount) { return new Rectangle(this).removeLeft(amount); }
     
     /// Returns this rectangle as a new rectangle with only the portion that was cut from the right side.
     /// @param amount The amount to cut on the right side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withRightCut(final @NotNull Number amount)
-    {
-        return new Rectangle(this).removeRight(amount);
-    }
+    public @NotNull Rectangle withRightCut(final int amount) { return new Rectangle(this).removeRight(amount); }
     
     /// Returns this rectangle as a new rectangle with only the portion that was cut from the top side.
     /// @param amount The amount to cut on the top side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withTopCut(final @NotNull Number amount) { return new Rectangle(this).removeTop(amount); }
+    public @NotNull Rectangle withTopCut(final int amount) { return new Rectangle(this).removeTop(amount); }
     
     /// Returns this rectangle as a new rectangle with only the portion that was cut from the bottom side.
     /// @param amount The amount to cut on the bottom side
     /// @return The new [Rectangle]
-    public @NotNull Rectangle withBottomCut(final @NotNull Number amount)
-    {
-        return new Rectangle(this).removeBottom(amount);
-    }
+    public @NotNull Rectangle withBottomCut(final int amount) { return new Rectangle(this).removeBottom(amount); }
     
     /// Returns this rectangle positioned so that the right side of the new rectangle is aligned to the left side of
     /// the neighbouring rectangle.

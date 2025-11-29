@@ -47,19 +47,18 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 
+
 //**********************************************************************************************************************
-/** This class describes a map of {@link Colour} objects mapped to a reserved {@link ColourId}. */
+/// This class describes a map of [Colour] objects mapped to a reserved [ColourId].
 public class Palette
 {
     //******************************************************************************************************************
     private final Int2ObjectMap<Colour> colours;
     
     //******************************************************************************************************************
-    /**
-     * Constructs a new colour map object from the given colours and with an optional default colour.
-     * @param colourMap     The colours to initialise the colour map with
-     * @param defaultColour The default value to be returned when no colour for a given ID has been found
-     */
+    /// Constructs a new colour map object from the given colours and with an optional default colour.
+    /// @param colourMap     The colours to initialise the colour map with
+    /// @param defaultColour The default value to be returned when no colour for a given ID has been found
     public Palette(final @NotNull Map<ColourId, Colour> colourMap, final @Nullable Colour defaultColour)
     {
         this.colours = new Int2ObjectArrayMap<>(colourMap
@@ -69,67 +68,54 @@ public class Palette
         this.colours.defaultReturnValue(defaultColour);
     }
     
-    /**
-     * Constructs a new colour map object with the optional default colour.
-     * @param defaultColour The default value to be returned when no colour for a given ID has been found
-     */
-    public Palette(final @Nullable Colour defaultColour)
-    {
-        this(Map.of(), defaultColour);
-    }
+    /// Constructs a new colour map object with the optional default colour.
+    /// @param defaultColour The default value to be returned when no colour for a given ID has been found
+    public Palette(final @Nullable Colour defaultColour) { this(Map.of(), defaultColour); }
 
     /** Constructs a new empty palette. */
     public Palette() { this(Map.of(), null); }
     
     //==================================================================================================================
-    /**
-     * Gets the colour for the given ID.
-     * @param id The {@link ColourId}
-     * @return The {@link Colour}, or if not found an empty {@link Optional} or the default colour if one was set
-     */
+    /// Gets the colour for the given ID.
+    /// @param id The [ColourId]
+    /// @return The [Colour], or if not found an empty [Optional] or the default colour if one was set
     public final @NotNull Optional<Colour> getColour(final @NotNull ColourId id)
     {
         return Optional.ofNullable(this.colours.get(id.id));
     }
     
-    /**
-     * Gets the colour integer value for the given ID.
-     * @param id The {@link ColourId}
-     * @return The colour integer value, or if not found an empty {@link Optional} or the default colour if one was set
-     */
+    /// Gets the colour integer value for the given ID.
+    /// @param id The [ColourId]
+    /// @return The colour integer value, or if not found an empty [Optional] or the default colour if one was set
     public final @NotNull Optional<Integer> getColourValue(final @NotNull ColourId id)
     {
         return this.getColour(id).map(Colour::colour);
     }
     
-    /** {@return the number of colours in the map} */
+    /// {@return the number of colours in the map}
     public final int getColourCount() { return this.colours.size(); }
     
     //==================================================================================================================
-    /**
-     * Gets whether there is any colour in the map.
-     * @return {@code true} if there is at least one colour currently set
-     */
+    /// Gets whether there is any colour in the map.
+    /// @return `true` if there is at least one colour currently set
     public final boolean hasColours() { return !this.colours.isEmpty(); }
     
     //==================================================================================================================
-    /** {@return the ID and colour entry set} */
+    /// {@return the ID and colour entry set}
     public final @NotNull Set<Int2ObjectMap.Entry<Colour>> entrySet() { return this.colours.int2ObjectEntrySet(); }
 
-    /** {@return the ID set} */
+    /// {@return the ID set}
     public final @NotNull IntSet idSet() { return this.colours.keySet(); }
 
-    /** {@return the colour list} */
+    /// {@return the colour list}
     public final @NotNull Collection<Colour> colours() { return this.colours.values(); }
     
     //==================================================================================================================
-    /**
-     * Sets the colour for the given ID, or removes the colour if {@code null} is given.
-     * @param id     The ID of the colour to set or unset
-     * @param colour The colour to set or {@code null} to unset the colour
-     * @return The previous colour associated with the ID, or null (or the default) if there was no colour set for that
-     *         ID
-     */
+    /// Sets the colour for the given ID, or removes the colour if `null` is given.
+    /// @param id     The ID of the colour to set or unset
+    /// @param colour The colour to set or `null` to unset the colour
+    /// @return The previous colour associated with the ID, or null (or the default) if there was no colour set for that
+    ///         ID
     public final @Nullable Colour setColour(final @NotNull ColourId id, final @Nullable Colour colour)
     {
         if (colour == null)
@@ -142,32 +128,26 @@ public class Palette
         }
     }
 
-    /**
-     * Sets the colour for the given ID if not already set for this palette.
-     * @param id     The ID of the colour to set or unset
-     * @param colour The colour to set or {@code null} to unset the colour
-     * @return The previous colour associated with the ID, or null (or the default) if there was no colour set for that
-     *         ID
-     */
+    /// Sets the colour for the given ID if not already set for this palette.
+    /// @param id     The ID of the colour to set or unset
+    /// @param colour The colour to set or `null` to unset the colour
+    /// @return The previous colour associated with the ID, or null (or the default) if there was no colour set for that
+    ///         ID
     public final @Nullable Colour setColourIfAbsent(final @NotNull ColourId id, final @Nullable Colour colour)
     {
         return this.colours.putIfAbsent(id.id, colour);
     }
     
-    /**
-     * Sets the same colour for a range of colour IDs.
-     * @param ids    The range of colour IDs
-     * @param colour The colour to set each one to
-     */
+    /// Sets the same colour for a range of colour IDs.
+    /// @param ids    The range of colour IDs
+    /// @param colour The colour to set each one to
     public final void setColours(final @NotNull Collection<ColourId> ids, final @Nullable Colour colour)
     {
         ids.forEach(id -> this.setColour(id, colour));
     }
     
-    /**
-     * Sets all the given colour IDs in the palette to the given colour values.
-     * @param colours The colours to initialise
-     */
+    /// Sets all the given colour IDs in the palette to the given colour values.
+    /// @param colours The colours to initialise
     public final void setAllColours(final @NotNull Map<ColourId, Colour> colours)
     {
         this.colours.putAll(colours
@@ -177,6 +157,6 @@ public class Palette
     }
     
     //==================================================================================================================
-    /** Clears the entire map. */
+    /// Clears the entire map.
     public final void clear() { this.colours.clear(); }
 }

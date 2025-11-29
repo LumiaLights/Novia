@@ -46,32 +46,25 @@ import xyz.lumialights.novia.api.gui.event.GuiEvent;
 
 
 //**********************************************************************************************************************
-/**
- * A base class used for {@link GuiComponent} objects to handle state in an API stable way. All implementations
- * provide listeners that track changes and the {@link IValueConvertible} for interoperability with {@link Value}
- * objects.
- */
+/// A base class used for [GuiComponent] objects to handle state in an API stable way. All implementations
+/// provide listeners that track changes and the [IValueConvertible] for interoperability with [Value]
+/// objects.
 public interface IStatefulComponent
     extends IValueConvertible
 {
     //******************************************************************************************************************
-    /**
-     * Gets the event used to notify when state changes occurred.
-     * @return The change {@link GuiEvent}
-     */
+    /// Gets the event used to notify when state changes occurred.
+    /// @return The change [GuiEvent]
     @NotNull GuiEvent.Simple getChangeEvent();
     
     //==================================================================================================================
-    /**
-     * Disables change notifications for the component.
-     * <p>
-     * When muting a component, the caller of this method has to make sure to always unmute this component after
-     * the necessary changes have been made; otherwise the component is at risk of never notifying its subscribers
-     * anymore.
-     */
+    /// Disables change notifications for the component.
+    ///
+    /// When muting a component, the caller of this method has to make sure to always unmute this component after the
+    /// necessary changes have been made; otherwise the component is at risk of never notifying its subscribers anymore.
     void mute();
     
-    /** Re-enables change notifications for the component. */
+    /// Re-enables change notifications for the component.
     void unmute();
     
     //==================================================================================================================
